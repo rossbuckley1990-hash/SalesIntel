@@ -2,7 +2,7 @@
 
 ## Baseline, 24 October 2026
 
-Inspected the supplied Next.js 16 / React 19 frontend, FastAPI / SQLAlchemy backend and selected source files in Breakout.zip. The archive is unchanged. Source-only extraction is in a temporary directory; node_modules, Git, browser profiles, generated output and macOS metadata are excluded. Existing environment files and misi.db are not read or modified. The demonstration uses a separate database and disables external model calls.
+Inspected the supplied Next.js 16 / React 19 frontend, FastAPI / SQLAlchemy backend and selected source files in Breakout.zip. The archive is unchanged. Source-only extraction is in a temporary directory; node_modules, Git, browser profiles, generated output and macOS metadata are excluded. Existing environment-file contents are not inspected or printed; the original misi.db is not queried or modified. The demonstration uses a separate database and disables external model calls.
 
 Executed baseline: 73 backend tests passed; 19 frontend tests passed; TypeScript check and Next.js production build passed. Backend emits an existing Starlette/httpx deprecation warning. System Git is blocked by the Xcode licence; the installed Codex Git executable works. The existing repository has no tracked source files.
 

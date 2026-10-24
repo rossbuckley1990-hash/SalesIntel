@@ -1,3 +1,7 @@
+# Living Intelligence workspace
+
+Start the new synthetic workspace with `pnpm dev:living`. See [startup, demonstrations and deployment boundaries](docs/living/README.md). The original workspace remains at `/classic`.
+
 # MiSi - Mitie Sales Intelligence
 
 MiSi is a secure sales intelligence command centre for Mitie Fire & Security. It is designed to combine internal pipeline data, self-delivery data, public tender signals, buyer intelligence, competitor intelligence, OpenAI-powered opportunity analysis, finance forecasting, and executive reporting.

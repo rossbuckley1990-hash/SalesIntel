@@ -1,0 +1,51 @@
+{
+  "backend": {
+    "passed": 107,
+    "log": ".runtime/backend-tests.log"
+  },
+  "frontend_unit": {
+    "passed": 27,
+    "log": ".runtime/frontend-tests.log"
+  },
+  "playwright": {
+    "passed": 12,
+    "log": ".runtime/e2e.log"
+  },
+  "production_build": {
+    "passed": true,
+    "http_status": 200,
+    "browser_errors": [],
+    "mobile_overflow": false,
+    "duplicate_frames": 0,
+    "observed_fps": 35.628,
+    "quality": 0.85
+  },
+  "export_recalculation": {
+    "engine": "LibreOfficeDev 26.8 Calc",
+    "scenario_expected": [
+      248000,
+      314000,
+      136800,
+      165600,
+      28800
+    ],
+    "scenario_actual": [
+      248000,
+      314000,
+      136800,
+      165600,
+      28800
+    ],
+    "formula_errors": [],
+    "reconciliation_differences": {
+      "Revenue reconciliation": 0,
+      "Margin reconciliation": -0.0100000000093132
+    }
+  },
+  "security_pattern_scan": {
+    "source_files_checked": 63,
+    "credential_pattern_file_matches": [],
+    "environment_files_read": false,
+    "original_database_read": false
+  }
+}

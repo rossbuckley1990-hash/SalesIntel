@@ -1,6 +1,5 @@
-import { DashboardShell } from "@/components/dashboard-shell";
+import { LivingWorkspace } from "@/features/workspace/shell";
 
 export default function Home() {
-  return <DashboardShell />;
+  return <LivingWorkspace />;
 }
-

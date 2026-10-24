@@ -1,0 +1,11 @@
+{
+  "name": "misi",
+  "private": true,
+  "packageManager": "pnpm@10.30.2",
+  "scripts": {
+    "dev:frontend": "pnpm --dir frontend dev",
+    "test:frontend": "pnpm --dir frontend test",
+    "typecheck:frontend": "pnpm --dir frontend typecheck",
+    "build:frontend": "pnpm --dir frontend build"
+  }
+}

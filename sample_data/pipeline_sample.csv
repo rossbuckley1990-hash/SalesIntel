@@ -1,0 +1,6 @@
+account,sector,opportunity,stage,estimated_value,probability,close_quarter,risk_level,next_action
+Example Borough Council,Local Government,Fire alarm maintenance renewal,Qualified,420000,0.62,2026-Q3,Medium,Confirm incumbent contract end date
+Northgate Facilities Group,Commercial Property,Multi-site compliance inspection,Discovery,180000,0.38,2026-Q4,Low,Schedule technical discovery session
+Harbour NHS Trust,Healthcare,Passive fire protection framework,Proposal,760000,0.55,2026-Q3,High,Validate mobilisation capacity and price sensitivity
+Metro Logistics Estate,Industrial,Security monitoring upgrade,Negotiation,290000,0.71,2026-Q2,Medium,Prepare executive approval pack
+

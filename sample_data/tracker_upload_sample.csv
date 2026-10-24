@@ -1,0 +1,4 @@
+Opportunity Name,Client,Sector,Region,Status,Owner,Estimated Revenue,Estimated Margin,Margin %,Probability,Deadline,Forecast Start Month,Discipline,Comments,Source
+Retail fire alarm lifecycle refresh,Example Retail Estates,Retail,North West,Pre-tender,Amira Shah,1250000,275000,22%,64%,15/08/2026,Sep 2026,Fire Alarms,Confirm asset list and mobilisation plan.,tracker_upload
+NHS fire damper remedial package,Example NHS Trust,Healthcare,South East,ITT live,James O'Neill,680000,,28,0.52,2026-07-22,2026-10,Fire Dampers,Validate access constraints.,crm_export
+Warehouse CCTV upgrade,Example Logistics Parks,Logistics,Yorkshire,Pricing,Oliver Hughes,420000,84000,,55%,31-07-2026,2026-09,CCTV,,manual_tracker

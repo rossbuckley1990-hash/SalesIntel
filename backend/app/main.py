@@ -16,6 +16,7 @@ from app.routers.reports import router as reports_router
 from app.routers.sources import router as sources_router
 from app.routers.upload import router as upload_router
 from app.routers.version import router as version_router
+from app.routers.living import router as living_router
 
 
 def create_app() -> FastAPI:
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
     application.include_router(intelligence_router)
     application.include_router(upload_router)
     application.include_router(sources_router)
+    application.include_router(living_router)
     return application
 
 

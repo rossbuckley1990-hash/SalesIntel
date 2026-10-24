@@ -25,6 +25,16 @@ def test_models_create_against_sqlite() -> None:
         "opportunity_enrichments",
         "opportunities",
         "source_runs",
+        "living_assets",
+        "living_action_details",
+        "living_audit_events",
+        "living_decisions",
+        "living_evidence_reviews",
+        "living_import_previews",
+        "living_outcomes",
+        "living_requirements",
+        "living_scenarios",
+        "living_snapshots",
     }
 
 

@@ -21,3 +21,5 @@ __all__ = [
     "Opportunity",
     "SourceRun",
 ]
+
+from app.models.living import Asset, AuditEvent, Decision, EvidenceReview, ImportPreview, Outcome, Requirement, Scenario, Snapshot

@@ -23,6 +23,7 @@ const FieldCanvas = dynamic(
 
 export function IntelligenceField(props: SharedProps) {
   const [id, setId] = useState<number | null>(props.selectedId);
+  useEffect(() => setId(props.selectedId), [props.selectedId]);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -74,7 +75,10 @@ export function IntelligenceField(props: SharedProps) {
   function pick(nodeId: string) {
     setSelected(nodeId);
     const node = graph.nodes.find((v) => v.id === nodeId);
-    if (!id && node?.kind === "opportunity") setId(node.recordId);
+    if (!id && node?.kind === "opportunity") {
+      setId(node.recordId);
+      props.selectOpportunity(node.recordId);
+    }
   }
   function act(value: FieldCommand["mode"]) {
     setCommand({ mode: value, key: Date.now() });
@@ -134,6 +138,9 @@ export function IntelligenceField(props: SharedProps) {
             onChange={(e) => {
               setDetail(null);
               setId(e.target.value ? Number(e.target.value) : null);
+              props.selectOpportunity(
+                e.target.value ? Number(e.target.value) : null,
+              );
             }}
           >
             <option value="">Whole opportunity field</option>

@@ -6,6 +6,8 @@
     "dev:frontend": "pnpm --dir frontend dev",
     "test:frontend": "pnpm --dir frontend test",
     "typecheck:frontend": "pnpm --dir frontend typecheck",
-    "build:frontend": "pnpm --dir frontend build"
+    "build:frontend": "pnpm --dir frontend build",
+    "dev:living": "bash scripts/living-dev.sh",
+    "test:e2e": "pnpm --dir frontend test:e2e"
   }
 }

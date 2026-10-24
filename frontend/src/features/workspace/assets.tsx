@@ -170,6 +170,7 @@ export function AssetStudio(props: SharedProps) {
               value={id}
               onChange={(e) => {
                 setId(Number(e.target.value));
+                props.selectOpportunity(Number(e.target.value));
                 setScenarioId("");
               }}
             >

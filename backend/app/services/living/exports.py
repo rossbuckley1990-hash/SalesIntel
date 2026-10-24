@@ -60,16 +60,23 @@ def export_docx(asset: Asset) -> bytes:
             repeat = OxmlElement("w:tblHeader")
             table.rows[0]._tr.get_or_add_trPr().append(repeat)
             for row in section["rows"]:
-                cells = table.add_row().cells
+                added = table.add_row()
+                if max((len(str(v)) for v in row), default=0) < 1000:
+                    added._tr.get_or_add_trPr().append(OxmlElement("w:cantSplit"))
+                cells = added.cells
                 for i, value in enumerate(row):
                     cells[i].text = str(value)
             doc.add_paragraph()
     doc.add_heading("Source register", level=1)
     for source in asset.content["sources"]:
-        doc.add_paragraph(
+        entry = doc.add_paragraph(
             f"{source['reference']} · {source['title']} · {source['type']} · {source['timestamp']}"
             + (" · " + "; ".join(source.get("urls", [])) if source.get("urls") else "")
         )
+        # Keep the source register compact enough to avoid orphaned single-source pages.
+        entry.paragraph_format.space_after = Pt(2)
+        for run in entry.runs:
+            run.font.size = Pt(9)
     doc.core_properties.title = asset.title
     doc.core_properties.author = "MiSi"
     stream = BytesIO()
@@ -138,7 +145,14 @@ def export_pdf(asset: Asset) -> bytes:
             widths = [176 * mm / n] * n
             if n == 5:
                 widths = [34 * mm, 55 * mm, 30 * mm, 29 * mm, 28 * mm]
-            table = Table(rows, colWidths=widths, repeatRows=1, hAlign="LEFT")
+            table = Table(
+                rows,
+                colWidths=widths,
+                repeatRows=1,
+                hAlign="LEFT",
+                splitByRow=1,
+                splitInRow=1,
+            )
             table.setStyle(
                 TableStyle(
                     [

@@ -60,7 +60,7 @@ export function commercialGraph(
     kind: "opportunity",
     title: o.buyer_name,
     subtitle: o.stage,
-    value: money(o.financials[metric], true),
+    value: money(o.financials[metric]),
     numericValue: o.financials[metric],
     risk: o.risk_rating,
     confidence: null,
@@ -107,7 +107,7 @@ export function commercialGraph(
           e.field_value == null
             ? "Evidence missing"
             : financial
-              ? money(Number(e.field_value), true)
+              ? money(Number(e.field_value))
               : e.field_name === "probability"
                 ? `${Number(e.field_value) * 100}%`
                 : String(e.field_value),

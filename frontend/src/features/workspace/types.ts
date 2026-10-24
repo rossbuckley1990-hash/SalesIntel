@@ -235,4 +235,5 @@ export type SharedProps = {
   refresh: () => Promise<void>;
   notify: Notice;
   selectedId: number | null;
+  selectOpportunity: (id: number | null) => void;
 };

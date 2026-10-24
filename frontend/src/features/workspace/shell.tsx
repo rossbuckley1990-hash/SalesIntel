@@ -175,6 +175,13 @@ export function LivingWorkspace() {
         refresh,
         notify,
         selectedId,
+        selectOpportunity: (id: number | null) => {
+          setSelectedId(id);
+          const url = new URL(window.location.href);
+          if (id) url.searchParams.set("opportunity", String(id));
+          else url.searchParams.delete("opportunity");
+          window.history.replaceState({}, "", url);
+        },
       }
     : null;
   const content = () => {
@@ -183,7 +190,7 @@ export function LivingWorkspace() {
       case "today":
         return <Today {...shared} />;
       case "field":
-        return <IntelligenceField key={selectedId || "all"} {...shared} />;
+        return <IntelligenceField {...shared} />;
       case "discover":
         return <Discover key={query} {...shared} initialQuery={query} />;
       case "opportunities":
@@ -193,9 +200,11 @@ export function LivingWorkspace() {
       case "accounts":
         return <Accounts {...shared} />;
       case "selfDelivery":
-        return <Finance {...shared} selfDelivery />;
+        return (
+          <Finance key={`delivery-${selectedId}`} {...shared} selfDelivery />
+        );
       case "finance":
-        return <Finance {...shared} />;
+        return <Finance key={`finance-${selectedId}`} {...shared} />;
       case "actions":
         return <Actions {...shared} />;
       case "assets":

@@ -681,3 +681,26 @@ def test_xlsx_preview_and_annual_margin_basis(client):
     assert row["financials"]["estimated_annual_revenue"] == 100000
     assert row["financials"]["estimated_total_contract_value"] == 300000
     assert row["financials"]["estimated_gross_margin"] == 25000
+
+
+def test_pdf_exports_long_tender_rows_without_layout_failure(client):
+    requirement = (
+        "The supplier must provide current competence evidence for every assigned engineer. "
+        * 45
+    )[:3950]
+    assert (
+        client.post(
+            "/api/living/opportunities/1/requirements",
+            json={
+                "requirement": requirement,
+                "source_reference": "Synthetic specification clause 6 page 10",
+                "owner": "Test owner",
+            },
+        ).status_code
+        == 200
+    )
+    asset = client.post(
+        "/api/living/assets", json={"kind": "tender", "opportunity_id": 1}
+    ).json()
+    result = client.get(f"/api/living/assets/{asset['id']}/export/pdf")
+    assert result.status_code == 200 and result.content.startswith(b"%PDF-")

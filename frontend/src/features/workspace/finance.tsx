@@ -180,6 +180,7 @@ function ScenarioLab(props: SharedProps) {
     setInputs((v) => ({ ...v, [key]: value }));
   }
   function select(value: number) {
+    props.selectOpportunity(value);
     setId(value);
     setInputs(defaults(props, value));
     setSavedId(null);

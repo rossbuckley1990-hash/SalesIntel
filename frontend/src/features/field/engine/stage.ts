@@ -30,6 +30,7 @@ import type { FieldGraph } from "../graph";
 type RapierModule = typeof RAPIER;
 type Diagnostics = {
   activeEngines: number;
+  duplicateFrames: number;
   frames: number;
   fps: number;
   textures: number;
@@ -191,6 +192,7 @@ export class FieldStage {
     this.visible = !document.hidden;
     const diagnostics = (window.__MISI_FIELD_DIAGNOSTICS__ ??= {
       activeEngines: 0,
+      duplicateFrames: 0,
       frames: 0,
       fps: 0,
       textures: 0,
@@ -548,13 +550,13 @@ export class FieldStage {
     }
     const d = window.__MISI_FIELD_DIAGNOSTICS__!;
     d.frames++;
+    if (rawDt === 0) d.duplicateFrames++;
     d.fps = d.fps ? d.fps * 0.95 + (1 / Math.max(rawDt, 0.001)) * 0.05 : 1 / dt;
     d.textures = this.renderer.info.memory.textures;
     d.geometries = this.renderer.info.memory.geometries;
     d.drawCalls = this.renderer.info.render.calls;
     d.quality = this.quality;
-    if (!this.reduced || this.dragging >= 0)
-      this.frame = requestAnimationFrame(this.tick);
+    if (!this.reduced || this.dragging >= 0) this.requestFrame();
   };
   dispose() {
     if (this.disposed) return;

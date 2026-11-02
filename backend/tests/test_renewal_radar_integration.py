@@ -187,6 +187,21 @@ def planning(key, ocid, expected, title='Fire alarm maintenance'):
             'raw': {'id': key, 'ocid': ocid, 'tag': ['planning'], 'buyer': {'name': 'Example Council'}, 'tender': {'title': title, 'status': 'planned', 'communication': {'futureNoticeDate': expected}}}}
 
 
+def test_defence_then_soonest_action_lead_the_list_not_the_largest_value():
+    with make_db() as db:
+        distant = award('000001-2024', 'ocds-h6vhtk-000001', title='Fire alarm maintenance contract', end='2028-02-28', value=9000000, buyer='Big Council')
+        soon = planning('000002-2026', 'ocds-h6vhtk-000002', '2026-12-01T00:00:00Z', 'CCTV maintenance')
+        defended = award('000003-2024', 'ocds-h6vhtk-000003', title='Security systems maintenance', end='2027-12-31', value=100000, buyer='Trust', supplier='Mitie Security Limited')
+        load(db, [distant, soon, defended])
+        refresh_market_opportunities(db, now=NOW)
+        db.commit()
+        app = create_app()
+        app.dependency_overrides[get_db] = lambda: db
+        with TestClient(app) as client:
+            items = client.get('/api/market-network/opportunities').json()['items']
+        assert [x['suggestion']['customer'] for x in items][:2] == ['Trust', 'Example Council']
+
+
 def test_official_signal_with_a_passed_date_is_demoted_and_says_so():
     with make_db() as db:
         load(db, [planning('000003-2026', 'ocds-h6vhtk-000003', '2027-03-01T00:00:00Z'), planning('000004-2026', 'ocds-h6vhtk-000004', '2026-10-01T00:00:00Z', 'CCTV maintenance')])

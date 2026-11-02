@@ -19,7 +19,7 @@ CATEGORY_LABELS = {'pre_tender': 'Pre-tender opportunity', 'official_early_signa
 SOURCE_LABELS = {'contracts_finder': 'Contracts Finder', 'find_a_tender': 'Find a Tender', 'public_contracts_scotland': 'Public Contracts Scotland'}
 HIGH_ANNUAL_VALUE = 250_000
 MEDIUM_ANNUAL_VALUE = 50_000
-URGENT_DEADLINE_DAYS = 14
+LEAD_IN_DAYS = 180
 MAX_EVIDENCE = 8
 _BUNDLED_NOTE = 'The value covers wider maintenance, not only fire and security work.'
 _STANDARD_UNKNOWNS = ['Whether the contract remains in force or has been extended, replaced or terminated.',
@@ -122,6 +122,10 @@ def _value_rank(annual) -> int:
     return 0 if (annual or 0) >= HIGH_ANNUAL_VALUE else 1 if (annual or 0) >= MEDIUM_ANNUAL_VALUE else 2 if annual else 3
 
 
+def _action_month(day: date, today: date) -> str:
+    return max(day, today).strftime('%Y-%m')
+
+
 def contract_priority(view: dict, category: str, checks: list[str], today: date) -> dict:
     """Tier 1 is ready for commercial work, tier 2 needs one more fact, tier 3 is background."""
     days = (_day(view['end']) - today).days
@@ -144,7 +148,9 @@ def contract_priority(view: dict, category: str, checks: list[str], today: date)
         tier = 2
     if extension_outside:
         reasons.append(f"Extensions could run to {view['latest_end']}")
-    rank = (tier, 0 if in_action_window else 1 if days >= 0 else 2, 0 if published else 1, _value_rank(view.get('annual_value')), view['end'])
+    # Order by when work must start, so a near deadline outranks a larger distant contract.
+    action = _action_month(_day(view['end']) - timedelta(days=LEAD_IN_DAYS), today)
+    rank = (tier, 0 if category == 'contract_defence' else 1, action, 0 if published else 1, _value_rank(view.get('annual_value')), view['end'])
     return {'tier': tier, 'sort': list(rank), 'reasons': reasons}
 
 
@@ -238,7 +244,8 @@ def signal_proposal(notice: dict, evidence: list[dict], category: str, fit: str,
     tier = 1 if live and fit in {'core', 'framework'} else 2 if fit in {'core', 'bundled', 'framework'} else 3
     if category == 'official_early_signal' and fit == 'core' and timing and not passed:
         tier = 1
-    priority = {'tier': tier, 'sort': [tier, 0, 0 if timing else 1, _value_rank(annual), timing or '9999-12-31'],
+    action = _action_month(_day(timing), today) if timing else '9999-12'
+    priority = {'tier': tier, 'sort': [tier, 1, action, 0 if timing else 1, _value_rank(annual), timing or '9999-12-31'],
                 'reasons': [f'{fit.capitalize()} fit', 'A published deadline' if live else 'The expected date has passed' if passed else 'A published expected date' if timing else 'No published date']}
     observation = 'A public notice describes planned or tender-stage fire or security service activity.'
     return {'kind': 'published_procurement_signal', 'rule_version': RULE_VERSION, 'category': category, 'category_label': CATEGORY_LABELS[category], 'customer': notice['buyer'],

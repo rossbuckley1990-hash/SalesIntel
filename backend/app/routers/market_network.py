@@ -49,7 +49,7 @@ def _state(row):
 
 
 def _is_checkpoint_lane(key: str) -> bool:
-    return (key in {'market_backfill_budget', 'renewal_radar', 'find_a_tender_history'} or
+    return (key in {'market_backfill_budget', 'renewal_radar', 'find_a_tender_history', 'market_inference'} or
             bool(re.fullmatch(r'contracts_finder_backfill_20\d{2}', key)) or
             bool(re.fullmatch(r'pcs_20\d{2}_\d{2}_\d+', key)) or
             bool(re.fullmatch(r'find_a_tender_backfill_20\d{2}', key)))
@@ -185,3 +185,31 @@ def relationships(entity_id: int | None = Query(None, ge=1), as_of: str | None =
                            'A cached page and the Companies House API are the same source lineage, not independent corroboration.',
                            'As-of filtering uses effective dates in the latest captured source, not a historical knowledge snapshot.',
                            'A significant-control filing does not automatically establish a complete corporate ownership chain.']}
+
+
+@router.get('/signals/summary')
+def signals_summary(db: Session = Depends(get_db)):
+    from app.services.market_inference import signal_summary
+    return signal_summary(db)
+
+
+@router.get('/signals')
+def signals(decision: str | None = Query(None, max_length=16), kind: str | None = Query(None, max_length=40), limit: int = Query(50, ge=1, le=200), db: Session = Depends(get_db)):
+    """Inferred conditions with their reasoning. None of these is a finding about a company."""
+    from app.models.market_inference import MarketHypothesis, MarketHypothesisRevision
+    query = select(MarketHypothesis, MarketHypothesisRevision).join(MarketHypothesisRevision, MarketHypothesis.current_revision_id == MarketHypothesisRevision.id).where(MarketHypothesis.state == 'active')
+    if decision:
+        query = query.where(MarketHypothesis.decision == decision)
+    if kind:
+        query = query.where(MarketHypothesis.kind == kind)
+    rows = db.execute(query.order_by(MarketHypothesis.last_evaluated.desc(), MarketHypothesis.id.desc()).limit(limit)).all()
+    return {'items': [{'id': item.id, 'kind': item.kind, 'decision': item.decision, 'evidence_state': item.evidence_state, 'contract_id': item.contract_id, 'first_seen': item.first_seen, 'assessment': version.assessment} for item, version in rows]}
+
+
+@router.get('/signals/{hypothesis_id}/history')
+def signal_history(hypothesis_id: int, db: Session = Depends(get_db)):
+    from app.models.market_inference import MarketHypothesis, MarketHypothesisRevision
+    if not db.get(MarketHypothesis, hypothesis_id):
+        raise HTTPException(status_code=404, detail='Hypothesis not found')
+    rows = db.scalars(select(MarketHypothesisRevision).where(MarketHypothesisRevision.hypothesis_id == hypothesis_id).order_by(MarketHypothesisRevision.id.desc()).limit(50)).all()
+    return {'items': [{'id': x.id, 'created_at': x.created_at, 'assessment': x.assessment} for x in rows]}

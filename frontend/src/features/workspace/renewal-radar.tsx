@@ -12,8 +12,11 @@ type Brief = { customer: string; service_requirement: string; incumbent: string;
 type Suggestion = {
   category: string; category_label: string; customer: string; title: string; supplier: string | null; timing: string | null; timing_basis: string; end_estimated: boolean; latest_end: string | null;
   nation: string; fit: string; value: Value; priority: { tier: number; reasons: string[] }; counter_evidence: string[]; next_actions: string[]; extension: string;
-  link: { confidence: string; records: number; sources: string[] }; brief: Brief; evidence: Evidence[];
+  link: { confidence: string; records: number; sources: string[] }; brief: Brief; evidence: Evidence[]; signal?: Signal; signals?: Signal[]; plausible_competitors?: string[];
 };
+type Observation = { fingerprint: string; label: string; statement: string; occurred_on: string; source_group: string; source_url: string; capture: string };
+type Explanation = { explanation: string; label: string; status: string; test: string };
+type Signal = { hypothesis_id: number; label: string; decision: string; decision_reasons: string[]; evidence_state: string; independent_sources: string[]; link: string; supporting: Observation[]; contradicting: Observation[]; explanations: Explanation[]; unknowns: string[]; caution: string };
 type Item = { id: number; review_state: string; suggestion: Suggestion };
 type Page = { items: Item[]; total: number };
 type Health = { source_key: string; status: string; last_success_at: string | null };
@@ -23,9 +26,12 @@ type Summary = {
 };
 
 const PAGE = 25;
-const CATEGORIES = [["", "All"], ["contract_defence", "Contract defence"], ["live_procurement", "Live procurement"], ["official_early_signal", "Official early signals"], ["pre_tender", "Pre-tender"], ["verify_first", "Verify first"]];
+const CATEGORIES = [["", "All"], ["contract_defence", "Contract defence"], ["live_procurement", "Live procurement"], ["official_early_signal", "Official early signals"], ["pre_tender", "Pre-tender"], ["inferred_signal", "Inferred signals"], ["verify_first", "Verify first"]];
 const NATIONS = ["", "England", "Scotland", "Wales", "Northern Ireland", "Not stated"];
 const SOURCE_NAMES: Record<string, string> = { find_a_tender: "Find a Tender", contracts_finder: "Contracts Finder", public_contracts_scotland: "Public Contracts Scotland", renewal_radar: "Radar evaluation" };
+const DECISIONS: Record<string, string> = { pursue: "Pursue", verify: "Verify", monitor: "Monitor", dismiss: "Dismiss" };
+const STATES: Record<string, string> = { independently_corroborated: "Independent sources agree", same_source_repeated: "One source, repeated", single_source: "One source", contradicted: "Contradicted" };
+const EXPLANATION_STATES: Record<string, string> = { supported: "Supported", possible: "Possible", not_established: "Not established", contradicted: "Contradicted", supported_by_published_attribution: "Published attribution" };
 const pounds = (value: number | null | undefined) => (value ? `£${Math.round(value).toLocaleString("en-GB")}` : "Not published");
 
 export function valueLine(value: Value) {
@@ -33,6 +39,20 @@ export function valueLine(value: Value) {
   if (value.type === "published_total") return `${pounds(value.published_total)} published total`;
   if (value.type === "framework_ceiling") return `${pounds(value.framework_ceiling)} framework ceiling`;
   return "Value not published";
+}
+
+function SignalDetail({ signal }: { signal: Signal }) {
+  return <div className="mt-2 border-l-2 border-[var(--misi-border)] pl-3">
+    <p><strong>{signal.label}</strong></p>
+    <p>{DECISIONS[signal.decision]} · {STATES[signal.evidence_state] || signal.evidence_state} · sources: {signal.independent_sources.join(", ")}</p>
+    <p>{signal.decision_reasons.join(" ")} {signal.link}</p>
+    <p className="mt-2"><strong>What was observed</strong></p>
+    <ul className="list-disc pl-5">{signal.supporting.map(item => <li key={item.fingerprint}>{item.occurred_on}: <a className="underline" href={safeSource(item.source_url) || undefined} target="_blank" rel="noreferrer">{item.statement}</a></li>)}</ul>
+    {signal.contradicting.length > 0 && <><p className="mt-2"><strong>Evidence against</strong></p><ul className="list-disc pl-5">{signal.contradicting.map(item => <li key={item.fingerprint}>{item.occurred_on}: {item.statement}</li>)}</ul></>}
+    <p className="mt-2"><strong>Possible explanations</strong></p>
+    <ul className="list-disc pl-5">{signal.explanations.map(item => <li key={item.explanation}>{item.label}: {EXPLANATION_STATES[item.status] || item.status}. {item.test}</li>)}</ul>
+    <p className="mt-2 text-xs">{signal.caution}</p>
+  </div>;
 }
 
 export function RenewalRadar({ notify }: SharedProps) {
@@ -112,6 +132,8 @@ export function RenewalRadar({ notify }: SharedProps) {
           <p><strong>Next:</strong> {x.next_actions[0]}</p>
           {x.next_actions.length > 1 && <ul className="list-disc pl-5">{x.next_actions.slice(1).map(text => <li key={text}>{text}</li>)}</ul>}
           {x.counter_evidence.length > 0 && <><p className="mt-2"><strong>Check first</strong></p><ul className="list-disc pl-5">{x.counter_evidence.map(text => <li key={text}>{text}</li>)}</ul></>}
+          {[...(x.signal ? [x.signal] : []), ...(x.signals || [])].map(signal => <SignalDetail key={signal.hypothesis_id} signal={signal} />)}
+          {!!x.plausible_competitors?.length && <p className="mt-2">Plausible competitors, from published work of this kind: {x.plausible_competitors.join(", ")}. Their participation is not confirmed.</p>}
           <dl className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-[12rem_1fr]">
             <dt>Why it matters</dt><dd>{x.brief.why_it_matters}</dd>
             <dt>Contract term</dt><dd>{x.brief.contract_lifecycle}</dd>

@@ -17,13 +17,14 @@ from sqlalchemy.orm import Session
 
 from app.intelligence.renewal_radar import OWN_GROUP
 from app.models.market_contract import MarketContract, MarketContractLink
+from app.models.market_inference import MarketObservation
 from app.models.market_network import MarketAward, MarketSourceState, SourceRevision
 from app.models.market_opportunity import MarketOpportunity, MarketOpportunityRevision
 from app.services.market_opportunities import refresh_market_opportunities
 from app.services.renewal_history import HISTORY_STATE, OUTPUT, fetch_tenders, import_checkpoints, load_tenders, weeks_between
 
 STATE = 'renewal_radar'
-SOURCES = {'find_a_tender': timedelta(hours=6), 'contracts_finder': timedelta(hours=6), 'public_contracts_scotland': timedelta(hours=48)}
+SOURCES = {'find_a_tender': timedelta(hours=6), 'contracts_finder': timedelta(hours=6), 'public_contracts_scotland': timedelta(hours=48), 'market_inference': timedelta(hours=48)}
 ENGINE_MAX_AGE = timedelta(hours=26)
 SELECTIVE_REQUESTS_PER_DAY = 40
 SELECTIVE_MIN_VALUE = 500_000
@@ -57,7 +58,8 @@ def refresh_if_due(db: Session, *, now: datetime | None = None, force: bool = Fa
     state = _state(db)
     seen = json.loads(state.cursor) if state.cursor else {}
     latest = db.scalar(select(func.max(SourceRevision.id))) or 0
-    if not force and seen.get('revision') == latest and seen.get('day') == now.date().isoformat():
+    noted = db.scalar(select(func.max(MarketObservation.id))) or 0
+    if not force and seen.get('revision') == latest and seen.get('observation') == noted and seen.get('day') == now.date().isoformat():
         db.rollback()
         return None
     state.last_checked_at = now
@@ -69,7 +71,7 @@ def refresh_if_due(db: Session, *, now: datetime | None = None, force: bool = Fa
         state.last_error, state.failure_count, state.last_checked_at = type(exc).__name__, (state.failure_count or 0) + 1, now
         db.commit()
         raise
-    state.cursor = json.dumps({**seen, 'revision': latest, 'day': now.date().isoformat()})
+    state.cursor = json.dumps({**seen, 'revision': latest, 'observation': db.scalar(select(func.max(MarketObservation.id))) or 0, 'day': now.date().isoformat()})
     state.last_success_at, state.last_error, state.failure_count = now, None, 0
     if result['new'] or result['new_versions']:
         state.last_new_at = now
@@ -118,12 +120,19 @@ def selective_weeks(db: Session, *, limit: int = 4) -> list[tuple[date, date]]:
     return weeks
 
 
-def run_daily_cycle(db: Session, *, now: datetime | None = None, fetch=fetch_tenders, refresh: bool = True) -> dict:
+def run_daily_cycle(db: Session, *, now: datetime | None = None, fetch=fetch_tenders, refresh: bool = True, collect=None) -> dict:
     """One hourly pass: at most one selective history step a day, then re-evaluate if due.
 
     The worker passes refresh=False and re-evaluates under the shared inference lock.
     """
     now = now or datetime.now(UTC)
+    state = _state(db)
+    if collect:
+        try:
+            collect(db, now=now)
+        except Exception as exc:
+            # One unreachable publisher must not stop the rest of the cycle.
+            print(json.dumps({'time': now.isoformat(), 'public_signals_error': type(exc).__name__}), flush=True)
     state = _state(db)
     history_day = (json.loads(state.cursor).get('history_day') if state.cursor else None)
     history = None

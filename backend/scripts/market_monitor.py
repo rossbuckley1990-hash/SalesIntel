@@ -148,8 +148,9 @@ def main() -> int:
                         from app.services.market_scotland_monitor import run_scotland_current
                         result = run_scotland_current(db, system_curl=True)
                     elif args.source == 'renewal-radar':
+                        from app.services.market_inference import collect_public_signals
                         from app.services.renewal_radar import run_daily_cycle
-                        result = run_daily_cycle(db, refresh=False)
+                        result = run_daily_cycle(db, refresh=False, collect=collect_public_signals)
                     else:
                         result = run_find_tender_window(db, max_pages=args.max_pages, start_at=start_at)
                 print(json.dumps({'time': datetime.now(UTC).isoformat(), 'result': result}, default=str), flush=True)

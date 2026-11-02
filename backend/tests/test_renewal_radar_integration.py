@@ -401,7 +401,7 @@ def test_health_marks_stale_failing_and_missing_sources():
                     MarketSourceState(source_key='public_contracts_scotland', last_success_at=NOW - timedelta(hours=1), failure_count=5, last_error='ValueError')])
         db.commit()
         health = {x['source_key']: x['status'] for x in source_health(db, now=NOW)}
-        assert health == {'find_a_tender': 'fresh', 'contracts_finder': 'stale', 'public_contracts_scotland': 'failing', 'renewal_radar': 'never_run'}
+        assert health == {'find_a_tender': 'fresh', 'contracts_finder': 'stale', 'public_contracts_scotland': 'failing', 'market_inference': 'never_run', 'renewal_radar': 'never_run'}
 
 
 def test_selective_history_targets_large_contracts_known_only_from_elsewhere():

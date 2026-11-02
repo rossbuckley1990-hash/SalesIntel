@@ -16,6 +16,7 @@ from app.intelligence.renewal_intelligence import evaluate
 from app.models.market_network import SourceRevision
 from app.models.market_opportunity import MarketOpportunity, MarketOpportunityRevision
 from app.services.market_contracts import sync_contracts
+from app.services.market_inference import apply_inference
 
 RULE_VERSION = 'market-suggestions-v2'
 
@@ -46,6 +47,7 @@ def refresh_market_opportunities(db: Session, *, now: datetime | None = None, ma
     rows = rows[:max_sources]
     evaluation = evaluate(rows, now.date())
     candidates = sync_contracts(db, evaluation, now, complete)
+    inference = apply_inference(db, evaluation, candidates, rows, now, complete=complete)
     existing = {row.dedup_key: row for row in db.scalars(select(MarketOpportunity)).all()}
     # Older suggestions were keyed by contract id; carry them across rather than losing their review.
     for key, item in list(existing.items()):
@@ -82,4 +84,4 @@ def refresh_market_opportunities(db: Session, *, now: datetime | None = None, ma
     for proposal in candidates.values():
         categories[proposal['category']] = categories.get(proposal['category'], 0) + 1
     return {'scanned_sources': len(rows), 'complete_scan': complete, 'candidates': len(candidates), 'contracts': len(evaluation['contracts']),
-            'by_category': categories, 'new': created, 'new_versions': changed, 'withdrawn': withdrawn, 'rule_version': RULE_VERSION}
+            'by_category': categories, 'inference': inference, 'new': created, 'new_versions': changed, 'withdrawn': withdrawn, 'rule_version': RULE_VERSION}

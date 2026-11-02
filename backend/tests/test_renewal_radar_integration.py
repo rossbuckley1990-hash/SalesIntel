@@ -202,6 +202,19 @@ def test_defence_then_soonest_action_lead_the_list_not_the_largest_value():
         assert [x['suggestion']['customer'] for x in items][:2] == ['Trust', 'Example Council']
 
 
+def test_top_priorities_cover_every_workstream():
+    from app.services.renewal_radar import top_priorities
+    with make_db() as db:
+        tender = planning('000005-2026', 'ocds-h6vhtk-000005', None, 'Fire alarm maintenance')
+        tender['raw'].update(tag=['tender'])
+        tender['raw']['tender'].update(status='active', tenderPeriod={'endDate': '2026-12-01T12:00:00Z'})
+        load(db, [tender, planning('000006-2026', 'ocds-h6vhtk-000006', '2027-01-01T00:00:00Z', 'CCTV maintenance'), award('000007-2024', 'ocds-h6vhtk-000007', title='Sprinkler maintenance', end='2027-06-30'),
+                  award('000008-2024', 'ocds-h6vhtk-000008', title='Security systems maintenance', end='2027-12-31', buyer='Trust', supplier='Mitie Security Limited')])
+        refresh_market_opportunities(db, now=NOW)
+        db.commit()
+        assert [x['category'] for x in top_priorities(db)] == ['contract_defence', 'live_procurement', 'official_early_signal', 'pre_tender']
+
+
 def test_official_signal_with_a_passed_date_is_demoted_and_says_so():
     with make_db() as db:
         load(db, [planning('000003-2026', 'ocds-h6vhtk-000003', '2027-03-01T00:00:00Z'), planning('000004-2026', 'ocds-h6vhtk-000004', '2026-10-01T00:00:00Z', 'CCTV maintenance')])

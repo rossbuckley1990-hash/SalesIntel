@@ -208,6 +208,15 @@ def _money(value) -> str:
     return f'£{value:,.0f}' if value else 'not published'
 
 
+def top_priorities(db: Session, *, limit: int = 20, live: int = 5, signals: int = 5) -> list[dict]:
+    """Tier 1 across the workstreams, so near tenders do not crowd out renewal work."""
+    rows = [x for _, x in current_opportunities(db) if x['priority']['tier'] == 1]
+    def take(category, count=None):
+        return [x for x in rows if x['category'] == category][:count]
+    chosen = [*take('contract_defence'), *take('live_procurement', live), *take('official_early_signal', signals)]
+    return (chosen + take('pre_tender'))[:limit]
+
+
 def report_lines(db: Session, *, today: date, limit: int = 20) -> list[str]:
     """The operational report, rebuilt only from the database."""
     summary = radar_summary(db, now=datetime(today.year, today.month, today.day, 12, tzinfo=UTC))
@@ -222,8 +231,8 @@ def report_lines(db: Session, *, today: date, limit: int = 20) -> list[str]:
               *[f"- {k}: {v}" for k, v in sorted(summary['by_category'].items())], '', f"Renewals ending within 3, 6, 12 and 18 months: {windows['3']}, {windows['6']}, {windows['12']}, {windows['18']}.", '',
               '## Value, shown separately', '', f"- Published total on renewals: {_money(value['published_total'])}", f"- Published annual values: {_money(value['published_annual'])}",
               f"- Estimated annualised: {_money(value['estimated_annualised'])}, of which core fit {_money(value['estimated_annualised_core_only'])}", f"- Framework ceilings stored: {_money(value['framework_ceilings_stored'])} across overlapping lots and suppliers, so this overstates any real market and must not be added to the figures above",
-              f"- Renewals with no published value: {value['unknown_value_renewals']}", '', 'None of these is guaranteed or fully addressable spend.', '', f'## Top {limit} priorities', '']
-    for number, (_, x) in enumerate(current_opportunities(db)[:limit], 1):
+              f"- Renewals with no published value: {value['unknown_value_renewals']}", '', 'None of these is guaranteed or fully addressable spend.', '', f'## Top {limit} priorities', '', 'Contract defence first, then the five nearest live tenders, the five soonest official signals and the pre-tender work to start soonest.', '']
+    for number, x in enumerate(top_priorities(db, limit=limit), 1):
         amount = x['value'].get('estimated_annualised') or x['value'].get('published_total')
         lines += [f"{number}. **{x['customer']}**: {x['title']}", f"   - {x['category_label']}, tier {x['priority']['tier']}, {x.get('nation')}. Supplier: {x.get('supplier') or 'not named'}. Timing: {x.get('timing') or 'no date'}{'~' if x.get('end_estimated') else ''} ({x.get('timing_basis')}).",
                   f"   - Value: {_money(amount)}. {x['value']['basis']}", f"   - Next: {x['next_action']}", f"   - Evidence: {x['evidence'][0]['source_url'] if x['evidence'] else 'none'}"]

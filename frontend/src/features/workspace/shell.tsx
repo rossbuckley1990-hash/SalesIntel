@@ -51,6 +51,9 @@ const Outcomes = dynamic(() => import("./actions").then((m) => m.Outcomes), {
 const Accounts = dynamic(() => import("./accounts").then((m) => m.Accounts), {
   loading: () => <Loading />,
 });
+const RenewalRadar = dynamic(() => import("./renewal-radar").then((m) => m.RenewalRadar), {
+  loading: () => <Loading />,
+});
 const Imports = dynamic(() => import("./imports").then((m) => m.Imports), {
   loading: () => <Loading />,
 });
@@ -59,6 +62,7 @@ const navigation = [
   { id: "today", label: "Today", icon: Activity, group: "WORKSPACE" },
   { id: "field", label: "Intelligence Field", icon: Orbit },
   { id: "discover", label: "Discover", icon: Compass },
+  { id: "radar", label: "Renewal Radar", icon: ShieldCheck },
   {
     id: "opportunities",
     label: "Opportunities",
@@ -193,6 +197,8 @@ export function LivingWorkspace() {
         return <IntelligenceField {...shared} />;
       case "discover":
         return <Discover key={query} {...shared} initialQuery={query} />;
+      case "radar":
+        return <RenewalRadar {...shared} />;
       case "opportunities":
         return <Opportunities {...shared} />;
       case "pursuits":

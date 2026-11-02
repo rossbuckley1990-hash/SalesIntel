@@ -8,6 +8,7 @@
     "typecheck:frontend": "pnpm --dir frontend typecheck",
     "build:frontend": "pnpm --dir frontend build",
     "dev:living": "bash scripts/living-dev.sh",
+    "dev:live": "bash scripts/misi-live.sh",
     "test:e2e": "pnpm --dir frontend test:e2e"
   }
 }

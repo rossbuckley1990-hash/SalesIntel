@@ -36,7 +36,8 @@ def _normalise_postgresql_driver(url: URL) -> URL:
 def _engine_options_for_url(database_url: str) -> dict[str, object]:
     url = make_url(database_url)
     if url.drivername.startswith("sqlite"):
-        return {"connect_args": {"check_same_thread": False}}
+        # Several workers share one file, so a writer waits instead of failing.
+        return {"connect_args": {"check_same_thread": False, "timeout": 60}}
     if url.drivername.startswith("postgresql"):
         return {"pool_pre_ping": True}
     return {}

@@ -1,0 +1,16 @@
+{
+  "review_method": "Manual review of title and structured description in the captured official Find a Tender releases on 2026-10-28. Labels indicate whether the primary scope is within the fire and security systems market; they do not establish maintenance, delivery, or independent external verification. Small convenience sample, not representative coverage.",
+  "source_key": "find_a_tender",
+  "records": [
+    {"id":"101801-2026","primary_sector_scope":true,"reason":"Replacement of existing fire alarm panels."},
+    {"id":"101959-2026","primary_sector_scope":true,"reason":"Fire door remediation and fire stopping under identified lots."},
+    {"id":"101883-2026","primary_sector_scope":true,"reason":"Electronic security and access control installation and maintenance."},
+    {"id":"101824-2026","primary_sector_scope":true,"reason":"Fire risk assessment and advisory framework."},
+    {"id":"101791-2026","primary_sector_scope":true,"reason":"Replacement refuse hoppers and automatic fire shutter doors as fire safety remediation."},
+    {"id":"102062-2026","primary_sector_scope":true,"reason":"Passive fire protection remedial work."},
+    {"id":"102224-2026","primary_sector_scope":false,"reason":"Video wall for traffic control; CCTV is background context."},
+    {"id":"102101-2026","primary_sector_scope":false,"reason":"Automatic door operators connected to an existing fire alarm; primary scope is doors."},
+    {"id":"101830-2026","primary_sector_scope":false,"reason":"General LED lighting replacement; emergency lighting mentioned as incidental."},
+    {"id":"101794-2026","primary_sector_scope":false,"reason":"Nursery building refurbishment includes some fire doors alongside general building works."}
+  ]
+}

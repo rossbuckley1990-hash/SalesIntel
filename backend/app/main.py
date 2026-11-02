@@ -11,6 +11,9 @@ from app.routers.finance_forecasts import router as finance_forecasts_router
 from app.routers.health import router as health_router
 from app.routers.intelligence import router as intelligence_router
 from app.routers.market_signals import router as market_signals_router
+from app.routers.market_opportunities import router as market_opportunities_router
+from app.routers.market_cross_source import router as market_cross_source_router
+from app.routers.market_network import router as market_network_router
 from app.routers.opportunities import router as opportunities_router
 from app.routers.reports import router as reports_router
 from app.routers.sources import router as sources_router
@@ -39,6 +42,9 @@ def create_app() -> FastAPI:
     application.include_router(version_router)
     application.include_router(opportunities_router)
     application.include_router(market_signals_router)
+    application.include_router(market_opportunities_router)
+    application.include_router(market_cross_source_router)
+    application.include_router(market_network_router)
     application.include_router(buyers_router)
     application.include_router(competitors_router)
     application.include_router(executive_actions_router)

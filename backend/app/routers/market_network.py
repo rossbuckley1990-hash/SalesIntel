@@ -49,7 +49,7 @@ def _state(row):
 
 
 def _is_checkpoint_lane(key: str) -> bool:
-    return (key in {'market_backfill_budget', 'renewal_radar', 'find_a_tender_history', 'market_inference'} or
+    return (key in {'market_backfill_budget', 'renewal_radar', 'find_a_tender_history', 'market_inference', 'companies_house_signals'} or
             bool(re.fullmatch(r'contracts_finder_backfill_20\d{2}', key)) or
             bool(re.fullmatch(r'pcs_20\d{2}_\d{2}_\d+', key)) or
             bool(re.fullmatch(r'find_a_tender_backfill_20\d{2}', key)))

@@ -56,6 +56,8 @@ TAXONOMY = {
     'repeated_retender': {'category': 'D', 'label': 'Repeated tendering of the same service'},
     'supplier_replaced': {'category': 'D', 'label': 'Published supplier changed'},
     'supplier_insolvency': {'category': 'E', 'label': 'Insolvency notice'},
+    'supplier_filing_overdue': {'category': 'E', 'label': 'Statutory filing overdue'},
+    'control_change': {'category': 'G', 'label': 'Corporate control change'},
     'estate_expansion': {'category': 'F', 'label': 'New or enlarged estate'},
     'market_engagement': {'category': 'F', 'label': 'Official market engagement'},
     'competitor_acquisition': {'category': 'G', 'label': 'Published acquisition'},
@@ -76,7 +78,7 @@ _RIVALS = {'false_alarm_rise': ['contractor_delivery', 'ageing_assets', 'estate_
            'regulator_compliance_finding': ['deferred_compliance', 'contractor_delivery', 'ageing_assets'], 'fire_enforcement_outcome': ['deferred_compliance', 'ageing_assets', 'contractor_delivery'],
            'emergency_procurement': ['contractor_delivery', 'routine_procurement', 'ageing_assets'], 'tender_abandoned': ['routine_procurement', 'contractor_delivery'], 'contract_terminated': ['contractor_delivery', 'routine_procurement', 'corporate_change'],
            'contract_modified': ['routine_procurement', 'capital_programme'], 'short_term_award': ['routine_procurement', 'contractor_delivery'], 'out_of_cycle_relet': ['routine_procurement', 'contractor_delivery', 'estate_change'],
-           'repeated_retender': ['routine_procurement', 'contractor_delivery'], 'supplier_replaced': ['routine_procurement', 'contractor_delivery', 'corporate_change'], 'supplier_insolvency': ['corporate_change'],
+           'repeated_retender': ['routine_procurement', 'contractor_delivery'], 'supplier_replaced': ['routine_procurement', 'contractor_delivery', 'corporate_change'], 'supplier_insolvency': ['corporate_change'], 'supplier_filing_overdue': ['routine_procurement', 'corporate_change'],
            'published_performance_finding': ['contractor_delivery'], 'customer_concern_published': ['contractor_delivery', 'ageing_assets', 'deferred_compliance']}
 PROBLEM_SIGNALS = {x for x, v in TAXONOMY.items() if v['category'] in 'ABC'}
 INSTABILITY_SIGNALS = {x for x, v in TAXONOMY.items() if v['category'] == 'D'}
@@ -384,10 +386,12 @@ def _public(item: dict) -> dict:
 
 def contract_hypotheses(views: list[dict], observations: list[dict], today: date) -> dict:
     """Join observations to live contracts. A signal is applied to one contract only by a stated link."""
-    by_buyer, by_supplier = defaultdict(list), defaultdict(list)
+    by_buyer, by_supplier, by_number = defaultdict(list), defaultdict(list), defaultdict(list)
     for item in observations:
         if not _fresh(item, today) or item['signal_type'] not in TAXONOMY:
             continue
+        if item['company_number']:
+            by_number[item['company_number']].append(item)
         for key in {item['buyer_key'], council_key(item['buyer'])} if item['buyer'] else ():
             by_buyer[key].append(item)
         if item['supplier_key']:
@@ -410,7 +414,10 @@ def contract_hypotheses(views: list[dict], observations: list[dict], today: date
                     if item['detail'].get('old_title') and item['detail']['old_title'] != view['title'][:160]:
                         continue
                     linked[item['fingerprint']] = {**item, 'relation': relation}
-        stress = [x for name in {_buyer_key(s) for s in view['suppliers']} for x in by_supplier.get(name, []) if x['signal_type'] == 'supplier_insolvency']
+        # A published company number is the strong link; a name is only a lead to confirm.
+        named = [x for name in {_buyer_key(s) for s in view['suppliers']} for x in by_supplier.get(name, [])] + [x for number in view.get('company_numbers') or [] for x in by_number.get(number, [])]
+        stress = list({x['fingerprint']: x for x in named if x['signal_type'] == 'supplier_insolvency'}.values())
+        filings = list({x['fingerprint']: x for x in named if x['signal_type'] == 'supplier_filing_overdue'}.values())
         items, against = apply_contradictions(sorted(linked.values(), key=lambda x: x['occurred_on']), list(opposing.values()))
         if linked and not items:
             items, withdrawn = sorted(linked.values(), key=lambda x: x['occurred_on']), against
@@ -428,8 +435,13 @@ def contract_hypotheses(views: list[dict], observations: list[dict], today: date
             found[f'vulnerability:{key}'] = (assess('incumbent_vulnerability', items, today=today, contradicted=withdrawn, estate=list(estate.values()), view=view, replaced=replaced, buyer=view['buyer'], supplier=view['incumbent'], link=_link(items)), key)
         elif items:
             found[f'instability:{key}'] = (assess('contract_instability', items, today=today, contradicted=withdrawn, view=view, replaced=replaced, buyer=view['buyer'], supplier=view['incumbent'], link=_link(items)), key)
+        identity = 'Matched on a published company number.' if any(x['company_number'] in (view.get('company_numbers') or []) for x in stress + filings) else 'Same published company name; confirm the company number.'
         if stress:
-            found[f'stress:{key}'] = (assess('supplier_stress', stress, today=today, view=view, replaced=replaced, buyer=view['buyer'], supplier=view['incumbent'], link='Same published company name; confirm the company number.'), key)
+            found[f'stress:{key}'] = (assess('supplier_stress', stress + filings, today=today, view=view, replaced=replaced, buyer=view['buyer'], supplier=view['incumbent'], link=identity), key)
+        elif filings:
+            # One late filing says little, so it is watched rather than acted on.
+            assessment = assess('supplier_stress', filings, today=today, view=view, replaced=replaced, buyer=view['buyer'], supplier=view['incumbent'], link=identity)
+            found[f'stress:{key}'] = ({**assessment, 'decision': 'monitor', 'decision_reasons': ['A single overdue filing is not evidence of difficulty, so this is only watched.']}, key)
     return found
 
 
@@ -486,14 +498,14 @@ def competitor_hypotheses(views: list[dict], observations: list[dict], today: da
         key = competitor_group(item['supplier'])
         if item['signal_type'] == 'supplier_replaced' and (today - item['occurred_on']).days <= COMPETITOR_WIN_DAYS:
             losses[key].append(item)
-        elif item['signal_type'] in {'competitor_acquisition', 'supplier_insolvency'}:
+        elif item['signal_type'] in {'competitor_acquisition', 'control_change', 'supplier_insolvency'}:
             notes[key].append(item)
     for key in sorted(set(wins) | set(losses) | set(notes)):
         name = names.get(key) or next((x['supplier'] for x in notes.get(key, [])), key)
         if OWN_GROUP.search(name):
             continue
         gained = [observation('supplier_replaced', statement=f"{name} is the published supplier on \"{x['title'][:100]}\" for {x['buyer']}.", occurred=_day(x['published']), url=x['url'], group='procurement', reliability='official_notice', buyer=x['buyer'], supplier=name) for x in wins.get(key, [])]
-        acquired = [x for x in notes.get(key, []) if x['signal_type'] == 'competitor_acquisition']
+        acquired = [x for x in notes.get(key, []) if x['signal_type'] in {'competitor_acquisition', 'control_change'}]
         insolvent = [x for x in notes.get(key, []) if x['signal_type'] == 'supplier_insolvency']
         if len(gained) >= COMPETITOR_MIN_WINS or acquired:
             found[f'strength:{key}'] = (assess('competitor_strength', sorted(acquired + gained, key=lambda x: x['occurred_on'], reverse=True), today=today, supplier=name, link=f'{len(gained)} published awards in the last year.'), None)

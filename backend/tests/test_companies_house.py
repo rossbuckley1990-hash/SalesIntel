@@ -12,7 +12,7 @@ def test_profile_is_exact_and_excludes_personal_fields():
         return httpx.Response(200, json={'company_number':'01234567','company_name':'Example Ltd', 'company_status':'active', 'sic_codes':['80200'], 'officers':['private'], 'unknown':'ignored'})
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
         record = fetch_company_profile('01234567', api_key='secret', client=client)
-    assert record['raw'] == {'company_number':'01234567', 'company_name':'Example Ltd', 'company_status':'active', 'sic_codes':['80200']}
+    assert record['raw'] == {'company_number':'01234567', 'company_name':'Example Ltd', 'company_status':'active', 'sic_codes':['80200'], 'accounts_overdue':False, 'confirmation_overdue':False, 'has_insolvency_history':False}
     assert record['source_url'].endswith('/01234567')
 
 

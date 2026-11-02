@@ -46,7 +46,7 @@ An early design counted published early re-lets as signals. They are the outcome
 
 ## Limits
 
-- **Companies House:** the API key is not set, so corporate filings, officers and legal group structure are not read. It is a free key from Companies House.
+- **Companies House:** with `COMPANIES_HOUSE_API_KEY` in the ignored root `.env`, the radar worker checks up to 100 companies a day, and rechecks each every 30 days. It reads company status, overdue accounts and corporate controllers for suppliers on live contracts and watched competitors. Without a key this step does nothing. It never reads individuals, and one overdue filing is only watched.
 - **Committee papers:** Leeds, Camden and others refused automated requests, and those refusals are respected. Kent allowed its committee list but its document search failed. There is no automatic reader for minutes, board papers or contract performance reports, so performance and dissatisfaction signals are rarely filled.
 - **HSE enforcement register:** not reachable from this machine.
 - **Fire service data:** London only, and only sites in the published NHS site list.

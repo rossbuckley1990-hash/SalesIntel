@@ -7,15 +7,17 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 import json
 from pathlib import Path
+import time
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.config import REPO_ROOT
+from app.config import REPO_ROOT, get_settings
 from app.ingestion import market_public_signals as public
+from app.ingestion.companies_house import CompaniesHouseError, fetch_company_profile, fetch_corporate_control_snapshot
 from app.intelligence.renewal_radar import _buyer_key
-from app.intelligence.signal_inference import (TAXONOMY, assessment_fingerprint, buyer_hypotheses, competitor_hypotheses, contract_hypotheses, council_key, fire_service_rises, observation, plausible_competitors, procurement_observations, sequence_observations)
+from app.intelligence.signal_inference import (COMPETITOR_GROUPS, TAXONOMY, assessment_fingerprint, buyer_hypotheses, competitor_group, competitor_hypotheses, contract_hypotheses, council_key, fire_service_rises, observation, plausible_competitors, procurement_observations, sequence_observations)
 from app.models.lfb_incident import LfbIncident
 from app.models.lfb_inspection_match import LfbInspectionMatch
 from app.models.market_contract import MarketContract, MarketContractLink
@@ -28,6 +30,12 @@ CURATED = REPO_ROOT / 'backend' / 'reference_data' / 'public_signal_observations
 FIRE_DATA_URL = 'https://data.london.gov.uk/dataset/london-fire-brigade-incident-records'
 JUDGEMENT_LIMIT_PER_DAY = 80
 GAZETTE_FIRST_DAYS = 730
+COMPANY_STATE = 'companies_house_signals'
+COMPANY_CHECKS_PER_DAY = 100
+COMPANY_RECHECK_DAYS = 30
+COMPANY_PAUSE = 1
+CONTROL_CHANGE_DAYS = 730
+INSOLVENT_STATUSES = {'liquidation', 'administration', 'receivership', 'insolvency-proceedings', 'voluntary-arrangement'}
 ENFORCEMENT = {'Premises Non Compliant', 'Issue Enforcement Notice', 'Enforcement Notice Extended', 'Notice of Deficiences Issued'}
 VISIBLE = {'pursue', 'verify'}
 
@@ -226,9 +234,91 @@ def collect_public_signals(db: Session, *, now: datetime | None = None, http=Non
             http.close()
 
 
+def _watched_companies(db: Session) -> list[str]:
+    """Published company numbers on live contracts first, then every watched competitor."""
+    live, watched = [], []
+    for row in db.scalars(select(MarketContract)):
+        numbers = row.facts.get('company_numbers') or []
+        if row.category:
+            live += numbers
+        elif any(competitor_group(x) in COMPETITOR_GROUPS for x in row.facts.get('suppliers') or []):
+            watched += numbers
+    return list(dict.fromkeys(live + watched))
+
+
+def company_observations(profile: dict, control: dict, today: date) -> list[dict]:
+    """What the register shows for one company. Personal data is never read."""
+    number, name = profile['company_number'], profile['company_name']
+    url = f'https://find-and-update.company-information.service.gov.uk/company/{number}'
+    shared = {'url': url, 'group': 'companies_house', 'reliability': 'statutory_record', 'supplier': name, 'company_number': number}
+    found = []
+    status = str(profile.get('company_status') or '')
+    if status in INSOLVENT_STATUSES:
+        found.append(observation('supplier_insolvency', statement=f"Companies House lists {name} as {status.replace('-', ' ')}.", occurred=today, **shared, detail={'status': status}))
+    if profile.get('accounts_overdue'):
+        found.append(observation('supplier_filing_overdue', statement=f'Companies House shows accounts overdue for {name}.', occurred=today.replace(day=1), **shared))
+    for controller in control.get('controllers', []):
+        notified = date.fromisoformat(controller['notified_on']) if controller.get('notified_on') else None
+        if notified and not controller.get('ceased_on') and (today - notified).days <= CONTROL_CHANGE_DAYS:
+            found.append(observation('control_change', statement=f"Companies House records {controller['company_name']} as a controlling company of {name} from {notified}. This is a reported filing.", occurred=notified, **{**shared, 'url': control.get('source_url') or url}, detail={'controller_number': controller['company_number']}))
+    return found
+
+
+def collect_company_signals(db: Session, *, now: datetime | None = None, client=None, sleep=time.sleep, limit: int = COMPANY_CHECKS_PER_DAY) -> dict:
+    """Check a bounded number of companies, oldest check first. Nothing runs without a key."""
+    now = now or datetime.now(UTC)
+    get_settings.cache_clear()
+    key = get_settings().companies_house_api_key
+    if not key:
+        return {'skipped': 'no key configured'}
+    state = db.get(MarketSourceState, COMPANY_STATE)
+    if state is None:
+        db.add(MarketSourceState(source_key=COMPANY_STATE))
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+        state = db.get(MarketSourceState, COMPANY_STATE)
+    checked = json.loads(state.cursor) if state.cursor else {}
+    due = [x for x in _watched_companies(db) if (now.date() - date.fromisoformat(checked.get(x, '2000-01-01'))).days >= COMPANY_RECHECK_DAYS]
+    found, done = [], 0
+    try:
+        for number in sorted(due, key=lambda x: checked.get(x, ''))[:limit]:
+            profile = fetch_company_profile(number, api_key=key, client=client)['raw']
+            control = fetch_corporate_control_snapshot(number, api_key=key, client=client)
+            found += company_observations(profile, control, now.date())
+            checked[number] = now.date().isoformat()
+            done += 1
+            sleep(COMPANY_PAUSE)
+    except CompaniesHouseError as exc:
+        # Keep what was read. A refused key or rate limit stops the run rather than retrying.
+        state.last_error, state.last_checked_at, state.failure_count = str(exc)[:120], now, (state.failure_count or 0) + 1
+        store_observations(db, found, now)
+        state.cursor = json.dumps(checked)
+        db.commit()
+        raise
+    stored = store_observations(db, found, now)
+    state.cursor = json.dumps(checked)
+    state.last_success_at, state.last_checked_at, state.last_error, state.failure_count = now, now, None, 0
+    db.commit()
+    return {**stored, 'companies_checked': done, 'still_due': max(0, len(due) - done)}
+
+
+def collect_all(db: Session, *, now: datetime | None = None) -> dict:
+    """Each source fails alone, so one refusal never stops the others."""
+    results = {}
+    for name, collect in (('public', collect_public_signals), ('companies_house', collect_company_signals)):
+        try:
+            results[name] = collect(db, now=now)
+        except Exception as exc:
+            results[name] = {'error': type(exc).__name__}
+    return results
+
+
 def signal_summary(db: Session) -> dict:
     rows = db.scalars(select(MarketHypothesis)).all()
     observations = db.scalars(select(MarketObservation)).all()
+    company = db.get(MarketSourceState, COMPANY_STATE)
     def tally(values):
         found = {}
         for value in values:
@@ -236,4 +326,5 @@ def signal_summary(db: Session) -> dict:
         return found
     return {'observations': len(observations), 'observations_by_source': tally(x.source_group for x in observations), 'observations_by_type': tally(x.signal_type for x in observations), 'automatic_observations': sum(1 for x in observations if x.capture == 'automatic'),
             'hypotheses': len(rows), 'active': sum(1 for x in rows if x.state == 'active'), 'withdrawn': sum(1 for x in rows if x.state == 'withdrawn'), 'by_decision': tally(x.decision for x in rows if x.state == 'active'),
-            'by_kind': tally(x.kind for x in rows if x.state == 'active'), 'independently_corroborated': sum(1 for x in rows if x.state == 'active' and x.evidence_state == 'independently_corroborated')}
+            'by_kind': tally(x.kind for x in rows if x.state == 'active'), 'independently_corroborated': sum(1 for x in rows if x.state == 'active' and x.evidence_state == 'independently_corroborated'),
+            'companies_checked': len(json.loads(company.cursor)) if company and company.cursor else 0}

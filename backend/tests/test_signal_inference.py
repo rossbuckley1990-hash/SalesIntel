@@ -9,6 +9,7 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from app.config import Settings, get_settings
 from app.db import Base, get_db
 from app.ingestion.market_public_signals import judgement_links, parse_gazette, read_judgement
 from app.intelligence.signal_backtest import fisher_greater, prospective_scorecard, run_backtest, wilson
@@ -17,7 +18,7 @@ from app.main import create_app
 from app.models.market_inference import MarketHypothesis, MarketHypothesisRevision, MarketObservation
 from app.models.market_network import MarketSourceState
 from app.models.market_opportunity import MarketOpportunity, MarketOpportunityRevision
-from app.services.market_inference import collect_public_signals, curated_observations, store_observations
+from app.services.market_inference import collect_company_signals, collect_public_signals, curated_observations, store_observations
 from app.services.market_network import ingest_market_release
 from app.services.market_opportunities import refresh_market_opportunities
 from app.services.renewal_radar import run_daily_cycle
@@ -314,3 +315,78 @@ def test_signal_api_returns_reasoning_with_history():
             assert client.get('/api/market-network/signals/summary').json()['by_decision']['pursue'] == 1
             found = client.get('/api/market-network/opportunities', params={'category': 'inferred_signal'}).json()
             assert found['total'] == 1 and found['items'][0]['suggestion']['signal']['decision'] == 'pursue'
+
+
+def _register(company_status='active', overdue=False, controllers=()):
+    def handler(request):
+        assert request.url.host == 'api.company-information.service.gov.uk'
+        if request.url.path.endswith('persons-with-significant-control'):
+            return httpx.Response(200, json={'items': list(controllers), 'total_results': len(controllers)})
+        return httpx.Response(200, json={'company_number': '01234567', 'company_name': 'ACME FIRE LIMITED', 'company_status': company_status, 'accounts': {'overdue': overdue}, 'has_insolvency_history': False})
+    return handler
+
+
+def _with_key(monkeypatch, value='test-key'):
+    monkeypatch.setenv('COMPANIES_HOUSE_API_KEY', value)
+    get_settings.cache_clear()
+
+
+def _company_db():
+    from app.models.market_contract import MarketContract
+    db = make_db()
+    db.add(MarketContract(canonical_key='k', buyer='Example Council', supplier='Acme Fire Ltd', title='Fire alarm maintenance', fit='core', lifecycle_status='in_term_published', category='pre_tender', facts={'company_numbers': ['01234567'], 'suppliers': ['Acme Fire Ltd']}, first_seen=NOW, last_evaluated=NOW))
+    db.commit()
+    return db
+
+
+def test_register_status_filing_and_control_change_become_labelled_observations(monkeypatch):
+    _with_key(monkeypatch)
+    corporate = {'kind': 'corporate-entity-person-with-significant-control', 'name': 'Big Group Ltd', 'notified_on': '2026-03-01', 'natures_of_control': ['ownership-of-shares-75-to-100-percent'], 'identification': {'registration_number': '07654321', 'place_registered': 'Companies House'}}
+    with _company_db() as db, httpx.Client(transport=httpx.MockTransport(_register('liquidation', True, [corporate]))) as client:
+        result = collect_company_signals(db, now=NOW, client=client, sleep=lambda _: None)
+        assert result['companies_checked'] == 1
+        rows = {x.signal_type: x for x in db.scalars(select(MarketObservation))}
+        assert set(rows) == {'supplier_insolvency', 'supplier_filing_overdue', 'control_change'} and rows['supplier_insolvency'].company_number == '01234567' and rows['supplier_insolvency'].source_group == 'companies_house'
+        assert collect_company_signals(db, now=NOW + timedelta(days=1), client=client, sleep=lambda _: None)['companies_checked'] == 0
+
+
+def test_no_key_means_no_request_and_no_failure(monkeypatch):
+    monkeypatch.delenv('COMPANIES_HOUSE_API_KEY', raising=False)
+    monkeypatch.setitem(Settings.model_config, 'env_file', None)
+    with _company_db() as db:
+        assert collect_company_signals(db, now=NOW, client=None) == {'skipped': 'no key configured'}
+        assert db.get(MarketSourceState, 'companies_house_signals') is None
+
+
+def test_a_rejected_key_is_recorded_and_stops_at_once(monkeypatch):
+    _with_key(monkeypatch)
+    calls = []
+
+    def refused(request):
+        calls.append(request.url.path)
+        return httpx.Response(401)
+
+    with _company_db() as db, httpx.Client(transport=httpx.MockTransport(refused)) as client:
+        with pytest.raises(Exception):
+            collect_company_signals(db, now=NOW, client=client, sleep=lambda _: None)
+        assert len(calls) == 1 and 'HTTP 401' in db.get(MarketSourceState, 'companies_house_signals').last_error
+
+
+def test_collect_all_keeps_going_when_one_source_fails(monkeypatch):
+    import app.services.market_inference as service
+
+    def broken(db, now=None):
+        raise RuntimeError('refused')
+
+    monkeypatch.setattr(service, 'collect_public_signals', broken)
+    monkeypatch.setattr(service, 'collect_company_signals', lambda db, now=None: {'companies_checked': 1})
+    assert service.collect_all(None, now=NOW) == {'public': {'error': 'RuntimeError'}, 'companies_house': {'companies_checked': 1}}
+
+
+def test_insolvency_on_a_published_number_links_and_one_late_filing_is_only_watched():
+    number = view(company_numbers=['01234567'])
+    insolvent = seen('supplier_insolvency', 'companies_house', buyer=None, supplier='Different Trading Name Ltd', fams=[], company_number='01234567')
+    found = contract_hypotheses([number], [insolvent], TODAY)['stress:ocds-h6vhtk-000001:'][0]
+    assert found['link'] == 'Matched on a published company number.' and found['decision'] == 'verify'
+    late = seen('supplier_filing_overdue', 'companies_house', buyer=None, supplier='Different Trading Name Ltd', fams=[], company_number='01234567')
+    assert contract_hypotheses([number], [late], TODAY)['stress:ocds-h6vhtk-000001:'][0]['decision'] == 'monitor'

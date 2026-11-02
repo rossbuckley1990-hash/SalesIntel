@@ -59,6 +59,9 @@ def fetch_company_profile(company_number: str, *, api_key: str | None, client: h
             raise CompaniesHouseError("Companies House returned a profile without a company name")
         fields = ("company_number", "company_name", "company_status", "date_of_creation", "date_of_cessation", "type", "sic_codes", "previous_company_names")
         profile = {key: payload[key] for key in fields if key in payload}
+        profile["accounts_overdue"] = (payload.get("accounts") or {}).get("overdue") is True
+        profile["confirmation_overdue"] = (payload.get("confirmation_statement") or {}).get("overdue") is True
+        profile["has_insolvency_history"] = payload.get("has_insolvency_history") is True
         # Registered offices can be residential; region/locality is sufficient here.
         address = payload.get("registered_office_address")
         if isinstance(address, dict):

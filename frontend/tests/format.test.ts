@@ -9,6 +9,7 @@ import {
   fetchOpportunityFieldIntelligence,
   generateExecutiveSummary,
   getApiBaseUrl,
+  researchEarlyOpportunities,
   researchOpportunity,
   runInternetResearch,
   type ExecutiveReport,
@@ -139,6 +140,24 @@ describe("api configuration", () => {
     );
     expect(result.headline).toContain("Protect margin");
     expect(result.md_attention).toContain("Sponsor two strategic must-wins before final review.");
+  });
+
+  it("requests early opportunity research without creating a pipeline record", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      query: "UK university estate expansion",
+      summary: "Review the sources.",
+      findings: [],
+      limitations: ["Buying intent is unconfirmed."],
+    }), { headers: { "Content-Type": "application/json" }, status: 200 }));
+    globalThis.fetch = fetchMock;
+
+    const result = await researchEarlyOpportunities("UK university estate expansion");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8000/api/intelligence/early-opportunities",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ query: "UK university estate expansion" }) }),
+    );
+    expect(result.findings).toEqual([]);
+    expect(result.limitations).toContain("Buying intent is unconfirmed.");
   });
 
   it("posts internet research requests through the backend", async () => {

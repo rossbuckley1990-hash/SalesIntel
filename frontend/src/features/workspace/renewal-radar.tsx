@@ -1,158 +1,242 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getApiBaseUrl } from "@/lib/api";
-import { safeSource } from "./api";
-import { Badge, Button, Empty, Heading, Loading, Metric, SectionHeading } from "./ui";
+import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, ArrowRight, ChevronLeft, ChevronRight, Download, Gavel, Hourglass, Inbox, MousePointerClick, Search, ShieldAlert, Sparkles, Target, X } from "lucide-react";
+import { OpportunityDetail } from "./opportunity-detail";
+import { EmptyState, Pill } from "./ds";
+import {
+  CATEGORY, CATEGORY_ORDER, NATIONS, SOURCE_NAMES, compactPounds, radarBase, relative, shortValue, signalsOf, titleCase, urgencyTone,
+  type Item, type Page, type Summary,
+} from "./radar-model";
 import type { SharedProps } from "./types";
 
-type Evidence = { source_revision_id: number; source_url: string; source: string; record_key: string; published_at: string | null };
-type Value = { published_total: number | null; estimated_annualised: number | null; framework_ceiling: number | null; type: string; basis: string; scope_note: string };
-type Brief = { customer: string; service_requirement: string; incumbent: string; commercial_value: string; contract_lifecycle: string; procurement_route: string; timing: string; why_it_matters: string; missing_information: string[]; next_action: string };
-type Suggestion = {
-  category: string; category_label: string; customer: string; title: string; supplier: string | null; timing: string | null; timing_basis: string; end_estimated: boolean; latest_end: string | null;
-  nation: string; fit: string; value: Value; priority: { tier: number; reasons: string[] }; counter_evidence: string[]; next_actions: string[]; extension: string;
-  link: { confidence: string; records: number; sources: string[] }; brief: Brief; evidence: Evidence[]; signal?: Signal; signals?: Signal[]; plausible_competitors?: string[];
-};
-type Observation = { fingerprint: string; label: string; statement: string; occurred_on: string; source_group: string; source_url: string; capture: string };
-type Explanation = { explanation: string; label: string; status: string; test: string };
-type Signal = { hypothesis_id: number; label: string; decision: string; decision_reasons: string[]; evidence_state: string; independent_sources: string[]; link: string; supporting: Observation[]; contradicting: Observation[]; explanations: Explanation[]; unknowns: string[]; caution: string };
-type Item = { id: number; review_state: string; suggestion: Suggestion };
-type Page = { items: Item[]; total: number };
-type Health = { source_key: string; status: string; last_success_at: string | null };
-type Summary = {
-  opportunities: number; by_category: Record<string, number>; by_tier: Record<string, number>; renewals_within_months: Record<string, number>;
-  value: { estimated_annualised: number; estimated_annualised_core_only: number; unknown_value_renewals: number }; find_a_tender_unbroken_from: string | null; health: Health[]; limits: string[];
-};
+export { valueLine } from "./radar-model";
 
-const PAGE = 25;
-const CATEGORIES = [["", "All"], ["contract_defence", "Contract defence"], ["live_procurement", "Live procurement"], ["official_early_signal", "Official early signals"], ["pre_tender", "Pre-tender"], ["inferred_signal", "Inferred signals"], ["verify_first", "Verify first"]];
-const NATIONS = ["", "England", "Scotland", "Wales", "Northern Ireland", "Not stated"];
-const SOURCE_NAMES: Record<string, string> = { find_a_tender: "Find a Tender", contracts_finder: "Contracts Finder", public_contracts_scotland: "Public Contracts Scotland", renewal_radar: "Radar evaluation" };
-const DECISIONS: Record<string, string> = { pursue: "Pursue", verify: "Verify", monitor: "Monitor", dismiss: "Dismiss" };
-const STATES: Record<string, string> = { independently_corroborated: "Independent sources agree", same_source_repeated: "One source, repeated", single_source: "One source", contradicted: "Contradicted" };
-const EXPLANATION_STATES: Record<string, string> = { supported: "Supported", possible: "Possible", not_established: "Not established", contradicted: "Contradicted", supported_by_published_attribution: "Published attribution" };
-const pounds = (value: number | null | undefined) => (value ? `£${Math.round(value).toLocaleString("en-GB")}` : "Not published");
+const PAGE = 30;
 
-export function valueLine(value: Value) {
-  if (value.type === "estimated_annualised") return `${pounds(value.estimated_annualised)} a year (estimated)`;
-  if (value.type === "published_total") return `${pounds(value.published_total)} published total`;
-  if (value.type === "framework_ceiling") return `${pounds(value.framework_ceiling)} framework ceiling`;
-  return "Value not published";
+function useWide() {
+  const [wide, setWide] = useState(true);
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1180px)");
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return wide;
 }
 
-function SignalDetail({ signal }: { signal: Signal }) {
-  return <div className="mt-2 border-l-2 border-[var(--misi-border)] pl-3">
-    <p><strong>{signal.label}</strong></p>
-    <p>{DECISIONS[signal.decision]} · {STATES[signal.evidence_state] || signal.evidence_state} · sources: {signal.independent_sources.join(", ")}</p>
-    <p>{signal.decision_reasons.join(" ")} {signal.link}</p>
-    <p className="mt-2"><strong>What was observed</strong></p>
-    <ul className="list-disc pl-5">{signal.supporting.map(item => <li key={item.fingerprint}>{item.occurred_on}: <a className="underline" href={safeSource(item.source_url) || undefined} target="_blank" rel="noreferrer">{item.statement}</a></li>)}</ul>
-    {signal.contradicting.length > 0 && <><p className="mt-2"><strong>Evidence against</strong></p><ul className="list-disc pl-5">{signal.contradicting.map(item => <li key={item.fingerprint}>{item.occurred_on}: {item.statement}</li>)}</ul></>}
-    <p className="mt-2"><strong>Possible explanations</strong></p>
-    <ul className="list-disc pl-5">{signal.explanations.map(item => <li key={item.explanation}>{item.label}: {EXPLANATION_STATES[item.status] || item.status}. {item.test}</li>)}</ul>
-    <p className="mt-2 text-xs">{signal.caution}</p>
-  </div>;
-}
-
-export function RenewalRadar({ notify }: SharedProps) {
-  const base = `${getApiBaseUrl()}/api/market-network/opportunities`;
+export function RenewalRadar({ notify, navigate }: SharedProps) {
+  const base = radarBase();
+  const wide = useWide();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [page, setPage] = useState<Page | null>(null);
   const [category, setCategory] = useState("");
   const [nation, setNation] = useState("");
   const [tier, setTier] = useState("");
   const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState("");
+  const [selected, setSelected] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    fetch(`${base}/summary`, { cache: "no-store" }).then(response => (response.ok ? response.json() : Promise.reject())).then(setSummary).catch(() => setError("The radar summary is unavailable."));
+    const url = new URL(window.location.href);
+    const lead = Number(url.searchParams.get("lead"));
+    if (lead > 0) setSelected(lead);
+    const preset = url.searchParams.get("category");
+    if (preset && CATEGORY[preset]) setCategory(preset);
+    if (url.searchParams.get("tier") === "1") setTier("1");
+  }, []);
+  useEffect(() => {
+    fetch(`${base}/summary`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : Promise.reject())).then(setSummary).catch(() => setError("The opportunity summary is unavailable."));
   }, [base]);
   useEffect(() => {
+    const timer = setTimeout(() => { setQuery(search.trim()); setOffset(0); }, 220);
+    return () => clearTimeout(timer);
+  }, [search]);
+  useEffect(() => {
     const controller = new AbortController();
-    const query = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
-    if (category) query.set("category", category);
-    if (nation) query.set("nation", nation);
-    if (tier) query.set("tier", tier);
-    if (search.trim()) query.set("q", search.trim());
-    fetch(`${base}?${query}`, { cache: "no-store", signal: controller.signal }).then(response => (response.ok ? response.json() : Promise.reject())).then((data: Page) => { setPage(data); setError(""); })
-      .catch(() => { if (!controller.signal.aborted) setError("Opportunities are unavailable. Try again."); });
+    const params = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
+    if (category) params.set("category", category);
+    if (nation) params.set("nation", nation);
+    if (tier) params.set("tier", tier);
+    if (query) params.set("q", query);
+    setLoading(true);
+    fetch(`${base}?${params}`, { cache: "no-store", signal: controller.signal }).then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: Page) => { setPage(data); setError(""); setLoading(false); })
+      .catch(() => { if (!controller.signal.aborted) { setError("Opportunities are unavailable. Check the MiSi API is running, then try again."); setLoading(false); } });
     return () => controller.abort();
-  }, [base, category, nation, tier, search, offset]);
+  }, [base, category, nation, tier, query, offset]);
+
+  // On a wide screen the first lead opens automatically, so the page is never empty.
+  useEffect(() => {
+    if (wide && page?.items.length && !page.items.some((i) => i.id === selected)) setSelected(page.items[0].id);
+  }, [wide, page, selected]);
+
+  const select = useCallback((id: number | null) => {
+    setSelected(id);
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set("lead", String(id)); else url.searchParams.delete("lead");
+    window.history.replaceState({}, "", url);
+  }, []);
+
   async function review(id: number, state: string) {
     const response = await fetch(`${base}/${id}/review`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ review_state: state }) });
     if (!response.ok) return notify("Could not save your review.", true);
-    setPage(previous => previous && { ...previous, items: previous.items.map(item => (item.id === id ? { ...item, review_state: state } : item)) });
+    setPage((p) => p && { ...p, items: p.items.map((i) => (i.id === id ? { ...i, review_state: state } : i)) });
+    notify(state === "dismiss" ? "Dismissed. It stays out of your way unless the evidence changes." : "Saved for later.");
   }
   async function promote(id: number) {
     const response = await fetch(`${base}/${id}/promote`, { method: "POST" });
-    if (!response.ok) return notify("Could not add this to pursuits.", true);
-    const result = await response.json() as { created: boolean };
-    notify(result.created ? "Added to pursuits for qualification." : "This is already in pursuits.");
-    setPage(previous => previous && { ...previous, items: previous.items.map(item => (item.id === id ? { ...item, review_state: "investigate" } : item)) });
+    if (!response.ok) return notify("Could not add this to your pipeline.", true);
+    const result = (await response.json()) as { created: boolean };
+    notify(result.created ? "Added to your pipeline for qualification." : "This is already in your pipeline.");
+    setPage((p) => p && { ...p, items: p.items.map((i) => (i.id === id ? { ...i, review_state: "investigate" } : i)) });
   }
   function filter(update: () => void) { update(); setOffset(0); }
-  const failing = summary?.health.filter(x => x.status !== "fresh") || [];
-  return <div>
-    <Heading eyebrow="UK fire and security" title="Renewal Radar" description="Published contracts nearing their end, official early signals and live tenders across the UK. Every line is a record to check, not a confirmed requirement.">
-      <a className="m-button secondary" href={`${base}/export.csv`}>Export CSV</a>
-    </Heading>
-    {error && <p role="alert">{error}</p>}
-    {!summary && !error && <Loading />}
-    {summary && <>
-      <section aria-label="Radar totals" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Ready to work" value={String(summary.by_tier["1"] || 0)} detail="Tier 1 opportunities" />
-        <Metric label="Contract defence" value={String(summary.by_category.contract_defence || 0)} detail="Held by the Mitie group" />
-        <Metric label="Live tenders" value={String(summary.by_category.live_procurement || 0)} detail="Open deadlines" />
-        <Metric label="Ending within 12 months" value={String(summary.renewals_within_months["12"] || 0)} detail={`${summary.renewals_within_months["6"] || 0} within 6 months`} />
-      </section>
-      <p className="m-description">{pounds(summary.value.estimated_annualised_core_only)} a year estimated on core contracts in the renewal list. This is published value over published term, not guaranteed or fully addressable spend. {summary.value.unknown_value_renewals} renewals publish no value.</p>
-      {failing.length > 0 && <p role="status">Needs attention: {failing.map(x => `${SOURCE_NAMES[x.source_key] || x.source_key} is ${x.status.replace("_", " ")}`).join("; ")}.</p>}
-    </>}
-    <section aria-label="Opportunities">
-      <SectionHeading title="Opportunities" detail={page ? `${page.total.toLocaleString("en-GB")} matching, highest priority first` : undefined} />
-      <div className="flex flex-wrap items-center gap-3 py-3">
-        {CATEGORIES.map(([id, label]) => <Button key={id} kind={category === id ? "primary" : "secondary"} onClick={() => filter(() => setCategory(id))}>{label}</Button>)}
-      </div>
-      <div className="flex flex-wrap items-center gap-3 pb-3">
-        <label className="text-sm">Search <input aria-label="Search customer, contract or supplier" value={search} onChange={event => filter(() => setSearch(event.target.value))} className="ml-1 rounded border border-[var(--misi-border)] bg-transparent px-2 py-1" maxLength={100} /></label>
-        <label className="text-sm">Nation <select value={nation} onChange={event => filter(() => setNation(event.target.value))}>{NATIONS.map(x => <option key={x} value={x}>{x || "All UK"}</option>)}</select></label>
-        <label className="text-sm">Priority <select value={tier} onChange={event => filter(() => setTier(event.target.value))}><option value="">All</option><option value="1">Tier 1</option><option value="2">Tier 2</option><option value="3">Tier 3</option></select></label>
-      </div>
-      {page && !page.items.length && <Empty title="No opportunities match">This does not mean none exist; it only covers captured records.</Empty>}
-      {page && !!page.items.length && <ul className="divide-y divide-[var(--misi-border)]">{page.items.map(({ id, review_state, suggestion: x }) => <li key={id} className="py-3"><details>
-        <summary className="cursor-pointer">
-          <strong>{x.customer}</strong> · {x.title}
-          <span className="mt-1 flex flex-wrap items-center gap-2 text-sm">
-            <Badge>Tier {x.priority.tier}</Badge><Badge>{x.category_label}</Badge><span>{x.nation}</span>
-            <span>{x.timing ? `${x.timing}${x.end_estimated ? " (estimated)" : ""}` : "No date published"}</span><span>{valueLine(x.value)}</span>{x.supplier && <span>Supplier: {x.supplier}</span>}
-          </span>
-        </summary>
-        <div className="mt-3 text-sm leading-6">
-          <p><strong>Next:</strong> {x.next_actions[0]}</p>
-          {x.next_actions.length > 1 && <ul className="list-disc pl-5">{x.next_actions.slice(1).map(text => <li key={text}>{text}</li>)}</ul>}
-          {x.counter_evidence.length > 0 && <><p className="mt-2"><strong>Check first</strong></p><ul className="list-disc pl-5">{x.counter_evidence.map(text => <li key={text}>{text}</li>)}</ul></>}
-          {[...(x.signal ? [x.signal] : []), ...(x.signals || [])].map(signal => <SignalDetail key={signal.hypothesis_id} signal={signal} />)}
-          {!!x.plausible_competitors?.length && <p className="mt-2">Plausible competitors, from published work of this kind: {x.plausible_competitors.join(", ")}. Their participation is not confirmed.</p>}
-          <dl className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-[12rem_1fr]">
-            <dt>Why it matters</dt><dd>{x.brief.why_it_matters}</dd>
-            <dt>Contract term</dt><dd>{x.brief.contract_lifecycle}</dd>
-            <dt>Date basis</dt><dd>{x.timing_basis}</dd>
-            <dt>Value basis</dt><dd>{x.value.basis} {x.value.scope_note}</dd>
-            <dt>Procurement route</dt><dd>{x.brief.procurement_route}</dd>
-            {x.extension && <><dt>Extension wording</dt><dd>{x.extension}</dd></>}
-            <dt>Missing</dt><dd>{x.brief.missing_information.join(" ")}</dd>
-            <dt>Records</dt><dd>{x.link.records} from {x.link.sources.join(" and ")}; link confidence {x.link.confidence}</dd>
-            <dt>Priority reasons</dt><dd>{x.priority.reasons.join("; ")}</dd>
-          </dl>
-          <p className="mt-2"><strong>Evidence</strong></p>
-          {x.evidence.slice(0, 4).map(source => <p key={source.source_revision_id}><a className="underline" href={safeSource(source.source_url) || undefined} target="_blank" rel="noreferrer">{source.source} {source.record_key}</a>{source.published_at ? ` · ${source.published_at.slice(0, 10)}` : ""}</p>)}
-          <div className="mt-3 flex flex-wrap gap-2"><Button kind="primary" onClick={() => promote(id)}>Add to pursuits</Button><Button onClick={() => review(id, "defer")}>Defer</Button><Button onClick={() => review(id, "dismiss")}>Dismiss</Button></div>
-          <p className="mt-2 text-xs">Your review: {review_state}. Nothing here contacts anyone.</p>
+  function clearAll() { setCategory(""); setNation(""); setTier(""); setSearch(""); setQuery(""); setOffset(0); }
+  function toggle(nextCategory: string, nextTier = "") {
+    const same = category === nextCategory && tier === nextTier;
+    filter(() => { setCategory(same ? "" : nextCategory); setTier(same ? "" : nextTier); });
+  }
+
+  const current = page?.items.find((i) => i.id === selected) || null;
+  const failing = summary?.health.filter((x) => x.status !== "fresh") || [];
+  const filtered = !!(category || nation || tier || query);
+  const kpis = summary && [
+    { id: "tier1", icon: Target, label: "Ready to work", value: summary.by_tier["1"] || 0, detail: "Tier 1, highest priority", active: tier === "1" && !category, onClick: () => toggle("", "1") },
+    { id: "live", icon: Gavel, label: "Live tenders", value: summary.by_category.live_procurement || 0, detail: "Open with a deadline", active: category === "live_procurement" && !tier, onClick: () => toggle("live_procurement") },
+    { id: "ending", icon: Hourglass, label: "Ending in 12 months", value: summary.renewals_within_months["12"] || 0, detail: `${summary.renewals_within_months["6"] || 0} within 6 months`, active: category === "pre_tender" && !tier, onClick: () => toggle("pre_tender") },
+    { id: "defence", icon: ShieldAlert, label: "Contracts to defend", value: summary.by_category.contract_defence || 0, detail: "Held by the Mitie group", active: category === "contract_defence" && !tier, onClick: () => toggle("contract_defence") },
+  ];
+
+  return (
+    <div className="ds-root">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[13px] font-semibold text-ds-brand">UK public sector · fire and security</p>
+          <h1 className="mt-1 text-[28px] font-semibold leading-tight tracking-[-0.03em] text-ds-ink">Opportunity Finder</h1>
+          <p className="mt-1.5 max-w-2xl text-[15px] leading-6 text-ds-muted">Contracts nearing renewal, early notices, live tenders and AI-inferred signals, ranked by when you need to act.</p>
         </div>
-      </details></li>)}</ul>}
-      {page && page.total > PAGE && <div className="flex items-center gap-3 py-3"><Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>Previous</Button><span className="text-sm">{offset + 1} to {Math.min(offset + PAGE, page.total)} of {page.total}</span><Button disabled={offset + PAGE >= page.total} onClick={() => setOffset(offset + PAGE)}>Next</Button></div>}
-    </section>
-    {summary && <section aria-label="Coverage" className="mt-6"><SectionHeading title="Coverage and limits" /><ul className="list-disc pl-5 text-sm leading-6">{summary.limits.map(text => <li key={text}>{text}</li>)}</ul></section>}
-  </div>;
+        <div className="flex gap-2">
+          <a className="ds-btn" href={`${base}/export.csv`}><Download size={16} /> Export</a>
+          <button className="ds-btn primary" onClick={() => navigate("discover")}><Sparkles size={16} /> Find more with AI</button>
+        </div>
+      </header>
+
+      {failing.length > 0 && <div role="status" className="mt-5 flex items-start gap-2.5 rounded-xl border border-ds-amber-line bg-ds-amber-soft px-4 py-3 text-[13px] text-ds-ink-2">
+        <AlertCircle size={16} className="mt-0.5 flex-none text-ds-amber" />
+        <span><strong className="font-semibold text-ds-amber">Needs attention: </strong>{failing.map((x) => `${SOURCE_NAMES[x.source_key] || x.source_key} is ${x.status.replace("_", " ")}`).join("; ")}. Results from it may be out of date.</span>
+      </div>}
+
+      <section aria-label="Totals" className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {kpis ? kpis.map((k) => (
+          <button key={k.id} onClick={k.onClick} aria-pressed={k.active} className={`group rounded-xl border bg-white p-4 text-left shadow-ds-xs transition hover:border-ds-brand-line hover:shadow-ds-sm ${k.active ? "border-ds-brand ring-4 ring-[rgba(59,79,216,.12)]" : "border-ds-border"}`}>
+            <span className="flex items-center justify-between gap-2"><span className="text-[13px] font-medium text-ds-muted">{k.label}</span><k.icon size={16} className={k.active ? "text-ds-brand" : "text-ds-faint group-hover:text-ds-brand"} /></span>
+            <span className="ds-num mt-2 block text-[28px] font-semibold leading-none tracking-[-0.02em] text-ds-ink">{k.value}</span>
+            <span className="mt-2 block text-[12px] text-ds-muted">{k.detail}</span>
+          </button>
+        )) : [0, 1, 2, 3].map((i) => <div key={i} className="ds-skeleton h-[106px] rounded-xl" />)}
+      </section>
+      {summary && summary.value.estimated_annualised_core_only > 0 && <p className="mt-3 text-[12px] text-ds-muted">
+        About <strong className="font-semibold text-ds-ink-2">{compactPounds(summary.value.estimated_annualised_core_only)} a year</strong> of core work is coming up for renewal (published value over published term; not guaranteed spend). {summary.value.unknown_value_renewals} renewals publish no value.
+      </p>}
+
+      <section aria-label="Filters" className="z-10 -mx-1 mt-6 bg-ds-canvas px-1 pb-3 pt-2 md:sticky md:top-[60px]">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative w-full sm:w-auto sm:min-w-[220px] sm:flex-1">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-faint" />
+            <input className="ds-input" aria-label="Search customer, contract or supplier" placeholder="Search customer, contract or incumbent" value={search} onChange={(e) => setSearch(e.target.value)} maxLength={100} />
+            {search && <button aria-label="Clear search" className="absolute right-2 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-md text-ds-muted hover:bg-ds-subtle" onClick={() => setSearch("")}><X size={14} /></button>}
+          </div>
+          <select className="ds-select min-w-0 flex-1 sm:flex-none" aria-label="Nation" value={nation} onChange={(e) => filter(() => setNation(e.target.value))}><option value="">All of the UK</option>{NATIONS.map((n) => <option key={n} value={n}>{n}</option>)}</select>
+          <select className="ds-select min-w-0 flex-1 sm:flex-none" aria-label="Priority" value={tier} onChange={(e) => filter(() => setTier(e.target.value))}><option value="">Any priority</option><option value="1">Tier 1 · act now</option><option value="2">Tier 2</option><option value="3">Tier 3</option></select>
+          {filtered && <button className="ds-btn ghost sm" onClick={clearAll}>Clear filters</button>}
+        </div>
+        <div className="ds-tabs mt-3" role="group" aria-label="Opportunity type">
+          <button aria-pressed={category === ""} onClick={() => filter(() => setCategory(""))}>All <span>{summary?.opportunities ?? ""}</span></button>
+          {CATEGORY_ORDER.map((id) => (
+            <button key={id} aria-pressed={category === id} onClick={() => filter(() => setCategory(id))} title={CATEGORY[id].help}>
+              {CATEGORY[id].label} <span>{summary?.by_category[id] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {error && <div role="alert" className="mt-4 rounded-xl border border-ds-red-line bg-ds-red-soft px-4 py-3 text-[13px] text-ds-red">{error}</div>}
+
+      <div className="mt-2 grid items-start gap-5 xl:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
+        <section aria-label="Opportunities" className="min-w-0">
+          <p className="mb-2 px-1 text-[12px] font-medium text-ds-muted" aria-live="polite">
+            {page ? `${page.total.toLocaleString("en-GB")} ${page.total === 1 ? "opportunity" : "opportunities"}, most urgent first` : "Loading…"}
+          </p>
+          {!page && loading && <div className="space-y-2">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="ds-skeleton h-[118px] rounded-xl" />)}</div>}
+          {page && !page.items.length && <div className="ds-card"><EmptyState icon={<Inbox size={20} />} title="Nothing matches these filters" action={filtered ? <button className="ds-btn" onClick={clearAll}>Clear filters</button> : undefined}>MiSi only covers captured public records, so this does not mean no opportunity exists. Try AI Research to look further.</EmptyState></div>}
+          {page && !!page.items.length && <ul className={`space-y-2 transition-opacity ${loading ? "opacity-60" : ""}`}>
+            {page.items.map((item) => <li key={item.id}><LeadRow item={item} active={item.id === selected} onClick={() => select(item.id)} /></li>)}
+          </ul>}
+          {page && page.total > PAGE && <div className="mt-3 flex items-center justify-between px-1">
+            <span className="text-[12px] text-ds-muted">{offset + 1}–{Math.min(offset + PAGE, page.total)} of {page.total}</span>
+            <div className="flex gap-1.5">
+              <button className="ds-btn sm" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}><ChevronLeft size={15} /> Previous</button>
+              <button className="ds-btn sm" disabled={offset + PAGE >= page.total} onClick={() => setOffset(offset + PAGE)}>Next <ChevronRight size={15} /></button>
+            </div>
+          </div>}
+        </section>
+
+        {wide ? (
+          <aside aria-label="Selected opportunity" className="ds-card sticky top-[176px] h-[calc(100vh-196px)] min-h-[520px] overflow-hidden">
+            {current ? <OpportunityDetail key={current.id} item={current} onPromote={promote} onReview={review} />
+              : <EmptyState icon={<MousePointerClick size={20} />} title="Select an opportunity">See why it matters, the evidence behind it and the next step, then run deep research before you engage.</EmptyState>}
+          </aside>
+        ) : current && (
+          <div className="fixed inset-0 z-50 flex bg-[rgba(16,24,40,.35)]" role="dialog" aria-modal="true" aria-label="Opportunity detail">
+            <div className="ds-fade ml-auto h-full w-full max-w-[720px] bg-white shadow-ds-lg">
+              <OpportunityDetail key={current.id} item={current} onPromote={promote} onReview={review} onClose={() => select(null)} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {summary && <details className="mt-10 rounded-xl border border-ds-border bg-white px-5 py-4 text-[13px] text-ds-muted">
+        <summary className="cursor-pointer font-semibold text-ds-ink-2">Coverage and limits</summary>
+        <ul className="mt-2 list-disc space-y-1 pl-5 leading-5">{summary.limits.map((t) => <li key={t}>{t}</li>)}</ul>
+        <button className="mt-3 inline-flex items-center gap-1 font-semibold text-ds-brand" onClick={() => navigate("discover")}>Use AI Research for private-sector leads <ArrowRight size={14} /></button>
+      </details>}
+    </div>
+  );
+}
+
+function LeadRow({ item, active, onClick }: { item: Item; active: boolean; onClick: () => void }) {
+  const x = item.suggestion;
+  const meta = CATEGORY[x.category] || { short: x.category_label, tone: "neutral" as const };
+  const when = relative(x.timing);
+  const value = shortValue(x.value);
+  const signals = signalsOf(x).length;
+  const urgency = urgencyTone(x.timing);
+  const done = item.review_state === "dismiss" || item.review_state === "defer";
+  return (
+    <button onClick={onClick} aria-current={active ? "true" : undefined}
+      className={`w-full rounded-xl border bg-white px-4 py-3.5 text-left transition ${active ? "border-ds-brand shadow-ds-sm ring-4 ring-[rgba(59,79,216,.10)]" : "border-ds-border shadow-ds-xs hover:border-ds-border-strong hover:shadow-ds-sm"} ${done ? "opacity-60" : ""}`}>
+      <span className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <Pill tone={meta.tone} dot>{meta.short}</Pill>
+          {x.priority.tier === 1 && <Pill tone="brand">Tier 1</Pill>}
+          {item.review_state === "investigate" && <Pill tone="green">In pipeline</Pill>}
+          {item.researched && <Pill tone="violet" title="A deep research dossier is saved">Researched</Pill>}
+          {signals > 0 && <Sparkles size={13} className="text-ds-violet" aria-label="Has inferred signals" />}
+        </span>
+        {when && <span className={`ds-num flex-none text-[12px] font-semibold ${urgency === "red" ? "text-ds-red" : urgency === "amber" ? "text-ds-amber" : "text-ds-muted"}`}>{when}</span>}
+      </span>
+      <span className="mt-2 block truncate text-[14px] font-semibold text-ds-ink">{titleCase(x.customer)}</span>
+      <span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-ds-muted">{x.title}</span>
+      <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ds-muted">
+        {value && <span className="ds-num font-semibold text-ds-ink-2">{value}</span>}
+        {x.supplier && <span className="max-w-[220px] truncate">Incumbent: {x.supplier}</span>}
+        <span>{x.nation}</span>
+      </span>
+    </button>
+  );
 }

@@ -9,6 +9,13 @@ def test_openai_api_key_is_optional() -> None:
     assert settings.openai_api_key is None
 
 
+def test_openai_model_default_and_explicit_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+
+    assert Settings(_env_file=None).openai_model == "gpt-6.1-terra"
+    assert Settings(_env_file=None, openai_model="another-model").openai_model == "another-model"
+
+
 def test_cors_defaults_to_local_frontend_only() -> None:
     settings = Settings()
 

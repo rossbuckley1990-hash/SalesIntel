@@ -14,7 +14,7 @@ from app.models.research_dossier import SavedResearchRun, ResearchLead, Research
 from app.models.source_run import SourceRun
 from app.models.market_network import MarketSourceState, SourceRevision, MarketEntity, MarketAward
 from app.models.market_graph import MarketRelationship
-from app.models.market_opportunity import MarketOpportunity, MarketOpportunityRevision
+from app.models.market_opportunity import MarketOpportunity, MarketOpportunityDossier, MarketOpportunityRevision
 from app.models.market_contract import MarketContract, MarketContractLink
 from app.models.market_inference import MarketObservation, MarketHypothesis, MarketHypothesisRevision
 

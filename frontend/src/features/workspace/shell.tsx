@@ -2,20 +2,20 @@
 import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import {
-  Activity,
   ArrowUpRight,
   BriefcaseBusiness,
   Building2,
   CheckCheck,
   ChevronRight,
   CircleDollarSign,
-  Command,
-  Compass,
   FileText,
+  Flag,
+  House,
   Layers3,
   ListChecks,
   Menu,
   Orbit,
+  Radar,
   Search,
   ShieldCheck,
   Sparkles,
@@ -24,10 +24,11 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { getApiBaseUrl } from "@/lib/api";
 import { request, mutate } from "./api";
-import { Badge, Button, Empty, Loading, Modal } from "./ui";
+import { Button, Empty, Loading, Modal } from "./ui";
 import type { Navigate, SharedProps, View, Workspace } from "./types";
-import { Today } from "./today";
+import { Home } from "./home";
 import { Opportunities } from "./opportunities";
 import { Discover } from "./discover";
 import { Inspector } from "./inspector";
@@ -59,29 +60,25 @@ const Imports = dynamic(() => import("./imports").then((m) => m.Imports), {
 });
 
 const navigation = [
-  { id: "today", label: "Today", icon: Activity, group: "WORKSPACE" },
-  { id: "field", label: "Intelligence Field", icon: Orbit },
-  { id: "discover", label: "Discover", icon: Compass },
-  { id: "radar", label: "Renewal Radar", icon: ShieldCheck },
-  {
-    id: "opportunities",
-    label: "Opportunities",
-    icon: Target,
-    group: "COMMERCIAL",
-  },
-  { id: "pursuits", label: "Pursuits", icon: BriefcaseBusiness },
-  { id: "accounts", label: "Accounts", icon: Building2 },
-  { id: "selfDelivery", label: "Self-Delivery", icon: Layers3 },
-  { id: "finance", label: "Finance", icon: CircleDollarSign },
-  {
-    id: "actions",
-    label: "My Work",
-    icon: ListChecks,
-    group: "MAKE IT HAPPEN",
-  },
+  { id: "today", label: "Home", icon: House, group: "Find" },
+  { id: "radar", label: "Opportunity Finder", icon: Radar, group: "Find" },
+  { id: "discover", label: "AI Research", icon: Sparkles, group: "Find" },
+  { id: "opportunities", label: "Pipeline", icon: BriefcaseBusiness, group: "Win" },
+  { id: "pursuits", label: "Pursuits", icon: Flag, group: "Win" },
+  { id: "accounts", label: "Accounts", icon: Building2, group: "Win" },
+  { id: "actions", label: "My Work", icon: ListChecks, group: "TOOLS" },
   { id: "assets", label: "Asset Studio", icon: FileText },
+  { id: "finance", label: "Finance", icon: CircleDollarSign },
+  { id: "selfDelivery", label: "Self-Delivery", icon: Layers3 },
+  { id: "field", label: "Intelligence Field", icon: Orbit },
   { id: "outcomes", label: "Outcomes", icon: CheckCheck },
 ] as const;
+const primaryViews: View[] = ["today", "radar", "discover", "opportunities", "pursuits", "accounts"];
+const navGroups = ["Find", "Win"] as const;
+
+function navGroupOf(id: string) {
+  return ["today", "radar", "discover"].includes(id) ? "Find" : "Win";
+}
 
 export function LivingWorkspace() {
   const [data, setData] = useState<Workspace | null>(null);
@@ -96,7 +93,16 @@ export function LivingWorkspace() {
     error: boolean;
   } | null>(null);
   const [mobile, setMobile] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [readyCount, setReadyCount] = useState(0);
+  useEffect(() => {
+    fetch(`${getApiBaseUrl()}/api/market-network/opportunities/summary`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => s && setReadyCount(Number(s.by_tier?.["1"] || 0)))
+      .catch(() => {});
+  }, []);
+  const openPipeline = data ? data.opportunities.filter((o) => !["Won", "Lost"].includes(o.stage)).length : 0;
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -152,6 +158,9 @@ export function LivingWorkspace() {
     return () => window.removeEventListener("keydown", key);
   }, []);
   useEffect(() => {
+    if (!primaryViews.includes(view) && view !== "imports") setToolsOpen(true);
+  }, [view]);
+  useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), toast.error ? 15000 : 7000);
     return () => clearTimeout(timer);
@@ -179,6 +188,10 @@ export function LivingWorkspace() {
         refresh,
         notify,
         selectedId,
+        ask: (q: string) => {
+          setQuery(q);
+          navigate("discover");
+        },
         selectOpportunity: (id: number | null) => {
           setSelectedId(id);
           const url = new URL(window.location.href);
@@ -192,7 +205,7 @@ export function LivingWorkspace() {
     if (!shared) return null;
     switch (view) {
       case "today":
-        return <Today {...shared} />;
+        return <Home {...shared} />;
       case "field":
         return <IntelligenceField {...shared} />;
       case "discover":
@@ -226,46 +239,50 @@ export function LivingWorkspace() {
       <a className="m-skip" href="#m-main">
         Skip to workspace
       </a>
-      <aside className={`m-sidebar ${mobile ? "open" : ""}`}>
+      <aside id="m-navigation" className={`m-sidebar ${mobile ? "open" : ""}`}>
         <a className="m-brand" href="/?view=today" aria-label="MiSi home">
-          <span>
-            MiS<span className="m-brand-i">i</span>
-            <i />
-          </span>
-          <small>COMMERCIAL INTELLIGENCE</small>
+          <span className="m-brand-mark" aria-hidden="true">m<span>·</span></span>
+          <span className="m-brand-wordmark">MiSi<small>Sales intelligence</small></span>
         </a>
         <div className="m-workspace-name">
-          <span className="m-team-icon">M</span>
           <div>
+            <small>YOUR WORKSPACE</small>
             <strong>Mitie Fire & Security</strong>
-            <small>Commercial workspace</small>
           </div>
         </div>
         <nav aria-label="Main navigation">
-          {navigation.map((item) => (
-            <div key={item.id}>
-              {"group" in item && item.group && (
-                <p className="m-nav-group">{item.group}</p>
-              )}
-              <button
-                aria-current={view === item.id ? "page" : undefined}
-                onClick={() => navigate(item.id)}
-                className={`m-nav-item ${view === item.id ? "active" : ""}`}
-              >
-                <item.icon size={18} strokeWidth={1.5} />
-                <span>{item.label}</span>
-                {item.id === "field" && <span className="m-nav-new">NEW</span>}
-                {item.id === "actions" && data && (
-                  <span className="m-nav-count">
-                    {
-                      data.actions.filter((a) => a.status !== "completed")
-                        .length
-                    }
-                  </span>
-                )}
-              </button>
+          {navGroups.map((group) => (
+            <div key={group}>
+              <p className="m-nav-group">{group}</p>
+              {navigation.filter((item) => primaryViews.includes(item.id) && navGroupOf(item.id) === group).map((item) => (
+                <button
+                  key={item.id}
+                  aria-current={view === item.id ? "page" : undefined}
+                  onClick={() => navigate(item.id)}
+                  className={`m-nav-item ${view === item.id ? "active" : ""}`}
+                >
+                  <item.icon size={18} strokeWidth={1.75} />
+                  <span>{item.label}</span>
+                  {item.id === "radar" && readyCount > 0 && <span className="ds-nav-hint" aria-label={`${readyCount} ready to work`}>{readyCount}</span>}
+                  {item.id === "opportunities" && openPipeline > 0 && <span className="ds-nav-hint">{openPipeline}</span>}
+                </button>
+              ))}
             </div>
           ))}
+          <div className="m-nav-tools">
+            <button className="m-nav-group-toggle" aria-expanded={toolsOpen} aria-controls="m-tools-navigation" onClick={() => setToolsOpen((open) => !open)}>
+              <span>Tools</span><ChevronRight size={14} className={toolsOpen ? "expanded" : ""} />
+            </button>
+            <div id="m-tools-navigation" hidden={!toolsOpen}>{navigation.filter((item) => !primaryViews.includes(item.id)).map((item) => <button
+              key={item.id}
+              aria-current={view === item.id ? "page" : undefined}
+              onClick={() => navigate(item.id)}
+              className={`m-nav-item ${view === item.id ? "active" : ""}`}
+            >
+              <item.icon size={18} strokeWidth={1.5} /><span>{item.label}</span>
+              {item.id === "actions" && data && data.actions.some((a) => a.status !== "completed") && <span className="m-nav-count">{data.actions.filter((a) => a.status !== "completed").length}</span>}
+            </button>)}</div>
+          </div>
         </nav>
         <div className="m-sidebar-bottom">
           <button
@@ -307,10 +324,12 @@ export function LivingWorkspace() {
               className="m-icon-button m-menu"
               onClick={() => setMobile((v) => !v)}
               aria-label="Toggle navigation"
+              aria-expanded={mobile}
+              aria-controls="m-navigation"
             >
               <Menu size={20} />
             </button>
-            <span>Workspace</span>
+            <span>MiSi</span>
             <ChevronRight size={13} />
             <strong>
               {navigation.find((n) => n.id === view)?.label || "Import data"}
@@ -318,10 +337,11 @@ export function LivingWorkspace() {
           </div>
           <button
             className="m-command-trigger"
+            aria-label="Search or ask MiSi"
             onClick={() => setCommand(true)}
           >
             <Search size={15} />
-            <span>Search or ask MiSi</span>
+            <span>Search, or ask MiSi to find opportunities…</span>
             <kbd>⌘ K</kbd>
           </button>
           <div className="m-topbar-right">
@@ -335,15 +355,12 @@ export function LivingWorkspace() {
                 <Undo2 size={17} />
               </button>
             )}
-            <Badge tone="green">
-              {data?.mode === "synthetic" ? "DEMO" : "LOCAL"}
-            </Badge>
-            <span className="m-profile">MFS</span>
+            <span className="m-topbar-mode"><i aria-hidden="true" />{data?.mode === "synthetic" ? "DEMO WORKSPACE" : "LOCAL WORKSPACE"}</span>
           </div>
         </header>
         <main
           id="m-main"
-          className={`m-main ${view === "field" ? "field" : ""}`}
+          className={`m-main m-view-${view} m-modern-view ${view === "field" ? "field" : ""}`}
           tabIndex={-1}
         >
           {!data && !error && <Loading />}
@@ -367,7 +384,7 @@ export function LivingWorkspace() {
         </main>
         <footer className="m-shell-footer">
           <span>{data?.notice || "MiSi / Local commercial intelligence"}</span>
-          <span>See the opportunity. Make the move.</span>
+          <span>Public sources only · every lead links to its evidence</span>
         </footer>
       </div>
       {inspectId && (
@@ -439,7 +456,7 @@ function CommandMenu({
     fn();
   }
   return (
-    <Modal title="Search and command" close={close}>
+    <Modal title="Search and command" close={close} className="m-command-dialog">
       <div className="m-command-menu">
         <form
           onSubmit={(e) => {
@@ -454,6 +471,7 @@ function CommandMenu({
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search records, open a workspace or ask a question…"
             autoFocus
+            data-dialog-autofocus
           />
           <kbd>ESC</kbd>
         </form>

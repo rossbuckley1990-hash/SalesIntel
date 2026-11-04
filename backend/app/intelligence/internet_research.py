@@ -1,5 +1,7 @@
 import json
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from openai import OpenAIError
 from pydantic import ValidationError
@@ -171,6 +173,7 @@ def _merge_unique_urls(primary: list[str], secondary: list[str]) -> list[str]:
 
 
 def _system_prompt() -> str:
+    today = datetime.now(ZoneInfo("Europe/London")).date().isoformat()
     return build_commercial_system_prompt(
         role=(
             "You are MiSi, an internet intelligence researcher for Mitie Fire "
@@ -182,9 +185,14 @@ def _system_prompt() -> str:
         ),
         output_contract="Return only JSON matching the schema.",
         extra_rules=[
+            f"The current UK date is {today}. Compare deadlines with this date.",
             "Do not claim to have searched private systems.",
             "Every finding must include the commercial implication and the next action.",
-            "Return exactly three concise findings.",
+            "Return up to three concise findings. Return an empty findings array if no relevant, adequately evidenced findings are found; explain the limitation and next search action.",
+            "For tender and opportunity discovery, use a primary procurement notice where available and check its latest linked notices or amendments. Include a source URL for each finding.",
+            "State the buyer, procurement status and submission deadline where evidenced. Distinguish open tenders, preliminary engagement, future pipeline, awarded contracts and closed or expired notices. Never describe an award, payment or expired notice as an open bid.",
+            "If the current status or deadline cannot be verified, state that it is unknown and recommend checking it; do not present the opportunity as open.",
+            "Report contract value only when the source supports it, describing the amount as a total, annual value or framework ceiling as appropriate. Do not invent revenue, margin, win probability or available bid value; mark these unknown when unsupported.",
             "Keep each finding, so_what and recommended_action field under 40 words.",
             "Use no more than six total source URLs.",
             "Focus on market radar, tender intelligence, buyer intelligence, competitor intelligence, opportunity intelligence, self-delivery routing and pipeline forecast implications.",

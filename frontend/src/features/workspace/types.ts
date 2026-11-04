@@ -237,4 +237,5 @@ export type SharedProps = {
   notify: Notice;
   selectedId: number | null;
   selectOpportunity: (id: number | null) => void;
+  ask?: (query: string) => void;
 };

@@ -108,7 +108,7 @@ export function ConfidenceOrbit({
     <div
       className="misi-confidence-glow rounded-full p-[3px]"
       style={{
-        background: `conic-gradient(#7cb342 ${percent}%, rgba(255,255,255,0.12) 0)`,
+        background: `conic-gradient(#3b4fd8 ${percent}%, #e4e7ec 0)`,
       }}
       aria-label={`${label} confidence progress`}
     >

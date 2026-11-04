@@ -1,9 +1,10 @@
 "use client";
 import { useMemo, useState } from "react";
-import { ArrowUpRight, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Search, SlidersHorizontal } from "lucide-react";
 import { dateLabel, money } from "./api";
-import { Badge, Button, Empty, Heading } from "./ui";
+import { Badge, Button, Heading } from "./ui";
 import type { LivingOpportunity, SharedProps } from "./types";
+import "./supporting-workspace.css";
 
 export function OpportunityTable({
   opportunities,
@@ -102,24 +103,17 @@ export function Opportunities(props: SharedProps & { pursuits?: boolean }) {
     [props.data, search, risk, sector, props.pursuits],
   );
   return (
-    <>
+    <div className="m-support-light m-support-opportunities">
       <Heading
-        eyebrow={
-          props.pursuits
-            ? "Pursuits / Accountable progress"
-            : "Opportunities / The commercial picture"
-        }
-        title={
-          props.pursuits
-            ? "Make the pursuit move."
-            : "A pipeline with perspective."
-        }
-        description="Inspect the evidence, qualify the risk and put a named next step in motion."
+        eyebrow={props.pursuits ? "Win · decided pursuits" : "Win · qualify and progress"}
+        title={props.pursuits ? "Pursuits" : "Pipeline"}
+        description={props.pursuits ? "Opportunities with a recorded decision to pursue, and what happens next." : "Opportunities you have added from the Finder or AI Research. Qualify each one with evidence, then decide whether to pursue."}
       >
-        <Button kind="primary" onClick={() => props.navigate("discover")}>
-          Discover opportunities <ArrowUpRight size={16} />
+        <Button kind="primary" onClick={() => props.navigate("radar")}>
+          Find opportunities <ArrowUpRight size={16} />
         </Button>
       </Heading>
+      <div className="m-support-list-heading"><div><h2>{props.pursuits ? "Your pursuits" : "Your pipeline"}</h2><p>Filter the records already in your workspace.</p></div></div>
       <div className="m-toolbar">
         <label className="m-search">
           <Search size={17} />
@@ -162,14 +156,15 @@ export function Opportunities(props: SharedProps & { pursuits?: boolean }) {
       {rows.length ? (
         <OpportunityTable opportunities={rows} inspect={props.inspect} />
       ) : (
-        <Empty title="No matching opportunities">
-          Adjust your filters or start a discovery.
-        </Empty>
+        <div className="m-support-zero" role="status">
+          <div><h3>{props.data.opportunities.length ? "No matching opportunities" : "Your pipeline is empty"}</h3><p>{props.data.opportunities.length ? "Adjust your filters to see more." : "Open the Opportunity Finder, pick a lead and choose Add to pipeline. It will appear here for qualification."}</p></div>
+          <button onClick={() => props.navigate("radar")}>Open the Finder <ArrowRight size={15} /></button>
+        </div>
       )}
       <p className="m-footnote">
         Annual revenue and whole-contract value are separate measures. Unknown
         values remain unknown.
       </p>
-    </>
+    </div>
   );
 }

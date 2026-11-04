@@ -95,8 +95,8 @@ export class MirrorFloor {
           refl += textureLod(uReflection, uv + vec2( px.x * 0.5, -px.y), lod).rgb * 0.15;
           refl += textureLod(uReflection, uv + vec2(-px.x * 0.5, -px.y), lod).rgb * 0.15;
 
-          vec3 base = vec3(0.0042, 0.0046, 0.0056);
-          base *= 0.85 + 0.3 * hash(floor(vWorld.xz * 220.0));
+          vec3 base = vec3(0.835, 0.855, 0.895);
+          base *= 0.985 + 0.03 * hash(floor(vWorld.xz * 220.0));
 
           // Pool of light thrown forward by the screen.
           vec2 q = rel - vec2(0.0, 0.85);
@@ -105,14 +105,14 @@ export class MirrorFloor {
 
           // Contact shadow (soft, elongated with the device).
           float sh = exp(-(rel.x * rel.x) / (0.18 * uDeviceSize.x * 2.0) - (rel.y * rel.y) / 0.06);
-          c *= 1.0 - 0.65 * sh * uShadow;
+          c *= 1.0 - 0.28 * sh * uShadow;
 
           c += refl * (0.22 + fres) * uReflect;
           // Dissolve into the void.
           float fade = 1.0 - smoothstep(2.6, 8.5, dist);
-          vec3 voidC = vec3(0.0016, 0.0018, 0.0023);
+          vec3 voidC = vec3(0.905, 0.922, 0.956);
           c = mix(voidC, c, fade);
-          c += (hash(gl_FragCoord.xy + 0.5) - 0.5) * 0.0016;
+          c += (hash(gl_FragCoord.xy + 0.5) - 0.5) * 0.004;
           gl_FragColor = vec4(c, 1.0);
         }`,
     });

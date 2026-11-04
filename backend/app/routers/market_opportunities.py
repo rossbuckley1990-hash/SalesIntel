@@ -9,9 +9,10 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import MarketSignal, Opportunity
 from app.models.market_contract import MarketContract, MarketContractLink
-from app.models.market_opportunity import MarketOpportunity, MarketOpportunityRevision
+from app.models.market_opportunity import MarketOpportunity, MarketOpportunityDossier, MarketOpportunityRevision
 from app.services.market_opportunities import refresh_market_opportunities
 from app.services.market_signal_conversion import convert_market_signal_to_opportunity
+from app.services.opportunity_dossier import DossierUnavailable, create_dossier, latest_dossier
 from app.services.renewal_radar import export_csv, radar_summary, source_health
 
 router = APIRouter(prefix='/api/market-network/opportunities', tags=['market suggestions'])
@@ -44,10 +45,13 @@ def list_opportunities(limit: int = Query(25, ge=1, le=100), offset: int = Query
         query = query.where(MarketOpportunity.state == state)
     rows = [(item, version) for item, version in db.execute(query).all() if _matches(version.result, category, nation, tier, q.strip())]
     rows.sort(key=lambda x: (x[1].result.get('priority', {}).get('sort') or [9], -x[0].id))
-    return {'items': [{'id': item.id, 'state': item.state, 'review_state': item.review_state,
+    page = rows[offset:offset + limit]
+    researched = set(db.scalars(select(MarketOpportunityDossier.opportunity_id).where(
+        MarketOpportunityDossier.opportunity_id.in_([item.id for item, _ in page])))) if page else set()
+    return {'items': [{'id': item.id, 'state': item.state, 'review_state': item.review_state, 'researched': item.id in researched,
                        'first_seen': item.first_seen, 'last_evaluated': item.last_evaluated,
                        'withdrawal_reason': item.withdrawal_reason, 'revision_id': version.id,
-                       'suggestion': version.result} for item, version in rows[offset:offset + limit]],
+                       'suggestion': version.result} for item, version in page],
             'total': len(rows), 'limitations': LIMITATIONS}
 
 
@@ -114,6 +118,25 @@ def promote(opportunity_id: int, db: Session = Depends(get_db)):
     db.flush()
     converted = convert_market_signal_to_opportunity(signal, db=db)
     return {'opportunity_id': converted.opportunity.id, 'created': converted.created_opportunity}
+
+
+@router.get('/{opportunity_id}/dossier')
+def get_dossier(opportunity_id: int, db: Session = Depends(get_db)):
+    if not db.get(MarketOpportunity, opportunity_id):
+        raise HTTPException(status_code=404, detail='Market suggestion not found')
+    return {'dossier': latest_dossier(db, opportunity_id)}
+
+
+@router.post('/{opportunity_id}/dossier')
+def run_dossier(opportunity_id: int, db: Session = Depends(get_db)):
+    """Research one opportunity on the public web with Claude and save the dossier."""
+    try:
+        return {'dossier': create_dossier(db, opportunity_id)}
+    except LookupError:
+        raise HTTPException(status_code=404, detail='Market suggestion not found')
+    except DossierUnavailable as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail=str(exc))
 
 
 @router.get('/{opportunity_id}/history')

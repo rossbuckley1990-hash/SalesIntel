@@ -26,3 +26,14 @@ class MarketOpportunityRevision(Base):
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     result: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class MarketOpportunityDossier(Base):
+    """A saved deep-research snapshot for one opportunity; never rewritten, only superseded."""
+    __tablename__ = 'market_opportunity_dossiers'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    opportunity_id: Mapped[int] = mapped_column(ForeignKey('market_opportunities.id', ondelete='CASCADE'), nullable=False, index=True)
+    revision_id: Mapped[int | None] = mapped_column(Integer)
+    model: Mapped[str] = mapped_column(String(80), nullable=False)
+    result: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

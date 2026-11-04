@@ -1,5 +1,7 @@
 import json
+from datetime import datetime
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -69,7 +71,7 @@ def test_internet_research_uses_responses_api_with_web_search() -> None:
     result = research_internet_with_openai(
         _internet_request(),
         client=fake_client,
-        settings=Settings(openai_api_key=None, openai_model="gpt-5.5"),
+        settings=Settings(openai_api_key=None, openai_model="gpt-5.5", openai_request_timeout_seconds=45),
     )
 
     assert result.headline.startswith("Healthcare estates")
@@ -87,6 +89,43 @@ def test_internet_research_uses_responses_api_with_web_search() -> None:
     assert text_format["type"] == "json_schema"
     assert text_format["strict"] is True
     assert "competitor_name" in fake_client.responses.kwargs["input"]
+
+
+def test_tender_research_can_return_no_findings_and_requests_status_checks() -> None:
+    request = InternetIntelligenceRequest(
+        intelligence_type="tender_intelligence",
+        query="Find currently open UK fire alarm maintenance tenders",
+    )
+    payload = {
+        **_internet_payload(),
+        "intelligence_type": request.intelligence_type,
+        "query": request.query,
+        "headline": "No verified open tenders found",
+        "summary": "The available search results did not establish an open opportunity.",
+        "findings": [],
+        "source_urls": [],
+        "risk_warnings": [],
+        "next_best_actions": ["Check Find a Tender for new notices."],
+        "limitations": ["No current status and deadline could be verified."],
+    }
+    fake_client = FakeOpenAIClient(content=json.dumps(payload))
+
+    result = research_internet_with_openai(
+        request,
+        client=fake_client,
+        settings=Settings(openai_api_key=None, openai_model="test-model"),
+    )
+
+    assert result.findings == []
+    assert result.limitations == ["No current status and deadline could be verified."]
+    assert fake_client.responses.kwargs is not None
+    instructions = fake_client.responses.kwargs["instructions"]
+    assert datetime.now(ZoneInfo("Europe/London")).date().isoformat() in instructions
+    assert "Return an empty findings array" in instructions
+    assert "latest linked notices or amendments" in instructions
+    assert "Never describe an award, payment or expired notice as an open bid" in instructions
+    assert "do not present the opportunity as open" in instructions
+    assert "Do not invent revenue, margin, win probability or available bid value" in instructions
 
 
 def test_internet_research_rejects_invalid_ai_output() -> None:

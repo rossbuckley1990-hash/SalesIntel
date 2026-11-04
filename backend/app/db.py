@@ -74,6 +74,14 @@ def _apply_lightweight_schema_compatibility(bind: Engine) -> None:
     inspector = inspect(bind)
     table_names = set(inspector.get_table_names())
 
+    if "lfb_import_runs" in table_names:
+        lfb_columns = {column["name"] for column in inspector.get_columns("lfb_import_runs")}
+        with bind.begin() as connection:
+            if "retrieved_at" not in lfb_columns:
+                connection.execute(text("ALTER TABLE lfb_import_runs ADD COLUMN retrieved_at DATETIME"))
+            if "acquisition_method" not in lfb_columns:
+                connection.execute(text("ALTER TABLE lfb_import_runs ADD COLUMN acquisition_method VARCHAR(30) DEFAULT 'local_file' NOT NULL"))
+
     if "market_signals" in table_names:
         market_signal_columns = {
             column["name"] for column in inspector.get_columns("market_signals")

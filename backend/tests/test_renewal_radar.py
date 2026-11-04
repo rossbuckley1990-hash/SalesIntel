@@ -47,6 +47,14 @@ def test_many_suppliers_is_treated_as_a_framework():
     assert classify(notice(suppliers=[f'Supplier {n}' for n in range(5)]))[0] == 'exclude'
 
 
+def test_appointing_a_framework_is_recognised_as_a_framework():
+    from app.intelligence.renewal_radar import FRAMEWORK_REASON
+    appointed = notice(title='Fire alarm maintenance', description='The council wishes to appoint a framework of four contractors to maintain fire alarms.')
+    assert classify(appointed) == ('exclude', FRAMEWORK_REASON)
+    used = notice(title='Fire alarm maintenance', description='We will appoint a contractor from the YPO framework to maintain fire alarms.')
+    assert classify(used)[0] != 'exclude'
+
+
 def test_short_term_cannot_be_recurring_maintenance():
     assert classify(notice(start='2026-01-01', end='2026-03-01'))[0] == 'exclude'
 

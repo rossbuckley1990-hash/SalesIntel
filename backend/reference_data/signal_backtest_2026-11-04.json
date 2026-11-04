@@ -1,0 +1,265 @@
+{
+ "run_on": "2026-11-04T23:28:28.694147+00:00",
+ "backtest": {
+  "population": 257,
+  "later_procurements": 26,
+  "decision_rule": "270 days before the published end",
+  "arms": {
+   "renewal_date_only": {
+    "flagged": 257,
+    "precision": 0.101,
+    "precision_95ci": [
+     0.07,
+     0.144
+    ],
+    "false_positive_rate": 1.0,
+    "coverage_of_later_procurements": 1.0,
+    "lift_over_all_contracts": 1.0,
+    "one_sided_p": 1.0,
+    "median_lead_days_before_market": 540.0,
+    "multi_source_share": 0.0
+   },
+   "official_early_notices": {
+    "flagged": 0,
+    "precision": null,
+    "precision_95ci": null,
+    "false_positive_rate": 0.0,
+    "coverage_of_later_procurements": 0.0,
+    "lift_over_all_contracts": null,
+    "one_sided_p": null,
+    "median_lead_days_before_market": null,
+    "multi_source_share": null
+   },
+   "indirect_signals": {
+    "flagged": 0,
+    "precision": null,
+    "precision_95ci": null,
+    "false_positive_rate": 0.0,
+    "coverage_of_later_procurements": 0.0,
+    "lift_over_all_contracts": null,
+    "one_sided_p": null,
+    "median_lead_days_before_market": null,
+    "multi_source_share": null
+   },
+   "indirect_or_official": {
+    "flagged": 0,
+    "precision": null,
+    "precision_95ci": null,
+    "false_positive_rate": 0.0,
+    "coverage_of_later_procurements": 0.0,
+    "lift_over_all_contracts": null,
+    "one_sided_p": null,
+    "median_lead_days_before_market": null,
+    "multi_source_share": null
+   },
+   "sensitivity_any_signal_at_the_customer": {
+    "flagged": 10,
+    "precision": 0.1,
+    "precision_95ci": [
+     0.018,
+     0.404
+    ],
+    "false_positive_rate": 0.039,
+    "coverage_of_later_procurements": 0.038,
+    "lift_over_all_contracts": 0.99,
+    "one_sided_p": 0.6627,
+    "median_lead_days_before_market": 558,
+    "multi_source_share": 0.0
+   }
+  },
+  "confounding_check": {
+   "active_buyers": {
+    "contracts": 113,
+    "customer_wide": {
+     "flagged": 9,
+     "precision": 0.111,
+     "precision_95ci": [
+      0.02,
+      0.435
+     ],
+     "false_positive_rate": 0.082,
+     "coverage_of_later_procurements": 0.062,
+     "lift_over_all_contracts": 0.78,
+     "one_sided_p": 0.7606,
+     "median_lead_days_before_market": 558,
+     "multi_source_share": 0.0
+    }
+   },
+   "quiet_buyers": {
+    "contracts": 144,
+    "customer_wide": {
+     "flagged": 1,
+     "precision": 0.0,
+     "precision_95ci": [
+      0,
+      0.793
+     ],
+     "false_positive_rate": 0.007,
+     "coverage_of_later_procurements": 0.0,
+     "lift_over_all_contracts": 0.0,
+     "one_sided_p": 1.0,
+     "median_lead_days_before_market": null,
+     "multi_source_share": 0.0
+    }
+   }
+  },
+  "by_signal_type": {
+   "contract_modified": {
+    "flagged": 0,
+    "later_procurement": 0
+   },
+   "contract_terminated": {
+    "flagged": 0,
+    "later_procurement": 0
+   },
+   "customer_concern_published": {
+    "flagged": 0,
+    "later_procurement": 0
+   },
+   "emergency_procurement": {
+    "flagged": 0,
+    "later_procurement": 0
+   },
+   "false_alarm_rise": {
+    "flagged": 0,
+    "later_procurement": 0
+   },
+   "fire_enforcement_outcome": {
+    "flagged": 0,
+    "later_procurement": 0
+   },
+   "market_engagement": {
+    "flagged": 0,
+    "later_procurement": 0
+   },
+   "published_performance_finding": {
+    "flagged": 0,
+    "later_procurement": 0
+   },
+   "regulator_compliance_finding": {
+    "flagged": 0,
+    "later_procurement": 0
+   },
+   "remedial_programme": {
+    "flagged": 7,
+    "later_procurement": 1
+   },
+   "repeated_retender": {
+    "flagged": 0,
+    "later_procurement": 0
+   },
+   "short_term_award": {
+    "flagged": 3,
+    "later_procurement": 0
+   },
+   "tender_abandoned": {
+    "flagged": 0,
+    "later_procurement": 0
+   }
+  },
+  "examples": [
+   {
+    "buyer": "SOUTHERN HOUSING",
+    "title": "Kent and Sussex Responsive repairs for Door Entry, CCTV and Warden Call",
+    "end": "2025-04-02",
+    "decision": "2024-07-06",
+    "outcome": "None",
+    "types_indirect": "[]"
+   },
+   {
+    "buyer": "North Northamptonshire Council",
+    "title": "Security Services, North Northants Council",
+    "end": "2025-03-31",
+    "decision": "2024-07-04",
+    "outcome": "None",
+    "types_indirect": "[]"
+   },
+   {
+    "buyer": "MINISTRY OF DEFENCE",
+    "title": "CCTV Capability for Worthy Down under Project Wellesley",
+    "end": "2025-01-02",
+    "decision": "2024-04-07",
+    "outcome": "None",
+    "types_indirect": "[]"
+   },
+   {
+    "buyer": "Ministry of Defence",
+    "title": "IRM22/7601",
+    "end": "2024-10-12",
+    "decision": "2024-01-16",
+    "outcome": "None",
+    "types_indirect": "[]"
+   },
+   {
+    "buyer": "The Queen Elizabeth Hospital King's Lynn Nhs Foundation Trust",
+    "title": "Fire Alarm Maintenance",
+    "end": "2025-03-31",
+    "decision": "2024-07-04",
+    "outcome": "None",
+    "types_indirect": "[]"
+   },
+   {
+    "buyer": "Merseytravel",
+    "title": "Maintenance Services for Intruder Alarm, Fire Alarm, and Fire Suppression Equipment",
+    "end": "2024-05-01",
+    "decision": "2023-08-05",
+    "outcome": "None",
+    "types_indirect": "[]"
+   },
+   {
+    "buyer": "Canterbury City Council",
+    "title": "Supply & Service of Fire Extinguishers",
+    "end": "2025-03-31",
+    "decision": "2024-07-04",
+    "outcome": "None",
+    "types_indirect": "[]"
+   },
+   {
+    "buyer": "Dorset HealthCare University NHS Foundation Trust",
+    "title": "GB-Poole: Hospital Nurse Call Systems Maintenance Services",
+    "end": "2024-04-13",
+    "decision": "2023-07-18",
+    "outcome": "None",
+    "types_indirect": "[]"
+   },
+   {
+    "buyer": "Foreign Commonwealth and Development Office",
+    "title": "Installation and Maintenance of CCTV at British High Commission Banjul",
+    "end": "2024-11-30",
+    "decision": "2024-03-05",
+    "outcome": "2024-11-27",
+    "types_indirect": "[]"
+   },
+   {
+    "buyer": "The Queen Elizabeth Hospital King's Lynn Nhs Foundation Trust",
+    "title": "Fire Damper Testing",
+    "end": "2024-10-31",
+    "decision": "2024-02-04",
+    "outcome": "None",
+    "types_indirect": "[]"
+   }
+  ]
+ },
+ "incremental": {
+  "tenders": 98,
+  "foreseeable_from_a_held_contract": 5,
+  "not_foreseeable_from_a_held_contract": 93,
+  "of_those_with_an_earlier_indirect_signal": 0
+ },
+ "prospective": {
+  "hypotheses_on_record": 8,
+  "followed_by_a_notice": 1,
+  "still_within_12_months": 7,
+  "examples": [
+   {
+    "buyer": "EPSOM AND ST HELIER UNIVERSITY HOSPITALS NHS TRUST",
+    "kind": "hidden_requirement",
+    "made_on": "2026-11-04",
+    "first_notice": "2026-11-13"
+   }
+  ]
+ },
+ "fire_service_observations": 4,
+ "seconds": 8,
+ "model_cost": 0
+}

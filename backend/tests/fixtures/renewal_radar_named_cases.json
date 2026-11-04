@@ -1,0 +1,1036 @@
+[
+{
+"ocid": "ocds-h6vhtk-0791cf",
+"published_at": "2026-10-28 00:04:33.000000",
+"raw": {
+"awards": [
+{
+"id": "1",
+"items": [
+{
+"additionalClassifications": [
+{
+"description": "Fire-alarm system installation work",
+"id": "45312100",
+"scheme": "CPV"
+}
+],
+"deliveryAddresses": [
+{
+"country": "GB",
+"countryName": "United Kingdom",
+"region": "UKK4"
+}
+],
+"id": "LOT-0000",
+"relatedLot": "LOT-0000"
+}
+],
+"mainProcurementCategory": "works",
+"relatedLots": [
+"LOT-0000"
+],
+"status": "active",
+"suppliers": [
+{
+"id": "GB-COH-06819382",
+"name": "Boden Fire and Security Limited"
+}
+]
+}
+],
+"buyer": {
+"id": "GB-PPON-PQHL-4825-PGGL",
+"name": "University of Plymouth"
+},
+"contracts": [
+{
+"aboveThreshold": false,
+"awardID": "1",
+"dateSigned": "2026-07-30T00:00:00Z",
+"documents": [
+{
+"datePublished": "2026-10-28T00:04:33Z",
+"description": "Contract details notice on Find a Tender",
+"documentType": "contractNotice",
+"format": "text/html",
+"id": "101801-2026",
+"noticeType": "UK7",
+"url": "https://www.find-tender.service.gov.uk/Notice/101801-2026"
+}
+],
+"id": "1",
+"period": {
+"endDate": "2027-07-31T23:59:59+01:00",
+"startDate": "2026-08-01T00:00:00Z"
+},
+"status": "active",
+"statusDetails": null,
+"title": "Replacement of Roland Levinsky Fire Alarm",
+"value": {
+"amount": 171675,
+"amountGross": 206010.0,
+"currency": "GBP"
+}
+}
+],
+"date": "2026-10-28T00:04:33Z",
+"id": "101801-2026",
+"initiationType": "tender",
+"language": "en",
+"ocid": "ocds-h6vhtk-0791cf",
+"parties": [
+{
+"address": {
+"country": "GB",
+"countryName": "United Kingdom",
+"locality": "Plymouth, Devon",
+"postalCode": "PL4 8AA",
+"region": "UKK41",
+"streetAddress": "Drake Circus"
+},
+"details": {
+"classifications": [
+{
+"description": "Public authority - sub-central government",
+"id": "publicAuthoritySubCentralGovernment",
+"scheme": "UK_CA_TYPE"
+}
+],
+"url": "https://www.plymouth.ac.uk/about-us/university-structure/service-areas/procurement"
+},
+"id": "GB-PPON-PQHL-4825-PGGL",
+"identifier": {
+"id": "PQHL-4825-PGGL",
+"scheme": "GB-PPON"
+},
+"name": "University of Plymouth",
+"roles": [
+"buyer"
+]
+},
+{
+"address": {
+"country": "GB",
+"countryName": "United Kingdom",
+"locality": "Barnstaple",
+"postalCode": "EX31 3TJ",
+"region": "UKK43",
+"streetAddress": "Unit B1 Woodside court"
+},
+"details": {
+"scale": "sme",
+"vcse": false
+},
+"id": "GB-COH-06819382",
+"identifier": {
+"id": "06819382",
+"scheme": "GB-COH"
+},
+"name": "Boden Fire and Security Limited",
+"roles": [
+"supplier"
+]
+}
+],
+"tag": [
+"award",
+"contract"
+],
+"tender": {
+"description": "Request for Quotations for the project of Replacement and Upgrade of Existing Fire Alarm panels within Roland Levinsky Building.",
+"id": "MC/UOP/RLB_Firealarm/159/026",
+"legalBasis": {
+"id": "2023/54",
+"scheme": "UKPGA",
+"uri": "https://www.legislation.gov.uk/ukpga/2023/54/contents"
+},
+"lots": [
+{
+"description": null,
+"id": "LOT-0000",
+"status": "complete"
+}
+],
+"procurementMethod": "limited",
+"procurementMethodDetails": "Below threshold - limited competition",
+"status": "complete",
+"title": "Replacement of Roland Levinsky Fire Alarm"
+}
+},
+"release_id": "101801-2026",
+"source_key": "find_a_tender",
+"source_url": "https://www.find-tender.service.gov.uk/Notice/101801-2026"
+},
+{
+"ocid": "ocds-b5fd17-40f6a100-5110-421a-95f3-499653b5bbae",
+"published_at": "2024-05-17 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"contractPeriod": {
+"endDate": "2027-03-31T00:00:00Z",
+"startDate": "2024-04-01T00:00:00Z"
+},
+"id": "1",
+"status": "active",
+"suppliers": [
+{
+"name": "Churches Fire Security Ltd - Lot 1"
+},
+{
+"name": "1st Reaction Security Limited - Lot 2"
+},
+{
+"name": "Complete Detection Systems Ltd (CDS) - Lot 3"
+},
+{
+"name": "Rossells Security Ltd - Lot 4"
+}
+],
+"value": {
+"amount": 5300000.0,
+"currency": "GBP"
+}
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "Leicester City Council"
+},
+"date": "2024-05-17T00:00:00Z",
+"id": "40f6a100-5110-421a-95f3-499653b5bbae",
+"ocid": "ocds-b5fd17-40f6a100-5110-421a-95f3-499653b5bbae",
+"parties": [
+{
+"address": {
+"postalCode": "",
+"region": "North East,North West,Yorkshire and The Humber,East Midlands,West Midlands,East of England,London,South East,South West"
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+}
+],
+"tag": [
+"award"
+],
+"tender": {
+"description": "Leicester City Council, the Authority, wish to appoint new suppliers for the range of Fire & Intruder Alarm Services required under the Contract: New installation, repairs, maintenance & monitoring of, Housing Residential Fire Alarms, Housing Residential Intruder Alarms, Corporate and School Fire Alarms, Corporate and school Intruder Alarm.",
+"items": [
+{
+"classification": {
+"id": "79711000",
+"scheme": "CPV"
+},
+"id": "1"
+}
+],
+"status": "complete",
+"title": "PAN2407 - Fire & Intruder Alarm installation, repairs, maintenance & monitoring"
+},
+"x_misi_capture": "renewal_radar_history",
+"x_misi_notice_type": "Contract"
+},
+"release_id": "radar:40f6a100-5110-421a-95f3-499653b5bbae",
+"source_key": "contracts_finder",
+"source_url": "https://www.contractsfinder.service.gov.uk/Notice/40f6a100-5110-421a-95f3-499653b5bbae"
+},
+{
+"ocid": "ocds-b5fd17-c6df3fca-3932-4b58-827e-49740b4835e2",
+"published_at": "2024-08-07 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"contractPeriod": {
+"endDate": "2027-08-31T00:00:00Z",
+"startDate": "2024-09-01T00:00:00Z"
+},
+"id": "1",
+"status": "active",
+"suppliers": [
+{
+"name": "Mitie Security Limited Primary"
+}
+],
+"value": {
+"amount": 719994.9,
+"currency": "GBP"
+}
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "West London NHS Trust (Broadmoor Hospital)"
+},
+"date": "2024-08-07T00:00:00Z",
+"id": "c6df3fca-3932-4b58-827e-49740b4835e2",
+"ocid": "ocds-b5fd17-c6df3fca-3932-4b58-827e-49740b4835e2",
+"parties": [
+{
+"address": {
+"postalCode": "SW3 6JJ",
+"region": "Any region"
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+}
+],
+"tag": [
+"award"
+],
+"tender": {
+"description": "Security Systems Maintenance Services for Broadmoor Hospital (West London NHS Trust).",
+"items": [
+{
+"classification": {
+"id": "50610000",
+"scheme": "CPV"
+},
+"id": "1"
+}
+],
+"status": "complete",
+"title": "Security Systems Maintenance at Broadmoor Hospital (West London NHS Trust)"
+},
+"x_misi_capture": "renewal_radar_history",
+"x_misi_notice_type": "Contract"
+},
+"release_id": "radar:c6df3fca-3932-4b58-827e-49740b4835e2",
+"source_key": "contracts_finder",
+"source_url": "https://www.contractsfinder.service.gov.uk/Notice/c6df3fca-3932-4b58-827e-49740b4835e2"
+},
+{
+"ocid": "ocds-b5fd17-c927def7-3959-4d7f-bb96-216fcee09859",
+"published_at": "2025-10-28 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"contractPeriod": {
+"endDate": "2026-10-31T00:00:00Z",
+"startDate": "2025-11-14T00:00:00Z"
+},
+"id": "1",
+"status": "active",
+"suppliers": [
+{
+"name": "Baydale Control Systems Ltd"
+}
+],
+"value": {
+"amount": 750000.0,
+"currency": "GBP"
+}
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "ORBIT GROUP LIMITED"
+},
+"date": "2025-10-28T00:00:00Z",
+"id": "c927def7-3959-4d7f-bb96-216fcee09859",
+"ocid": "ocds-b5fd17-c927def7-3959-4d7f-bb96-216fcee09859",
+"parties": [
+{
+"address": {
+"postalCode": "",
+"region": "East of England,South East"
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+}
+],
+"tag": [
+"award"
+],
+"tender": {
+"description": "Door Entry, Access and Security servicing and maintenance for East and South regions and gate/barrier servicing and call outs. Awarded via EEM Door Entry, Access Control, CCTV and Warden Call Systems Framework (EEM0037) Lot 1 - Door Entry and Lot 2 - Access Control.",
+"items": [
+{
+"classification": {
+"id": "50000000",
+"scheme": "CPV"
+},
+"id": "1"
+}
+],
+"status": "complete",
+"title": "Door Entry, Access and Security servicing and maintenance"
+},
+"x_misi_capture": "renewal_radar_history",
+"x_misi_notice_type": "Contract"
+},
+"release_id": "radar:c927def7-3959-4d7f-bb96-216fcee09859",
+"source_key": "contracts_finder",
+"source_url": "https://www.contractsfinder.service.gov.uk/Notice/c927def7-3959-4d7f-bb96-216fcee09859"
+},
+{
+"ocid": "ocds-b5fd17-601b4264-fef2-4901-9050-bf3a44c4251a",
+"published_at": "2025-12-18 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"contractPeriod": {
+"endDate": "2027-10-31T00:00:00Z",
+"startDate": "2025-11-01T00:00:00Z"
+},
+"id": "1",
+"status": "active",
+"suppliers": [
+{
+"name": "Fieldway Supplies Limited"
+}
+],
+"value": {
+"amount": 3000000.0,
+"currency": "GBP"
+}
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "Torus Group"
+},
+"date": "2025-12-18T00:00:00Z",
+"id": "601b4264-fef2-4901-9050-bf3a44c4251a",
+"ocid": "ocds-b5fd17-601b4264-fef2-4901-9050-bf3a44c4251a",
+"parties": [
+{
+"address": {
+"postalCode": "",
+"region": "North West"
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+}
+],
+"tag": [
+"award"
+],
+"tender": {
+"description": "Fire Equipment Maintenance",
+"items": [
+{
+"classification": {
+"id": "50413200",
+"scheme": "CPV"
+},
+"id": "1"
+}
+],
+"status": "complete",
+"title": "GB-St Helens: Fire Equipment Maintenance"
+},
+"x_misi_capture": "renewal_radar_history",
+"x_misi_notice_type": "Contract"
+},
+"release_id": "radar:601b4264-fef2-4901-9050-bf3a44c4251a",
+"source_key": "contracts_finder",
+"source_url": "https://www.contractsfinder.service.gov.uk/Notice/601b4264-fef2-4901-9050-bf3a44c4251a"
+},
+{
+"ocid": "ocds-b5fd17-1e0a9eec-0ba1-4e2f-856f-7a2e9f4d686c",
+"published_at": "2026-04-10 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"contractPeriod": {
+"endDate": "2027-03-20T00:00:00Z",
+"startDate": "2026-04-01T00:00:00Z"
+},
+"id": "1",
+"status": "active",
+"suppliers": [
+{
+"name": "McIntyre Compliance Services Limited"
+}
+],
+"value": {
+"amount": 1084766.0,
+"currency": "GBP"
+}
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "ORBIT GROUP LIMITED"
+},
+"date": "2026-04-10T00:00:00Z",
+"id": "1e0a9eec-0ba1-4e2f-856f-7a2e9f4d686c",
+"ocid": "ocds-b5fd17-1e0a9eec-0ba1-4e2f-856f-7a2e9f4d686c",
+"parties": [
+{
+"address": {
+"postalCode": "",
+"region": "East of England,London,South East"
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+}
+],
+"tag": [
+"award"
+],
+"tender": {
+"description": "Delivery of emergency lighting services at Orbit properties in the East and South regions. These services include the servicing, maintenance, fitting and repairs. This contract has been awarded via Procurepublic's Electrical Services Framework.",
+"items": [
+{
+"classification": {
+"id": "50000000",
+"scheme": "CPV"
+},
+"id": "1"
+}
+],
+"status": "complete",
+"title": "Emergency Lighting Services"
+},
+"x_misi_capture": "renewal_radar_history",
+"x_misi_notice_type": "Contract"
+},
+"release_id": "radar:1e0a9eec-0ba1-4e2f-856f-7a2e9f4d686c",
+"source_key": "contracts_finder",
+"source_url": "https://www.contractsfinder.service.gov.uk/Notice/1e0a9eec-0ba1-4e2f-856f-7a2e9f4d686c"
+},
+{
+"ocid": "ocds-b5fd17-f2107e79-9ad1-4189-aa9c-451266dee4fd",
+"published_at": "2026-07-20 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"contractPeriod": {
+"endDate": "2027-03-21T00:00:00Z",
+"startDate": "2026-04-01T00:00:00Z"
+},
+"id": "1",
+"status": "active",
+"suppliers": [
+{
+"name": "EA-RS"
+}
+],
+"value": {
+"amount": 1320000.0,
+"currency": "GBP"
+}
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "ORBIT GROUP LIMITED"
+},
+"date": "2026-07-20T00:00:00Z",
+"id": "f2107e79-9ad1-4189-aa9c-451266dee4fd",
+"ocid": "ocds-b5fd17-f2107e79-9ad1-4189-aa9c-451266dee4fd",
+"parties": [
+{
+"address": {
+"postalCode": "CV3 2SU",
+"region": ""
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+}
+],
+"tag": [
+"award"
+],
+"tender": {
+"description": "Service & Maintenance of Fire Equipment (Midlands, East and South) and Systems & Emergency Lighting in Midlands region only. Call off contract awarded via CHIC Fire and Building Safety Framework Lot 2: Servicing and Maintenance Workstream 4.",
+"items": [
+{
+"classification": {
+"id": "50413200",
+"scheme": "CPV"
+},
+"id": "1"
+}
+],
+"status": "complete",
+"title": "Service & Maintenance of Fire Equipment (all regions) and Systems & Emergency Lighting in Midlands"
+},
+"x_misi_capture": "renewal_radar_history",
+"x_misi_notice_type": "Contract"
+},
+"release_id": "radar:f2107e79-9ad1-4189-aa9c-451266dee4fd",
+"source_key": "contracts_finder",
+"source_url": "https://www.contractsfinder.service.gov.uk/Notice/f2107e79-9ad1-4189-aa9c-451266dee4fd"
+},
+{
+"ocid": "ocds-b5fd17-605e46ce-cfa3-49b5-89cd-7811aaec3eed",
+"published_at": "2025-07-29 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"contractPeriod": {
+"endDate": "2027-06-29T00:00:00Z",
+"startDate": "2025-06-30T00:00:00Z"
+},
+"id": "1",
+"status": "active",
+"suppliers": [
+{
+"name": "Rheinmetall BAE Systems Land (RBSL)"
+}
+],
+"value": {
+"amount": 11800000.0,
+"currency": "GBP"
+}
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "Ministry of Defence"
+},
+"date": "2025-07-29T00:00:00Z",
+"id": "605e46ce-cfa3-49b5-89cd-7811aaec3eed",
+"ocid": "ocds-b5fd17-605e46ce-cfa3-49b5-89cd-7811aaec3eed",
+"parties": [
+{
+"address": {
+"postalCode": "TF2 8JT",
+"region": "West Midlands"
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+}
+],
+"tag": [
+"award"
+],
+"tender": {
+"description": "Babcock Land Defence Limited (BLDL), acting as Agent for the Ministry of Defence (MOD) has awarded a Single Source Qualifying Defence Contract to Rheinmetall BAE Systems Land (RBSL) for the Repair and Overhaul of Various Fire Suppression Repairable Assets and Associated Items, for the CR2, CRARRV, Titan/Trojan (T2), Warrior, Bulldog, CVR(T) , BRV and Terrier platforms. A contract duration of 2 years with 2 x 1 option years should this be required and subject to satisfactory supplier performance. The Authority reserves the right to add items of a similar nature to the contract during its lifetime. It is considered that this Contract can be placed using the Negotiated procedure without prior publication pursuant to Regulation 16(1)(a)(ii) of the UK Defence and Security Public Contract Regulations 2011 - L'Hotellier are the original equipment manufacturer and the owner of the design drawing/information, technical specifications and technical expertise (\"technical knowhow\") required to supply and to undertake proof testing of this article and have confirmed that RBSL is their nominated UK Agent.",
+"items": [
+{
+"classification": {
+"id": "50630000",
+"scheme": "CPV"
+},
+"id": "1"
+}
+],
+"status": "complete",
+"title": "IRM20/7500 - The Repair and Overhaul of Various Fire Suppression Repairable Assets and Associated Items"
+},
+"x_misi_capture": "renewal_radar_history",
+"x_misi_notice_type": "Contract"
+},
+"release_id": "radar:605e46ce-cfa3-49b5-89cd-7811aaec3eed",
+"source_key": "contracts_finder",
+"source_url": "https://www.contractsfinder.service.gov.uk/Notice/605e46ce-cfa3-49b5-89cd-7811aaec3eed"
+},
+{
+"ocid": "ocds-b5fd17-04f9c47a-6905-41d5-aebc-fb71aa422b35",
+"published_at": "2025-10-27 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"contractPeriod": {
+"endDate": "2029-11-02T00:00:00Z",
+"startDate": "2025-11-03T00:00:00Z"
+},
+"id": "1",
+"status": "active",
+"suppliers": [
+{
+"name": "BDL Fire Protection Limited"
+},
+{
+"name": "Bell Group Limited"
+},
+{
+"name": "Fieldway Supplies Limited"
+},
+{
+"name": "Frank Rogers Limited"
+}
+],
+"value": {
+"amount": 4166666.67,
+"currency": "GBP"
+}
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "Torus62 Limited"
+},
+"date": "2025-10-27T00:00:00Z",
+"id": "04f9c47a-6905-41d5-aebc-fb71aa422b35",
+"ocid": "ocds-b5fd17-04f9c47a-6905-41d5-aebc-fb71aa422b35",
+"parties": [
+{
+"address": {
+"postalCode": "",
+"region": "North West"
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+}
+],
+"tag": [
+"award"
+],
+"tender": {
+"description": "Torus wishes to appoint a framework of four contractors who will have the experience and capability to deliver varying compartmentation and passive fire remedial works across 1330 blocks with common areas.",
+"items": [
+{
+"classification": {
+"id": "45343000",
+"scheme": "CPV"
+},
+"id": "1"
+}
+],
+"status": "complete",
+"title": "Passive Fire Remedial Works, Compartmentation Works and Surveys"
+},
+"x_misi_capture": "renewal_radar_history",
+"x_misi_notice_type": "Contract"
+},
+"release_id": "radar:04f9c47a-6905-41d5-aebc-fb71aa422b35",
+"source_key": "contracts_finder",
+"source_url": "https://www.contractsfinder.service.gov.uk/Notice/04f9c47a-6905-41d5-aebc-fb71aa422b35"
+},
+{
+"ocid": "ocds-b5fd17-3da944f2-fc00-4385-ae00-83f38bf772b8",
+"published_at": "2026-02-03 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"contractPeriod": {
+"endDate": "2028-05-27T00:00:00Z",
+"startDate": "2024-05-31T00:00:00Z"
+},
+"id": "1",
+"status": "active",
+"suppliers": [
+{
+"name": "OpenView Security Solutions Limited"
+}
+],
+"value": {
+"amount": 476800.78,
+"currency": "GBP"
+}
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "Leicester City Council"
+},
+"date": "2026-02-03T00:00:00Z",
+"id": "3da944f2-fc00-4385-ae00-83f38bf772b8",
+"ocid": "ocds-b5fd17-3da944f2-fc00-4385-ae00-83f38bf772b8",
+"parties": [
+{
+"address": {
+"postalCode": "",
+"region": "North East,North West,Yorkshire and The Humber,East Midlands,West Midlands,East of England,London,South East,South West"
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+}
+],
+"tag": [
+"award"
+],
+"tender": {
+"description": "A Support & Maintenance contract for existing CCTV equipment/operations.",
+"items": [
+{
+"classification": {
+"id": "48000000",
+"scheme": "CPV"
+},
+"id": "1"
+}
+],
+"status": "complete",
+"title": "CCTV Housing Maintenance"
+},
+"x_misi_capture": "renewal_radar_history",
+"x_misi_notice_type": "Contract"
+},
+"release_id": "radar:3da944f2-fc00-4385-ae00-83f38bf772b8",
+"source_key": "contracts_finder",
+"source_url": "https://www.contractsfinder.service.gov.uk/Notice/3da944f2-fc00-4385-ae00-83f38bf772b8"
+},
+{
+"ocid": "ocds-b5fd17-78a81684-1ba6-4b76-aa96-84184f5575e3",
+"published_at": "2025-12-18 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"contractPeriod": {
+"endDate": "2027-10-31T00:00:00Z",
+"startDate": "2025-11-01T00:00:00Z"
+},
+"id": "1",
+"status": "active",
+"suppliers": [
+{
+"name": "OpenView Security Solutions Ltd"
+}
+],
+"value": {
+"amount": 1500000.0,
+"currency": "GBP"
+}
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "Torus Group"
+},
+"date": "2025-12-18T00:00:00Z",
+"id": "78a81684-1ba6-4b76-aa96-84184f5575e3",
+"ocid": "ocds-b5fd17-78a81684-1ba6-4b76-aa96-84184f5575e3",
+"parties": [
+{
+"address": {
+"postalCode": "",
+"region": "North West"
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+}
+],
+"tag": [
+"award"
+],
+"tender": {
+"description": "Access Control Maintenance",
+"items": [
+{
+"classification": {
+"id": "50324100",
+"scheme": "CPV"
+},
+"id": "1"
+}
+],
+"status": "complete",
+"title": "GB-St Helens: Access Control Maintenance"
+},
+"x_misi_capture": "renewal_radar_history",
+"x_misi_notice_type": "Contract"
+},
+"release_id": "radar:78a81684-1ba6-4b76-aa96-84184f5575e3",
+"source_key": "contracts_finder",
+"source_url": "https://www.contractsfinder.service.gov.uk/Notice/78a81684-1ba6-4b76-aa96-84184f5575e3"
+},
+{
+"ocid": "ocds-b5fd17-f7cfc19a-10ef-48c7-9ddc-5fba2da17b4a",
+"published_at": "2026-09-11 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"contractPeriod": {
+"endDate": "2031-08-28T00:00:00Z",
+"startDate": "2026-08-29T00:00:00Z"
+},
+"id": "1",
+"status": "active",
+"suppliers": [
+{
+"name": "OpenView Security Solutions Limited"
+}
+],
+"value": {
+"amount": 333158.72,
+"currency": "GBP"
+}
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "Leicester City Council"
+},
+"date": "2026-09-11T00:00:00Z",
+"id": "f7cfc19a-10ef-48c7-9ddc-5fba2da17b4a",
+"ocid": "ocds-b5fd17-f7cfc19a-10ef-48c7-9ddc-5fba2da17b4a",
+"parties": [
+{
+"address": {
+"postalCode": "",
+"region": "North East,North West,Yorkshire and The Humber,East Midlands,West Midlands,East of England,London,South East,South West,"
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+}
+],
+"tag": [
+"award"
+],
+"tender": {
+"description": "Leicester City Council are using EEM0037 - Door Entry Framework to find a suitable contractor to perform installations of GSM/4G door entry systems at sheltered housing schemes in Leicester City and ongoing maintenance for the life of the contract. General requirements include, but not limited to: \u2022 All wireless Video GSM/4G Door entry and access control equipment must be vandal resistant and from the same manufacturer (all-in-one solution) granting access to remote, secured and cloud-based management allowing INSTANT system updates. \u2022 All Door entry and access control equipment must have THREE years parts only manufacturer's warranty. \u2022 The manufacturers must provide the fully pre-programmed and \"ready to use\" system including key fobs in accordance with the Leicester City Council instructions. The initial contract award value is \u00a383,158.72. However, provision has been made for up to \u00a3250,000.00 of additional expenditure over the contract term to cover parts, replacements, and call-out fees, where required.",
+"items": [
+{
+"classification": {
+"id": "48000000",
+"scheme": "CPV"
+},
+"id": "1"
+}
+],
+"status": "complete",
+"title": "Provision of Sheltered Housing Scheme - Access Control Solution"
+},
+"x_misi_capture": "renewal_radar_history",
+"x_misi_notice_type": "Contract"
+},
+"release_id": "radar:f7cfc19a-10ef-48c7-9ddc-5fba2da17b4a",
+"source_key": "contracts_finder",
+"source_url": "https://www.contractsfinder.service.gov.uk/Notice/f7cfc19a-10ef-48c7-9ddc-5fba2da17b4a"
+},
+{
+"ocid": "ocds-h6vhtk-0791cf",
+"published_at": "2026-10-28 00:00:00.000000",
+"raw": {
+"awards": [
+{
+"id": "1",
+"items": [
+{
+"additionalClassifications": [
+{
+"description": "Fire-alarm system installation work",
+"id": "45312100",
+"scheme": "CPV"
+}
+],
+"deliveryAddresses": [
+{
+"country": "GB",
+"countryName": "United Kingdom",
+"region": "UKK4"
+}
+],
+"id": "LOT-0000",
+"relatedLot": "LOT-0000"
+}
+],
+"mainProcurementCategory": "works",
+"relatedLots": [
+"LOT-0000"
+],
+"status": "active",
+"suppliers": [
+{
+"id": "GB-COH-06819382",
+"name": "Boden Fire and Security Limited"
+}
+]
+}
+],
+"buyer": {
+"id": "buyer",
+"name": "University of Plymouth"
+},
+"contracts": [
+{
+"aboveThreshold": false,
+"awardID": "1",
+"dateSigned": "2026-07-30T00:00:00Z",
+"documents": [
+{
+"datePublished": "2026-10-28T00:04:33Z",
+"description": "Contract details notice on Find a Tender",
+"documentType": "contractNotice",
+"format": "text/html",
+"id": "101801-2026",
+"noticeType": "UK7",
+"url": "https://www.find-tender.service.gov.uk/Notice/101801-2026"
+}
+],
+"id": "1",
+"period": {
+"endDate": "2027-07-31T23:59:59+01:00",
+"startDate": "2026-08-01T00:00:00Z"
+},
+"status": "active",
+"statusDetails": null,
+"title": "Replacement of Roland Levinsky Fire Alarm",
+"value": {
+"amount": 171675,
+"amountGross": 206010.0,
+"currency": "GBP"
+}
+}
+],
+"date": "2026-10-28T00:04:33Z",
+"id": "101801-2026",
+"ocid": "ocds-h6vhtk-0791cf",
+"parties": [
+{
+"address": {
+"postalCode": "PL4 8AA",
+"region": "UKK41"
+},
+"id": "buyer",
+"roles": [
+"buyer"
+]
+},
+{
+"id": "GB-COH-06819382",
+"identifier": {
+"id": "06819382",
+"scheme": "GB-COH"
+},
+"roles": [
+"supplier"
+]
+}
+],
+"tag": [
+"award",
+"contract"
+],
+"tender": {
+"description": "Request for Quotations for the project of Replacement and Upgrade of Existing Fire Alarm panels within Roland Levinsky Building.",
+"items": [],
+"lots": [
+{
+"contractPeriod": {},
+"id": "LOT-0000",
+"renewal": {},
+"title": ""
+}
+],
+"status": "complete",
+"techniques": {
+"hasFrameworkAgreement": false
+},
+"title": "Replacement of Roland Levinsky Fire Alarm"
+},
+"x_misi_capture": "renewal_radar_history"
+},
+"release_id": "radar:101801-2026",
+"source_key": "find_a_tender",
+"source_url": "https://www.find-tender.service.gov.uk/Notice/101801-2026"
+}
+]

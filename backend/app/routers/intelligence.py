@@ -11,6 +11,7 @@ from app.intelligence import (
     analyse_opportunity_with_openai,
 )
 from app.intelligence.executive_summary import generate_executive_summary_with_openai
+from app.intelligence.early_opportunities import research_early_opportunities
 from app.intelligence.internet_research import research_internet_with_openai
 from app.intelligence.opportunity_research import (
     autofill_opportunities_with_openai,
@@ -19,6 +20,7 @@ from app.intelligence.opportunity_research import (
     research_opportunity_with_openai,
 )
 from app.models import Opportunity, OpportunityAIAnalysis
+from app.schemas.early_opportunity import EarlyOpportunityRequest, EarlyOpportunityResult
 from app.schemas import (
     AutofillOpportunitiesRequest,
     AutofillOpportunitiesResponse,
@@ -192,6 +194,24 @@ def run_internet_research(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="OpenAI returned invalid structured JSON for this internet intelligence request.",
+        ) from exc
+
+
+@router.post("/early-opportunities", response_model=EarlyOpportunityResult)
+def run_early_opportunities(request: EarlyOpportunityRequest) -> EarlyOpportunityResult:
+    try:
+        return research_early_opportunities(request, settings=get_settings())
+    except MissingOpenAIKeyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except OpenAIRequestError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=_safe_openai_request_detail(exc, "Early opportunity research"),
+        ) from exc
+    except InvalidOpenAIJSONError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="OpenAI returned invalid structured JSON for early opportunity research.",
         ) from exc
 
 

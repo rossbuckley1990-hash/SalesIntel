@@ -133,11 +133,13 @@ export function Modal({
   children,
   close,
   wide = false,
+  className = "",
 }: {
   title: string;
   children: ReactNode;
   close: () => void;
   wide?: boolean;
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const closeRef = useRef(close);
@@ -145,6 +147,7 @@ export function Modal({
   useEffect(() => {
     const dialog = ref.current;
     dialog?.showModal();
+    dialog?.querySelector<HTMLElement>("[data-dialog-autofocus]")?.focus();
     const cancel = (e: Event) => {
       e.preventDefault();
       closeRef.current();
@@ -158,7 +161,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className={`m-dialog ${wide ? "wide" : ""}`}
+      className={`m-dialog ${wide ? "wide" : ""} ${className}`}
       aria-label={title}
       onClick={(e) => {
         if (e.target === ref.current) {

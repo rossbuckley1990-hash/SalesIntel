@@ -1,0 +1,19 @@
+# Example only: adapt paths and create an unprivileged misi user before enabling.
+[Unit]
+Description=MiSi public market monitor (%i)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=misi
+Group=misi
+WorkingDirectory=/opt/misi
+EnvironmentFile=/etc/misi/market.env
+ExecStart=/opt/misi/.venv/bin/python /opt/misi/backend/scripts/market_monitor.py --watch --source %i --interval 86400 --max-pages 2
+Restart=on-failure
+RestartSec=60
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

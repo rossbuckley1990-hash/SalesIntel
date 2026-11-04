@@ -105,9 +105,27 @@ The seed data is fictional and includes realistic UK Fire & Security scenarios a
 
 ## Internet Intelligence
 
+### Public research provider
+
+Discover's universal research, saved-lead contact research and virtual-sensor site research can use either OpenAI (the default) or Anthropic. Configure the backend environment, then restart the API:
+
+```bash
+# Default: OpenAI Responses API with web search
+RESEARCH_PROVIDER=openai
+OPENAI_API_KEY=your-backend-key
+OPENAI_MODEL=gpt-6.1-terra
+
+# Alternative: Anthropic Messages API with web search enabled on the account
+# RESEARCH_PROVIDER=anthropic
+# ANTHROPIC_API_KEY=your-backend-key
+# ANTHROPIC_MODEL=claude-sonnet-4-6
+```
+
+Keep keys on the backend, never in `NEXT_PUBLIC_*` settings. Specify a model available to the chosen account that supports web search and structured outputs. A missing key, unsupported model or disabled tool fails the run instead of switching providers silently. Anthropic's web search with citations and strict JSON outputs are incompatible in a single request, so MiSi uses a bounded search request followed by a separate structured extraction request. This may affect latency, results and API charges. MiSi only accepts source links returned in an actual completed web-search result, and those links and model-extracted claims still need independent review. The Anthropic integration is tested with simulated vendor responses; it has not been tested here against a live Anthropic account. Other legacy analysis endpoints still use OpenAI and `OPENAI_MODEL`.
+
 `POST /api/intelligence/internet-research` uses the backend OpenAI client and the Responses API `web_search` tool to research public web information for Market Radar, tender intelligence, competitor intelligence, buyer intelligence, opportunity intelligence, pipeline forecast context and self-delivery signals.
 
-The endpoint requires `OPENAI_API_KEY` and should use `OPENAI_MODEL=gpt-5.5` or another model that supports the Responses API web search tool. It returns structured JSON and source URLs for review. It does not persist findings automatically; importing findings into MiSi records should be a reviewed workflow.
+The endpoint requires `OPENAI_API_KEY` and defaults to `gpt-6.1-terra`. Set `OPENAI_MODEL` to another model available to your API project that supports the Responses API web search tool if needed. An existing `OPENAI_MODEL` in `.env` overrides the default; restart the backend after changing it. The endpoint returns structured JSON and source URLs for review. It does not persist findings automatically; importing findings into MiSi records should be a reviewed workflow.
 
 ## AI Enrichment Data
 

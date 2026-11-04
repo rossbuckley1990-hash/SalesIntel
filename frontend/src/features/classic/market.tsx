@@ -32,6 +32,7 @@ import {
   researchFieldToView,
 } from "./evidence";
 import { BriefingLane } from "./executive";
+import { EarlyOpportunitiesPanel } from "./early-opportunities";
 import { SkeletonLine } from "./research";
 import {
   InternetResearchState,
@@ -157,6 +158,7 @@ export function MarketRadarView({
 
   return (
     <div className="grid gap-5">
+      <EarlyOpportunitiesPanel />
       <Panel
         title="AI Opportunity Builder"
         action={<StatusPill tone="green" label="Standing-start research" />}

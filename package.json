@@ -9,6 +9,7 @@
     "build:frontend": "pnpm --dir frontend build",
     "dev:living": "bash scripts/living-dev.sh",
     "dev:live": "bash scripts/misi-live.sh",
+    "dev:sensor": "bash scripts/virtual-sensor-dev.sh",
     "test:e2e": "pnpm --dir frontend test:e2e"
   }
 }

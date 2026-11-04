@@ -3,8 +3,9 @@ import { useState, type FormEvent } from "react";
 import { ArrowUpRight, Plus } from "lucide-react";
 import type { ExecutiveAction } from "./types";
 import { dateLabel, fieldLabel, money, mutate } from "./api";
-import { Badge, Button, Empty, Heading, Metric, Modal } from "./ui";
+import { Badge, Button, Heading, Metric, Modal } from "./ui";
 import type { Outcome, SharedProps } from "./types";
+import "./supporting-workspace.css";
 
 export function Actions(props: SharedProps) {
   const [status, setStatus] = useState("");
@@ -13,13 +14,13 @@ export function Actions(props: SharedProps) {
     (a) => !status || a.status === status,
   );
   return (
-    <>
+    <div className="m-support-light m-support-actions">
       <Heading
-        eyebrow="My Work / Close the loop"
-        title="A next step with a name on it."
-        description="Move from a recommendation to a responsible owner and evidenced completion."
+        eyebrow="My Work / Actions"
+        title="Your next moves"
+        description="Keep the actions, owners and evidence that move your work forward together."
       >
-        <Button kind="primary" onClick={() => setActive("new")}>
+        <Button kind="primary" disabled={!props.data.opportunities.length} onClick={() => setActive("new")}>
           <Plus size={16} /> Create action
         </Button>
       </Heading>
@@ -74,9 +75,7 @@ export function Actions(props: SharedProps) {
         ))}
       </div>
       {!actions.length && (
-        <Empty title="No matching actions">
-          Create an action or change the status filter.
-        </Empty>
+        <div className="m-support-zero" role="status"><div><h3>No matching actions</h3><p>{props.data.opportunities.length ? "Create an action or change the status filter." : "Pursuit actions require a saved opportunity."}</p></div>{!props.data.opportunities.length && <button onClick={() => props.navigate("discover")}>Explore research <ArrowUpRight size={15} /></button>}</div>
       )}
       {active && (
         <ActionEditor
@@ -85,7 +84,7 @@ export function Actions(props: SharedProps) {
           {...props}
         />
       )}
-    </>
+    </div>
   );
 }
 

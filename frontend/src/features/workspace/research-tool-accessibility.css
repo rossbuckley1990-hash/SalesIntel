@@ -1,0 +1,12 @@
+/* The evidence and attendance tools use legacy shared form/empty primitives.
+   Scope their colours to the light workspace while preserving the primitives elsewhere. */
+[aria-label="False alarm sensor"] .m-form label,
+[aria-label="Evidence inbox"] .m-form label { color: var(--misi-ink); }
+[aria-label="False alarm sensor"] .m-empty,
+[aria-label="Evidence inbox"] .m-empty { color: var(--misi-muted); background: var(--misi-surface); border-color: var(--misi-border); }
+[aria-label="False alarm sensor"] .m-empty h3,
+[aria-label="Evidence inbox"] .m-empty h3 { color: var(--misi-ink); }
+[aria-label="False alarm sensor"] .m-empty-mark,
+[aria-label="Evidence inbox"] .m-empty-mark { color: var(--misi-muted); }
+[aria-label="False alarm sensor"] .m-empty code,
+[aria-label="Evidence inbox"] .m-empty code { color: var(--misi-ink); overflow-wrap: anywhere; }

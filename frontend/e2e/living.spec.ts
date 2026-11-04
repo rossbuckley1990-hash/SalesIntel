@@ -27,6 +27,7 @@ test("A: question → evidence → decision → dossier → exported files → r
     if (m.type() === "error") errors.push(m.text());
   });
   await ready(page, "discover");
+  await page.getByText("Search internal records", { exact: true }).click();
   await page
     .getByLabel("Commercial question")
     .fill(
@@ -143,6 +144,7 @@ test("C: Today exposes actual changes and produces a leadership briefing", async
     page.getByRole("heading", { name: "What changed", exact: true }),
   ).toBeVisible();
   await expect(page.getByText(/Accepted snapshots/)).toBeVisible();
+  await page.getByRole("navigation").getByRole("button", { name: "Tools", exact: true }).click();
   await page
     .getByRole("navigation")
     .getByRole("button", { name: "Asset Studio", exact: true })

@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "misi-live",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "scripts/misi-live.sh"
+      ],
+      "port": 3000
+    }
+  ]
+}

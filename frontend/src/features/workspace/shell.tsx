@@ -9,7 +9,6 @@ import {
   CheckCheck,
   ChevronRight,
   CircleDollarSign,
-  Command,
   Compass,
   FileText,
   Layers3,
@@ -25,7 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { request, mutate } from "./api";
-import { Badge, Button, Empty, Loading, Modal } from "./ui";
+import { Button, Empty, Loading, Modal } from "./ui";
 import type { Navigate, SharedProps, View, Workspace } from "./types";
 import { Today } from "./today";
 import { Opportunities } from "./opportunities";
@@ -60,28 +59,27 @@ const Imports = dynamic(() => import("./imports").then((m) => m.Imports), {
 
 const navigation = [
   { id: "today", label: "Today", icon: Activity, group: "WORKSPACE" },
-  { id: "field", label: "Intelligence Field", icon: Orbit },
   { id: "discover", label: "Discover", icon: Compass },
   { id: "radar", label: "Renewal Radar", icon: ShieldCheck },
   {
     id: "opportunities",
     label: "Opportunities",
     icon: Target,
-    group: "COMMERCIAL",
   },
+  { id: "accounts", label: "Customers", icon: Building2 },
   { id: "pursuits", label: "Pursuits", icon: BriefcaseBusiness },
-  { id: "accounts", label: "Accounts", icon: Building2 },
+  { id: "field", label: "Intelligence Field", icon: Orbit, group: "TOOLS" },
   { id: "selfDelivery", label: "Self-Delivery", icon: Layers3 },
   { id: "finance", label: "Finance", icon: CircleDollarSign },
   {
     id: "actions",
     label: "My Work",
     icon: ListChecks,
-    group: "MAKE IT HAPPEN",
   },
   { id: "assets", label: "Asset Studio", icon: FileText },
   { id: "outcomes", label: "Outcomes", icon: CheckCheck },
 ] as const;
+const primaryViews: View[] = ["today", "discover", "radar", "opportunities", "accounts", "pursuits"];
 
 export function LivingWorkspace() {
   const [data, setData] = useState<Workspace | null>(null);
@@ -96,6 +94,7 @@ export function LivingWorkspace() {
     error: boolean;
   } | null>(null);
   const [mobile, setMobile] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -151,6 +150,9 @@ export function LivingWorkspace() {
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, []);
+  useEffect(() => {
+    if (!primaryViews.includes(view) && view !== "imports") setToolsOpen(true);
+  }, [view]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), toast.error ? 15000 : 7000);
@@ -226,27 +228,21 @@ export function LivingWorkspace() {
       <a className="m-skip" href="#m-main">
         Skip to workspace
       </a>
-      <aside className={`m-sidebar ${mobile ? "open" : ""}`}>
+      <aside id="m-navigation" className={`m-sidebar ${mobile ? "open" : ""}`}>
         <a className="m-brand" href="/?view=today" aria-label="MiSi home">
-          <span>
-            MiS<span className="m-brand-i">i</span>
-            <i />
-          </span>
-          <small>COMMERCIAL INTELLIGENCE</small>
+          <span className="m-brand-mark" aria-hidden="true">m<span>·</span></span>
+          <span className="m-brand-wordmark">MiSi<small>COMMERCIAL INTELLIGENCE</small></span>
         </a>
         <div className="m-workspace-name">
-          <span className="m-team-icon">M</span>
           <div>
+            <small>YOUR WORKSPACE</small>
             <strong>Mitie Fire & Security</strong>
-            <small>Commercial workspace</small>
           </div>
         </div>
         <nav aria-label="Main navigation">
-          {navigation.map((item) => (
+          <p className="m-nav-group">Workspace</p>
+          {navigation.filter((item) => primaryViews.includes(item.id)).map((item) => (
             <div key={item.id}>
-              {"group" in item && item.group && (
-                <p className="m-nav-group">{item.group}</p>
-              )}
               <button
                 aria-current={view === item.id ? "page" : undefined}
                 onClick={() => navigate(item.id)}
@@ -254,8 +250,7 @@ export function LivingWorkspace() {
               >
                 <item.icon size={18} strokeWidth={1.5} />
                 <span>{item.label}</span>
-                {item.id === "field" && <span className="m-nav-new">NEW</span>}
-                {item.id === "actions" && data && (
+                {item.id === "actions" && data && data.actions.some((a) => a.status !== "completed") && (
                   <span className="m-nav-count">
                     {
                       data.actions.filter((a) => a.status !== "completed")
@@ -266,6 +261,20 @@ export function LivingWorkspace() {
               </button>
             </div>
           ))}
+          <div className="m-nav-tools">
+            <button className="m-nav-group-toggle" aria-expanded={toolsOpen} aria-controls="m-tools-navigation" onClick={() => setToolsOpen((open) => !open)}>
+              <span>Tools</span><ChevronRight size={14} className={toolsOpen ? "expanded" : ""} />
+            </button>
+            <div id="m-tools-navigation" hidden={!toolsOpen}>{navigation.filter((item) => !primaryViews.includes(item.id)).map((item) => <button
+              key={item.id}
+              aria-current={view === item.id ? "page" : undefined}
+              onClick={() => navigate(item.id)}
+              className={`m-nav-item ${view === item.id ? "active" : ""}`}
+            >
+              <item.icon size={18} strokeWidth={1.5} /><span>{item.label}</span>
+              {item.id === "actions" && data && data.actions.some((a) => a.status !== "completed") && <span className="m-nav-count">{data.actions.filter((a) => a.status !== "completed").length}</span>}
+            </button>)}</div>
+          </div>
         </nav>
         <div className="m-sidebar-bottom">
           <button
@@ -307,6 +316,8 @@ export function LivingWorkspace() {
               className="m-icon-button m-menu"
               onClick={() => setMobile((v) => !v)}
               aria-label="Toggle navigation"
+              aria-expanded={mobile}
+              aria-controls="m-navigation"
             >
               <Menu size={20} />
             </button>
@@ -335,15 +346,12 @@ export function LivingWorkspace() {
                 <Undo2 size={17} />
               </button>
             )}
-            <Badge tone="green">
-              {data?.mode === "synthetic" ? "DEMO" : "LOCAL"}
-            </Badge>
-            <span className="m-profile">MFS</span>
+            <span className="m-topbar-mode"><i aria-hidden="true" />{data?.mode === "synthetic" ? "DEMO WORKSPACE" : "LOCAL WORKSPACE"}</span>
           </div>
         </header>
         <main
           id="m-main"
-          className={`m-main ${view === "field" ? "field" : ""}`}
+          className={`m-main m-view-${view} ${["today", "discover", "accounts", "opportunities", "pursuits", "actions", "assets", "field", "finance", "selfDelivery", "imports", "outcomes"].includes(view) ? "m-modern-view" : "m-legacy-view"} ${view === "field" ? "field" : ""}`}
           tabIndex={-1}
         >
           {!data && !error && <Loading />}
@@ -439,7 +447,7 @@ function CommandMenu({
     fn();
   }
   return (
-    <Modal title="Search and command" close={close}>
+    <Modal title="Search and command" close={close} className="m-command-dialog">
       <div className="m-command-menu">
         <form
           onSubmit={(e) => {
@@ -454,6 +462,7 @@ function CommandMenu({
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search records, open a workspace or ask a question…"
             autoFocus
+            data-dialog-autofocus
           />
           <kbd>ESC</kbd>
         </form>

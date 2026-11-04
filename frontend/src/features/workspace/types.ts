@@ -19,6 +19,7 @@ export type View =
   | "field"
   | "discover"
   | "radar"
+  | "prospects"
   | "opportunities"
   | "pursuits"
   | "accounts"

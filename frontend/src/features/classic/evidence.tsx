@@ -149,7 +149,7 @@ export const opportunityFieldConfigs: Array<{
     unknownReason:
       "Weighted value cannot be calculated until contract value and probability are credible.",
     nextStep:
-      "Validate estimated value and probability, then let MiSi recalculate weighted pipeline.",
+      "Validate estimated value and probability, then let SalesIntel recalculate weighted pipeline.",
   },
   {
     fieldName: "forecast_start_month",
@@ -219,7 +219,7 @@ export const opportunityFieldConfigs: Array<{
     label: "Incumbent supplier",
     getValue: () => null,
     format: textDisplay,
-    unknownReason: "Incumbent supplier was not found in available MiSi data.",
+    unknownReason: "Incumbent supplier was not found in available SalesIntel data.",
     nextStep:
       "Check tender award history, buyer website, CRM notes or approved market sources.",
   },
@@ -258,7 +258,7 @@ export function buildOpportunityFieldViews(
         sourceField?.rationale ||
         (valueMissing
           ? config.unknownReason
-          : "Actual value currently held in the MiSi opportunity record."),
+          : "Actual value currently held in the SalesIntel opportunity record."),
       sourceUrls: sourceField?.source_urls ?? [],
       sourceTitles: sourceField?.source_titles ?? [],
       recommendedNextStep:
@@ -426,7 +426,7 @@ export function valueTypeLabel(valueType: FieldIntelligence["value_type"]) {
 
 export function valueTypeDescription(field: IntelligenceFieldView) {
   if (field.valueType === "unknown") {
-    return `${field.label} is unknown because MiSi does not have enough evidence yet. ${field.recommendedNextStep}`;
+    return `${field.label} is unknown because SalesIntel does not have enough evidence yet. ${field.recommendedNextStep}`;
   }
   if (field.valueType === "estimated") {
     return `${field.label} is an estimate. Treat it as useful for direction, not as confirmed commercial truth.`;
@@ -435,9 +435,9 @@ export function valueTypeDescription(field: IntelligenceFieldView) {
     return `${field.label} is inferred from available evidence and should be confirmed before bid or forecast commitment.`;
   }
   if (field.valueType === "system_calculated") {
-    return `${field.label} is calculated by MiSi from other commercial fields.`;
+    return `${field.label} is calculated by SalesIntel from other commercial fields.`;
   }
-  return `${field.label} is held as an actual value in MiSi.`;
+  return `${field.label} is held as an actual value in SalesIntel.`;
 }
 
 export function fieldConfidenceClass(

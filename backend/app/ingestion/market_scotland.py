@@ -42,7 +42,7 @@ def fetch_month(year: int, month: int, notice_type: int, *, client=None, system_
     else:
         owned=client is None
         client=client or httpx.Client(timeout=httpx.Timeout(45,connect=10),follow_redirects=False,
-                                     headers={'User-Agent':'MiSi public-market-monitor/1.0','Accept':'application/json'})
+                                     headers={'User-Agent':'SalesIntel public-market-monitor/1.0','Accept':'application/json'})
         try:
             with client.stream('GET',API_URL,params=params,follow_redirects=False) as response:
                 response.raise_for_status()

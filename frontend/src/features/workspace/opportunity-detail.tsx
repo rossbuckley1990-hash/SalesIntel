@@ -115,7 +115,7 @@ export function OpportunityDetail({ item, onPromote, onReview, onClose }: {
             {x.extension && <Fact label="Extension wording">{x.extension}</Fact>}
             {x.latest_end && <Fact label="Latest possible end">{formatDate(x.latest_end)}</Fact>}
           </dl>
-          <p className="flex items-start gap-2 rounded-lg bg-ds-canvas px-3.5 py-3 text-[12px] leading-[18px] text-ds-muted"><CalendarClock size={14} className="mt-0.5 flex-none" /> Every line here comes from a published notice. It is a lead to check, not a confirmed requirement. Nothing in MiSi contacts anyone.</p>
+          <p className="flex items-start gap-2 rounded-lg bg-ds-canvas px-3.5 py-3 text-[12px] leading-[18px] text-ds-muted"><CalendarClock size={14} className="mt-0.5 flex-none" /> Every line here comes from a published notice. It is a lead to check, not a confirmed requirement. Nothing in SalesIntel contacts anyone.</p>
         </div>
 
         <div hidden={tab !== "signals"} className="space-y-4">

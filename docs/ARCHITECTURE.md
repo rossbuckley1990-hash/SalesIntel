@@ -1,6 +1,6 @@
-# MiSi Architecture
+# SalesIntel Architecture
 
-MiSi is a browser-based commercial command centre backed by a secure API service. The frontend renders decision workflows and visual summaries. The backend owns data access, ingestion, source connectors, OpenAI calls, scoring, forecasting, audit records, and sensitive configuration.
+SalesIntel is a browser-based commercial command centre backed by a secure API service. The frontend renders decision workflows and visual summaries. The backend owns data access, ingestion, source connectors, OpenAI calls, scoring, forecasting, audit records, and sensitive configuration.
 
 The primary architecture rule is simple: the browser is a presentation and interaction surface, not a trust boundary for secrets or internal commercial logic.
 
@@ -11,7 +11,7 @@ The primary architecture rule is simple: the browser is a presentation and inter
 The frontend is a Next.js TypeScript application. It should:
 
 - Render the Executive Command Summary and functional modules.
-- Call only MiSi backend API endpoints.
+- Call only SalesIntel backend API endpoints.
 - Hold no OpenAI API keys, tender credentials, database credentials, or internal service secrets.
 - Display structured backend responses, including confidence, source attribution, risk, and recommended next action.
 - Provide filters, navigation, tables, dashboards, and workflows for senior leadership and sales users.
@@ -136,7 +136,7 @@ AI outputs must be structured JSON, not vague prose. Narrative text can be rende
 
 ### OpenAI Internet Intelligence
 
-MiSi can use the backend OpenAI integration to run public web research through the Responses API `web_search` tool. This is query-driven research for market radar, tender intelligence, buyer intelligence, competitor intelligence, opportunity context, pipeline assumptions and self-delivery signals.
+SalesIntel can use the backend OpenAI integration to run public web research through the Responses API `web_search` tool. This is query-driven research for market radar, tender intelligence, buyer intelligence, competitor intelligence, opportunity context, pipeline assumptions and self-delivery signals.
 
 Important boundaries:
 

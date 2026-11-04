@@ -125,7 +125,7 @@ test("API outage provides retry; classic core remains reachable", async ({
   ).toBeVisible();
   await page.getByRole("link", { name: "Classic workspace" }).click();
   await expect(
-    page.getByRole("link", { name: "← Back to MiSi" }),
+    page.getByRole("link", { name: "← Back to SalesIntel" }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Pipeline Forecast", exact: true })

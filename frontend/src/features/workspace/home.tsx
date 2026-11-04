@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import {
-  ArrowRight, ArrowUpRight, BriefcaseBusiness, CalendarClock, CheckCircle2, Circle, Gavel, Hourglass, Radar, Search, Sparkles, Target,
+  ArrowRight, ArrowUpRight, BriefcaseBusiness, CalendarClock, CheckCircle2, Circle, Gavel, Hourglass, Radar, Search, Sparkles, Target, Telescope,
 } from "lucide-react";
 import { DailyResearchBrief } from "./daily-research-brief";
 import { EmptyState, Pill } from "./ds";
@@ -10,6 +10,8 @@ import {
   CATEGORY, SOURCE_NAMES, compactPounds, radarBase, relative, shortValue, titleCase, urgencyTone, type Item, type Page, type Summary,
 } from "./radar-model";
 import type { SharedProps } from "./types";
+import { LIGHT, prospectBase, type Prospect } from "./prospect-model";
+import { TrafficDot } from "./prospects";
 
 const PROMPTS = [
   "NHS trusts in the North West with fire alarm contracts ending in 2027",
@@ -25,9 +27,19 @@ function greeting(now: Date) {
 export function Home({ data, navigate, ask, inspect }: SharedProps) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [top, setTop] = useState<Item[] | null>(null);
+  const [prospects, setProspects] = useState<Prospect[] | null>(null);
   const [question, setQuestion] = useState("");
   const now = new Date(data.as_of);
 
+  useEffect(() => {
+    fetch(prospectBase(), { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((d: { items: Prospect[] } | null) => setProspects(d?.items ?? [])).catch(() => setProspects([]));
+  }, []);
+  function openProspect(id: number) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("prospect", String(id));
+    window.history.replaceState({}, "", url);
+    navigate("prospects");
+  }
   useEffect(() => {
     const base = radarBase();
     fetch(`${base}/summary`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then(setSummary).catch(() => {});
@@ -75,11 +87,11 @@ export function Home({ data, navigate, ask, inspect }: SharedProps) {
         </p>
       </header>
 
-      <section aria-label="Ask MiSi" className="rounded-2xl border border-ds-border bg-gradient-to-br from-white via-white to-ds-brand-soft p-5 shadow-ds-xs">
+      <section aria-label="Ask SalesIntel" className="rounded-2xl border border-ds-border bg-gradient-to-br from-white via-white to-ds-brand-soft p-5 shadow-ds-xs">
         <form onSubmit={(e) => { e.preventDefault(); submit(question); }} className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Sparkles size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ds-brand" />
-            <input className="ds-input !h-12 !pl-11 !text-[15px]" aria-label="Ask MiSi to find opportunities" placeholder="Ask MiSi to find opportunities, public or private…" value={question} onChange={(e) => setQuestion(e.target.value)} maxLength={500} />
+            <input className="ds-input !h-12 !pl-11 !text-[15px]" aria-label="Ask SalesIntel to find opportunities" placeholder="Ask SalesIntel to find opportunities, public or private…" value={question} onChange={(e) => setQuestion(e.target.value)} maxLength={500} />
           </div>
           <button type="submit" className="ds-btn primary !h-12 !px-5" disabled={question.trim().length < 4}><Search size={17} /> Research</button>
         </form>
@@ -100,13 +112,14 @@ export function Home({ data, navigate, ask, inspect }: SharedProps) {
       </section>
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-6">
         <section aria-label="Act on these first" className="ds-card overflow-hidden">
           <div className="flex items-center justify-between gap-4 border-b border-ds-border px-5 py-4">
             <div><h2 className="text-[16px] font-semibold text-ds-ink">Act on these first</h2><p className="text-[13px] text-ds-muted">Highest-priority opportunities, most urgent first</p></div>
             <button className="ds-btn sm" onClick={() => navigate("radar")}>Open Finder <ArrowRight size={14} /></button>
           </div>
           {top === null && <div className="space-y-3 p-5">{[0, 1, 2].map((i) => <div key={i} className="ds-skeleton h-14" />)}</div>}
-          {top && !top.length && <EmptyState icon={<Radar size={20} />} title="You're clear for now" action={<button className="ds-btn primary" onClick={() => navigate("discover")}><Sparkles size={16} /> Find new opportunities</button>}>No new tier 1 opportunities. MiSi refreshes public sources every day.</EmptyState>}
+          {top && !top.length && <EmptyState icon={<Radar size={20} />} title="You're clear for now" action={<button className="ds-btn primary" onClick={() => navigate("discover")}><Sparkles size={16} /> Find new opportunities</button>}>No new tier 1 opportunities. SalesIntel refreshes public sources every day.</EmptyState>}
           {top && !!top.length && <ul className="divide-y divide-ds-border">
             {top.map(({ id, suggestion: x, review_state }) => {
               const meta = CATEGORY[x.category];
@@ -132,6 +145,22 @@ export function Home({ data, navigate, ask, inspect }: SharedProps) {
             })}
           </ul>}
         </section>
+        <section aria-label="Private prospects" className="ds-card overflow-hidden">
+          <div className="flex items-center justify-between gap-4 border-b border-ds-border px-5 py-4">
+            <div><h2 className="text-[16px] font-semibold text-ds-ink">Private prospects</h2><p className="text-[13px] text-ds-muted">Companies with signals, timing inferred from indirect clues</p></div>
+            <button className="ds-btn sm" onClick={() => navigate("prospects")}>Open Prospects <ArrowRight size={14} /></button>
+          </div>
+          {prospects === null && <div className="space-y-3 p-5">{[0, 1].map((i) => <div key={i} className="ds-skeleton h-12" />)}</div>}
+          {prospects && !prospects.length && <EmptyState icon={<Telescope size={20} />} title="No private prospects yet" action={<button className="ds-btn primary" onClick={() => navigate("prospects")}><Telescope size={16} /> Start a hunt</button>}>SalesIntel can read news, company sites and registers to find companies worth approaching, with who decides and when.</EmptyState>}
+          {prospects && !!prospects.length && <ul className="divide-y divide-ds-border">{prospects.slice(0, 5).map((p) => (
+            <li key={p.id}><button onClick={() => openProspect(p.id)} className="group flex w-full items-center gap-4 px-5 py-3.5 text-left transition hover:bg-ds-hover">
+              <TrafficDot light={p.timing.light} size={12} />
+              <span className="min-w-0 flex-1"><span className="block truncate text-[14px] font-semibold text-ds-ink">{p.name}</span><span className="block truncate text-[13px] text-ds-muted">{p.headline}</span></span>
+              <span className="hidden flex-none text-right text-[12px] font-semibold md:block" style={{ color: LIGHT[p.timing.light].text }}>{p.timing.label}</span>
+              <ArrowUpRight size={16} className="flex-none text-ds-faint group-hover:text-ds-brand" />
+            </button></li>))}</ul>}
+        </section>
+        </div>
 
         <div className="space-y-6">
           <section className="ds-card p-5" aria-label="Your next actions">

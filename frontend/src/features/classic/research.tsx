@@ -291,7 +291,7 @@ export function AIResearchWorkspaceView({
               <StatusPill tone="amber" label="Confidence labelled" />
             </div>
             <h2 className="mt-5 max-w-4xl text-2xl font-semibold leading-9 text-white sm:text-3xl">
-              Start with a rough phrase. MiSi builds the evidence-backed
+              Start with a rough phrase. SalesIntel builds the evidence-backed
               commercial readout.
             </h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
@@ -303,7 +303,7 @@ export function AIResearchWorkspaceView({
             <div className="mt-6 grid gap-3">
               <label className="grid gap-2">
                 <span className="text-xs font-semibold uppercase text-slate-500">
-                  Ask MiSi
+                  Ask SalesIntel
                 </span>
                 <textarea
                   value={query}
@@ -311,7 +311,7 @@ export function AIResearchWorkspaceView({
                   rows={4}
                   data-testid="ai-research-query"
                   className="min-h-36 rounded-lg border border-mitie-lime/25 bg-[#080d10] px-4 py-4 text-lg font-semibold leading-8 text-white outline-none ring-0 placeholder:text-slate-500 transition focus:border-mitie-lime/70 focus:shadow-[0_0_0_4px_rgba(124,179,66,0.12)]"
-                  placeholder="Ask MiSi to research a buyer, tender, market, sector or opportunity..."
+                  placeholder="Ask SalesIntel to research a buyer, tender, market, sector or opportunity..."
                 />
               </label>
 
@@ -390,8 +390,8 @@ export function AIResearchWorkspaceView({
                   <Search aria-hidden="true" className="h-4 w-4" />
                 )}
                 {workspaceState.status === "loading"
-                  ? "Researching with MiSi"
-                  : "Research with MiSi"}
+                  ? "Researching with SalesIntel"
+                  : "Research with SalesIntel"}
               </button>
               <button
                 type="button"
@@ -430,7 +430,7 @@ export function AIResearchWorkspaceView({
               </p>
             </div>
             <h3 className="mt-5 text-sm font-semibold text-white">
-              What MiSi creates
+              What SalesIntel creates
             </h3>
             <div className="mt-4 grid gap-3">
               <SourceRow
@@ -450,7 +450,7 @@ export function AIResearchWorkspaceView({
               />
               <SourceRow
                 label="Dashboard update"
-                value="Saved records feed the MiSi command centre"
+                value="Saved records feed the SalesIntel command centre"
                 tone="green"
               />
             </div>
@@ -488,7 +488,7 @@ export function AIResearchWorkspaceView({
             />
             <div>
               <p className="text-sm font-semibold text-amber-100">
-                MiSi could not complete this research run.
+                SalesIntel could not complete this research run.
               </p>
               <p className="mt-2 text-sm leading-6 text-amber-100/80">
                 {workspaceState.message}
@@ -582,8 +582,8 @@ export function ChatGPTAssistPanel({
                   Manual intelligence bridge for your ChatGPT Plus account
                 </p>
                 <p className="mt-2 text-sm leading-6 text-cyan-100/75">
-                  MiSi creates the strict research prompt. You paste it into
-                  ChatGPT Plus, then paste the JSON result back here. MiSi
+                  SalesIntel creates the strict research prompt. You paste it into
+                  ChatGPT Plus, then paste the JSON result back here. SalesIntel
                   validates and imports it without calling the OpenAI API.
                 </p>
               </div>
@@ -605,7 +605,7 @@ export function ChatGPTAssistPanel({
                   className="h-4 w-4 animate-spin text-cyan-200"
                 />
                 <p className="text-sm font-semibold text-white">
-                  Preparing a strict MiSi prompt for ChatGPT Plus...
+                  Preparing a strict SalesIntel prompt for ChatGPT Plus...
                 </p>
               </div>
               <SkeletonLine className="mt-4 h-3 w-full rounded-full" />
@@ -667,7 +667,7 @@ export function ChatGPTAssistPanel({
                   disabled={importing}
                   data-testid="chatgpt-assist-json"
                   className="min-h-52 rounded-md border border-mitie-lime/20 bg-[#080d10] p-3 text-sm leading-6 text-white outline-none placeholder:text-slate-600 focus:border-mitie-lime/60 disabled:opacity-60"
-                  placeholder="Paste the full JSON object from ChatGPT here. MiSi will reject prose, partial JSON or unlabelled fields."
+                  placeholder="Paste the full JSON object from ChatGPT here. SalesIntel will reject prose, partial JSON or unlabelled fields."
                 />
               </label>
 
@@ -714,7 +714,7 @@ export function ChatGPTAssistPanel({
         <div className="grid content-start gap-3">
           <SourceRow
             label="Step 1"
-            value="Copy MiSi's strict prompt"
+            value="Copy SalesIntel's strict prompt"
             tone="cyan"
           />
           <SourceRow
@@ -724,12 +724,12 @@ export function ChatGPTAssistPanel({
           />
           <SourceRow
             label="Step 3"
-            value="Paste JSON back into MiSi"
+            value="Paste JSON back into SalesIntel"
             tone="amber"
           />
           <SourceRow
             label="Step 4"
-            value="MiSi validates and saves the pack"
+            value="SalesIntel validates and saves the pack"
             tone="green"
           />
           <div className="rounded-md border border-white/10 bg-[#111a20] p-4">
@@ -761,12 +761,12 @@ export function ResearchWorkspaceIdle() {
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
       <Panel
-        title="MiSi Has Not Researched This Area Yet"
+        title="SalesIntel Has Not Researched This Area Yet"
         action={<StatusPill tone="cyan" label="Ready" />}
       >
         <div className="rounded-md border border-mitie-lime/20 bg-mitie-lime/10 p-4">
           <p className="text-sm font-semibold leading-6 text-white">
-            Start with a buyer, sector or tender phrase and MiSi will build the
+            Start with a buyer, sector or tender phrase and SalesIntel will build the
             intelligence pack: value, risk, confidence, evidence and next best
             action.
           </p>
@@ -774,7 +774,7 @@ export function ResearchWorkspaceIdle() {
         <div className="mt-4 grid gap-4 lg:grid-cols-3">
           <ResearchCapabilityCard
             title="No perfect data required"
-            body="MiSi can begin from a buyer name, sector theme, tender phrase or renewal hypothesis."
+            body="SalesIntel can begin from a buyer name, sector theme, tender phrase or renewal hypothesis."
             tone="green"
           />
           <ResearchCapabilityCard
@@ -882,7 +882,7 @@ export function ResearchProgressPanel({
   return (
     <Panel
       title={
-        saving ? "Saving Intelligence To Pipeline" : "MiSi Research In Progress"
+        saving ? "Saving Intelligence To Pipeline" : "SalesIntel Research In Progress"
       }
       action={
         <StatusPill
@@ -1114,10 +1114,10 @@ export function ResearchWorkspaceResult({
             </p>
             <p className="mt-4 text-sm leading-6 text-slate-300">
               {result.draft_enrichment.opportunity_summary ||
-                "MiSi did not return an opportunity summary. Confirm the buyer and tender route, then rerun research."}
+                "SalesIntel did not return an opportunity summary. Confirm the buyer and tender route, then rerun research."}
             </p>
             <NextActionCallout
-              label="MiSi recommendation"
+              label="SalesIntel recommendation"
               action={
                 result.draft_enrichment.executive_recommendation ||
                 "Confirm contract scope, buyer owner and procurement route before leadership review."
@@ -1284,7 +1284,7 @@ export function ResearchSourcesPanel({
       ) : (
         <EmptyState
           title="No confirmed source evidence yet"
-          message="MiSi can still label useful estimates, but this pack should not be used for bid governance until a tender notice, buyer page, portal result or approved internal source is attached."
+          message="SalesIntel can still label useful estimates, but this pack should not be used for bid governance until a tender notice, buyer page, portal result or approved internal source is attached."
         />
       )}
     </Panel>

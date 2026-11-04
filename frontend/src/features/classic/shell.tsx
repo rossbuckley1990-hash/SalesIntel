@@ -172,7 +172,7 @@ export function useMisiData() {
         const message =
           error instanceof Error
             ? error.message
-            : "Unable to connect to the MiSi backend.";
+            : "Unable to connect to the SalesIntel backend.";
         setState({ status: "error", message });
       });
 
@@ -231,9 +231,9 @@ export function Sidebar({
               M
             </div>
             <div>
-              <div className="text-xl font-semibold text-white">MiSi</div>
+              <div className="text-xl font-semibold text-white">SalesIntel</div>
               <div className="mt-1 text-sm text-slate-400">
-                Mitie Sales Intelligence
+                SalesIntel
               </div>
             </div>
           </div>
@@ -278,7 +278,7 @@ export function Sidebar({
               Backend boundary
             </div>
             <p className="mt-2 text-sm leading-5 text-slate-300">
-              Dashboard data is read from the MiSi API. OpenAI credentials stay
+              Dashboard data is read from the SalesIntel API. OpenAI credentials stay
               on the backend.
             </p>
           </div>
@@ -308,7 +308,7 @@ export function Header({
             <span>{activeModule.label}</span>
           </div>
           <h1 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">
-            MiSi — Mitie Sales Intelligence
+            SalesIntel
           </h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">
             {moduleDescriptions[activeModule.id]}

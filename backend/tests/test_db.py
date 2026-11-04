@@ -39,6 +39,8 @@ def test_models_create_against_sqlite() -> None:
         "market_hypothesis_revisions",
         "market_opportunity_revisions",
         "market_opportunity_dossiers",
+        "prospect_searches",
+        "prospects",
         "opportunity_ai_analyses",
         "opportunity_enrichments",
         "opportunities",

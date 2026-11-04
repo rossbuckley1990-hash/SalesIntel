@@ -227,7 +227,7 @@ class RightClickClient:
         # guarantee. The dedicated runtime must be started without environment
         # catalogs and with its operator-controlled egress policy.
         if not isinstance(runtime, dict) or runtime.get("product") != "RightClick X" or runtime.get("name") != DEDICATED_RUNTIME_NAME:
-            raise RightClickError("Directory discovery requires MiSi's dedicated isolated runtime.")
+            raise RightClickError("Directory discovery requires SalesIntel's dedicated isolated runtime.")
         result = self._call("context_research", {"topic": topic, "limit": 5, "learn": 0})
         if not isinstance(result, dict) or not isinstance(result.get("directories"), list):
             raise RightClickError("Source discovery returned an invalid response.")
@@ -256,7 +256,7 @@ class RightClickClient:
                     candidates.append({"title": title, "description": description,
                                        "directory": directory_id, "kind": kind})
         return {"topic": topic, "candidates": candidates[:10], "directories": directories,
-                "message": "Unreviewed directory candidates only, filtered by conservative keywords. MiSi has not accessed, learned, approved or verified these sources; relevance, public access, licences and UK coverage are unknown. Empty results are not a comprehensive search."}
+                "message": "Unreviewed directory candidates only, filtered by conservative keywords. SalesIntel has not accessed, learned, approved or verified these sources; relevance, public access, licences and UK coverage are unknown. Empty results are not a comprehensive search."}
 
     def _approved_contract(self, capability: str) -> dict[str, Any]:
         if capability != CAPABILITY:

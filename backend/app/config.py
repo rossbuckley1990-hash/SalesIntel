@@ -10,7 +10,7 @@ REPO_ROOT = BACKEND_DIR.parent
 
 
 class Settings(BaseSettings):
-    app_name: str = "MiSi API"
+    app_name: str = "SalesIntel API"
     app_version: str = "0.1.0"
     app_env: str = "local"
     database_url: str = "sqlite:///./misi.db"

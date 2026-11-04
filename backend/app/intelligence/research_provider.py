@@ -33,7 +33,7 @@ def _claude_schema(value: Any) -> Any:
 
 
 class AnthropicResearchClient:
-    """Translate MiSi's research-only Responses subset to Anthropic Messages."""
+    """Translate SalesIntel's research-only Responses subset to Anthropic Messages."""
 
     def __init__(self, api_key: str):
         self._api_key = api_key

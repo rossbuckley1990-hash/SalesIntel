@@ -27,7 +27,7 @@ _COMPANY_NUMBER = re.compile(r'\b(?:company\s+(?:number|no\.?|registration\s+num
 
 
 def client() -> httpx.Client:
-    return httpx.Client(timeout=httpx.Timeout(30, connect=10), follow_redirects=True, headers={'User-Agent': 'MiSi public-market-monitor/1.0', 'Accept': 'application/json, application/atom+xml'})
+    return httpx.Client(timeout=httpx.Timeout(30, connect=10), follow_redirects=True, headers={'User-Agent': 'SalesIntel public-market-monitor/1.0', 'Accept': 'application/json, application/atom+xml'})
 
 
 def _plain(value) -> str:

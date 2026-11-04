@@ -6,7 +6,7 @@ import "./design-system.css";
 import "./classic-light.css";
 
 export const metadata: Metadata = {
-  title: "MiSi - Mitie Sales Intelligence",
+  title: "SalesIntel",
   description: "Secure sales intelligence command centre for Mitie Fire & Security.",
 };
 

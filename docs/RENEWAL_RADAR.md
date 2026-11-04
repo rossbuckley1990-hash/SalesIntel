@@ -1,8 +1,8 @@
 # UK Renewal Radar
 
-The radar is MiSi's single UK view of fire and security contract opportunities. It reads every procurement record MiSi stores, joins records of the same contract across sources, and files each one under a category with a priority tier and a next action. Rules are deterministic. No model is called, no probability is given, no contact is invented and nobody is contacted.
+The radar is SalesIntel's single UK view of fire and security contract opportunities. It reads every procurement record SalesIntel stores, joins records of the same contract across sources, and files each one under a category with a priority tier and a next action. Rules are deterministic. No model is called, no probability is given, no contact is invented and nobody is contacted.
 
-Open it from **Renewal Radar** in the workspace navigation, or at `/?view=radar`. Start MiSi on this Mac's real database with:
+Open it from **Renewal Radar** in the workspace navigation, or at `/?view=radar`. Start SalesIntel on this Mac's real database with:
 
 ```sh
 pnpm dev:live
@@ -42,7 +42,7 @@ PYTHONPATH=backend .venv/bin/python backend/scripts/renewal_radar.py --load --re
 PYTHONPATH=backend .venv/bin/python backend/scripts/renewal_radar.py --find-a-tender --tender-first-year 2021 --load --refresh
 ```
 
-Loading is idempotent, so rerunning it adds nothing that is already stored. Do not use the Find a Tender `stages` parameter. On sampled days it returned 18 to 42 percent fewer tender notices than an unfiltered page, and it omitted all 38 notices then held by the MiSi monitor.
+Loading is idempotent, so rerunning it adds nothing that is already stored. Do not use the Find a Tender `stages` parameter. On sampled days it returned 18 to 42 percent fewer tender notices than an unfiltered page, and it omitted all 38 notices then held by the SalesIntel monitor.
 
 ## Coverage and limits
 
@@ -52,7 +52,7 @@ Loading is idempotent, so rerunning it adds nothing that is already stored. Do n
 - **Wales and Northern Ireland:** covered through Find a Tender and Contracts Finder only. Sell2Wales and eTendersNI are not read, so lower-value contracts can be missing.
 - **Private sector:** not covered.
 - **Own group:** only supplier names containing Mitie or Marlowe are matched. Other group companies are not.
-- **Access:** MiSi has no sign-in, and the local application binds to this Mac only. It is not ready to be exposed to a team network as it stands.
+- **Access:** SalesIntel has no sign-in, and the local application binds to this Mac only. It is not ready to be exposed to a team network as it stands.
 
 A published end date omits unrecorded extensions, and a buyer can re-let through a framework or below a publication threshold with no notice appearing. Classification reads published wording, not evidence of current delivery. Verify the current position before any approach.
 

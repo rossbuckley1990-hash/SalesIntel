@@ -41,7 +41,7 @@ def _executive_summary_payload() -> dict[str, object]:
     return {
         "headline": "Pipeline is strong but margin and Red-risk pursuits need leadership control.",
         "summary": (
-            "MiSi shows a sizeable weighted pipeline with strategic must-wins, "
+            "SalesIntel shows a sizeable weighted pipeline with strategic must-wins, "
             "clear finance review items and self-delivery upside that should be governed this week."
         ),
         "md_attention": [

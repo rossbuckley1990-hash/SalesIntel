@@ -1,4 +1,4 @@
-# MiSi Roadmap
+# SalesIntel Roadmap
 
 The roadmap is split into four stages: prototype, MVP, internal pilot, and scalable webapp. Each stage should produce a usable decision surface, not just technical plumbing.
 
@@ -84,7 +84,7 @@ Exit criteria:
 
 ## Stage 3: Internal Pilot
 
-Goal: make MiSi useful and safe for internal Mitie Fire & Security leadership workflows.
+Goal: make SalesIntel useful and safe for internal Mitie Fire & Security leadership workflows.
 
 Primary outcomes:
 
@@ -121,7 +121,7 @@ Technical scope:
 
 Exit criteria:
 
-- Pilot users can use MiSi for weekly leadership review.
+- Pilot users can use SalesIntel for weekly leadership review.
 - Sensitive data access is role-controlled.
 - Material decisions are auditable.
 - Forecast and action outputs are trusted enough for internal review.
@@ -129,7 +129,7 @@ Exit criteria:
 
 ## Stage 4: Scalable Webapp
 
-Goal: operate MiSi as a reliable, secure, scalable web application.
+Goal: operate SalesIntel as a reliable, secure, scalable web application.
 
 Primary outcomes:
 

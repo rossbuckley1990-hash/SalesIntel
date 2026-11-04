@@ -76,7 +76,7 @@ def test_download_is_fixed_source_bounded_and_refuses_redirects(tmp_path, monkey
     class Opener:
         def open(self, request, timeout):
             assert request.full_url == lfb_incidents.DOWNLOAD_URL
-            assert request.get_header("User-agent") == "Mozilla/5.0 MiSi-public-data-import/1.0"
+            assert request.get_header("User-agent") == "Mozilla/5.0 SalesIntel-public-data-import/1.0"
             assert timeout == 120
             return io.BytesIO(b"test")
 

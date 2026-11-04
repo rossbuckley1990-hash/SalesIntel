@@ -50,7 +50,7 @@ def _safe_openai_request_detail(exc: OpenAIRequestError, context: str) -> str:
         return (
             f"{context} failed because the backend OpenAI project has insufficient quota. "
             "Check OpenAI billing/credits for the project attached to OPENAI_API_KEY, then restart "
-            "FastAPI and rerun the request. MiSi has not exposed prompts or secrets to the browser."
+            "FastAPI and rerun the request. SalesIntel has not exposed prompts or secrets to the browser."
         )
 
     if status_code == 401 or code in {"invalid_api_key", "invalid_request_error"} and "api key" in message:
@@ -75,12 +75,12 @@ def _safe_openai_request_detail(exc: OpenAIRequestError, context: str) -> str:
     if status_code == 429:
         return (
             f"{context} failed because the backend OpenAI project is currently rate limited. "
-            "Wait briefly or reduce request volume, then retry from MiSi."
+            "Wait briefly or reduce request volume, then retry from SalesIntel."
         )
 
     return (
         f"{context} failed. Check OPENAI_API_KEY is valid, OPENAI_MODEL is available to this backend key, "
-        "and outbound network access is working. MiSi has not exposed prompts or secrets to the browser."
+        "and outbound network access is working. SalesIntel has not exposed prompts or secrets to the browser."
     )
 
 
@@ -239,8 +239,8 @@ def import_chatgpt_assist_opportunity(
         raise HTTPException(
             status_code=422,
             detail=(
-                "Pasted ChatGPT output was not valid MiSi structured JSON. "
-                "Ask ChatGPT to return JSON only, then paste the full object back into MiSi."
+                "Pasted ChatGPT output was not valid SalesIntel structured JSON. "
+                "Ask ChatGPT to return JSON only, then paste the full object back into SalesIntel."
             ),
         ) from exc
 

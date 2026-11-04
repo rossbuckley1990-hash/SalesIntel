@@ -90,7 +90,7 @@ DOSSIER_SCHEMA: dict[str, Any] = {
 
 
 def context_for(suggestion: dict[str, Any]) -> dict[str, Any]:
-    """What MiSi already knows, so research builds on it instead of repeating it."""
+    """What SalesIntel already knows, so research builds on it instead of repeating it."""
     brief = suggestion.get("brief") or {}
     signals = [*([suggestion["signal"]] if suggestion.get("signal") else []), *(suggestion.get("signals") or [])]
     return {
@@ -157,7 +157,7 @@ def _research(post: Post, model: str, context: dict[str, Any]) -> tuple[list[dic
 
 def _structure(post: Post, model: str, context: dict[str, Any], findings: list[dict[str, Any]], sources: dict[str, str]) -> dict[str, Any]:
     result = post({"model": model, "max_tokens": 8000,
-        "system": f"{ROLE} {RULES} Write the dossier using only the supplied findings and MiSi's own record. "
+        "system": f"{ROLE} {RULES} Write the dossier using only the supplied findings and SalesIntel's own record. "
                   "Every source_url must be one of the supplied source URLs, or an empty string. Keep it tight and practical.",
         "messages": [{"role": "user", "content": json.dumps({"misi_record": context, "web_findings_untrusted": findings[:60],
                       "source_urls": [{"url": u, "title": t} for u, t in list(sources.items())[:120]]}, ensure_ascii=False)}],

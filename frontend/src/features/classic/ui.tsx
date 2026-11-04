@@ -204,7 +204,7 @@ export function IntelligenceMetric({
           Needs evidence
         </p>
         <p className="mt-2 text-xs leading-5 text-slate-500">
-          MiSi has not confirmed this field yet. Attach source evidence or run
+          SalesIntel has not confirmed this field yet. Attach source evidence or run
           AI research to estimate it with confidence.
         </p>
       </div>
@@ -507,7 +507,7 @@ export function DashboardLoading() {
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="grid gap-3">
             <p className="text-sm font-semibold text-white">
-              MiSi is loading pipeline, market signals, finance forecast and
+              SalesIntel is loading pipeline, market signals, finance forecast and
               executive actions.
             </p>
             <SkeletonLine className="h-3 rounded-full" />

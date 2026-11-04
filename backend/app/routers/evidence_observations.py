@@ -117,7 +117,7 @@ def account_ai_hypotheses(organisation_id: str, request: AIHypothesisRequest,
     if not known_site(request.site):
         raise HTTPException(status_code=422, detail="Select a specifically identified site.")
     # Strict scope: only explicitly selected IDs in the selected organisation and
-    # exact site can leave MiSi. The request does not fetch or verify links.
+    # exact site can leave SalesIntel. The request does not fetch or verify links.
     selected_ids = set(request.observation_ids)
     if len(selected_ids) != len(request.observation_ids):
         raise HTTPException(status_code=422, detail="Select each observation only once.")

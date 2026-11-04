@@ -2,7 +2,7 @@
 
 https://www.find-tender.service.gov.uk/apidocumentation/1.0/GET-ocdsReleasePackages
 Find a Tender is read here, and the same reduction serves Contracts Finder and
-Public Contracts Scotland releases stored by MiSi's monitors. Older award notices
+Public Contracts Scotland releases stored by SalesIntel's monitors. Older award notices
 omit contract dates, so an end date can be the tender notice's lot duration added
 to the signature date; contract_terms marks that as an estimate. The API has no
 keyword search, and its stages filter omits notices: on sampled days it returned
@@ -69,7 +69,7 @@ def relevant(release: dict) -> bool:
 
 
 def monitored(release: dict) -> bool:
-    """Whether a live monitor keeps a release: anything MiSi or the radar could use."""
+    """Whether a live monitor keeps a release: anything SalesIntel or the radar could use."""
     return relevant_release(release) or relevant(release)
 
 

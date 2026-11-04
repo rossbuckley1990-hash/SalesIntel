@@ -112,7 +112,7 @@ def fetch_batch(*, updated_from, updated_to, cursor=None, max_pages=2, keywords=
     next_cursor = cursor
     owned = client is None
     client = client or httpx.Client(timeout=httpx.Timeout(25, connect=10), follow_redirects=False,
-                                   headers={'User-Agent': 'MiSi public-data research/1.0', 'Accept': 'application/json'})
+                                   headers={'User-Agent': 'SalesIntel public-data research/1.0', 'Accept': 'application/json'})
     try:
         for _ in range(max_pages):
             params = {'limit': 100, 'updatedFrom': updated_from.strftime('%Y-%m-%dT%H:%M:%S'),

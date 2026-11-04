@@ -66,7 +66,7 @@ export function RenewalRadar({ notify, navigate }: SharedProps) {
     setLoading(true);
     fetch(`${base}?${params}`, { cache: "no-store", signal: controller.signal }).then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: Page) => { setPage(data); setError(""); setLoading(false); })
-      .catch(() => { if (!controller.signal.aborted) { setError("Opportunities are unavailable. Check the MiSi API is running, then try again."); setLoading(false); } });
+      .catch(() => { if (!controller.signal.aborted) { setError("Opportunities are unavailable. Check the SalesIntel API is running, then try again."); setLoading(false); } });
     return () => controller.abort();
   }, [base, category, nation, tier, query, offset]);
 
@@ -173,7 +173,7 @@ export function RenewalRadar({ notify, navigate }: SharedProps) {
             {page ? `${page.total.toLocaleString("en-GB")} ${page.total === 1 ? "opportunity" : "opportunities"}, most urgent first` : "Loading…"}
           </p>
           {!page && loading && <div className="space-y-2">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="ds-skeleton h-[118px] rounded-xl" />)}</div>}
-          {page && !page.items.length && <div className="ds-card"><EmptyState icon={<Inbox size={20} />} title="Nothing matches these filters" action={filtered ? <button className="ds-btn" onClick={clearAll}>Clear filters</button> : undefined}>MiSi only covers captured public records, so this does not mean no opportunity exists. Try AI Research to look further.</EmptyState></div>}
+          {page && !page.items.length && <div className="ds-card"><EmptyState icon={<Inbox size={20} />} title="Nothing matches these filters" action={filtered ? <button className="ds-btn" onClick={clearAll}>Clear filters</button> : undefined}>SalesIntel only covers captured public records, so this does not mean no opportunity exists. Try AI Research to look further.</EmptyState></div>}
           {page && !!page.items.length && <ul className={`space-y-2 transition-opacity ${loading ? "opacity-60" : ""}`}>
             {page.items.map((item) => <li key={item.id}><LeadRow item={item} active={item.id === selected} onClick={() => select(item.id)} /></li>)}
           </ul>}

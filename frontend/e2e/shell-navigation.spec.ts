@@ -19,7 +19,7 @@ test('primary navigation and specialist tools remain keyboard accessible', async
   await expect(tools).toHaveAttribute('aria-expanded', 'true');
   await page.keyboard.press('Control+k');
   await expect(page.getByRole('dialog', { name: 'Search and command' })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Search or ask MiSi' })).toBeFocused();
+  await expect(page.getByRole('textbox', { name: 'Search or ask SalesIntel' })).toBeFocused();
   await page.keyboard.press('Escape');
 });
 

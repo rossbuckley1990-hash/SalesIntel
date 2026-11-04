@@ -35,7 +35,7 @@ def _next_cursor(links):
 def fetch_page(*, updated_from: datetime, updated_to: datetime, cursor: str | None = None, client=None):
     owned = client is None
     client = client or httpx.Client(timeout=httpx.Timeout(25, connect=10), follow_redirects=False,
-                                   headers={'User-Agent': 'MiSi public-market-monitor/1.0', 'Accept': 'application/json'})
+                                   headers={'User-Agent': 'SalesIntel public-market-monitor/1.0', 'Accept': 'application/json'})
     try:
         params = {'limit': 100, 'publishedFrom': updated_from.astimezone(UTC).strftime('%Y-%m-%dT%H:%M:%S'),
                   'publishedTo': updated_to.astimezone(UTC).strftime('%Y-%m-%dT%H:%M:%S')}

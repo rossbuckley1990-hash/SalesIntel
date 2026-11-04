@@ -10,7 +10,7 @@ from app.services.seed import seed_sample_data  # noqa: E402
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Seed the MiSi local database.")
+    parser = argparse.ArgumentParser(description="Seed the SalesIntel local database.")
     parser.add_argument(
         "--reset",
         action="store_true",

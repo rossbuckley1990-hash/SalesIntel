@@ -28,7 +28,7 @@ test("source explorer discovers and explains an approved public capability", asy
   await explorer.getByRole("button", { name: "Find source candidates" }).click();
   await expect(explorer.getByText("Example public API")).toBeVisible();
   await expect(explorer.getByText(/Unreviewed · Example registry/)).toBeVisible();
-  await expect(explorer.getByText(/not approved for MiSi research/)).toBeVisible();
+  await expect(explorer.getByText(/not approved for SalesIntel research/)).toBeVisible();
   await explorer.getByRole("button", { name: "Show approved capability" }).click();
   await expect(explorer.getByText("1 approved capability found.")).toBeVisible();
   await explorer.getByRole("button", { name: /Search planning records/ }).click();

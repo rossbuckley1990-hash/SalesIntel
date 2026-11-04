@@ -69,7 +69,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--fetch', action='store_true', help='Resume the Contracts Finder keyword sweep')
     parser.add_argument('--find-a-tender', action='store_true', help='Resume the Find a Tender weekly history')
-    parser.add_argument('--load', action='store_true', help='Load checkpoints into MiSi; unchanged records are not duplicated')
+    parser.add_argument('--load', action='store_true', help='Load checkpoints into SalesIntel; unchanged records are not duplicated')
     parser.add_argument('--refresh', action='store_true', help='Re-evaluate every stored record now')
     parser.add_argument('--report', action='store_true', help='Write the report and CSV from the database')
     parser.add_argument('--first-year', type=int, default=2021)

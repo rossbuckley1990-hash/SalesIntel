@@ -88,7 +88,7 @@ export function FieldCanvas({
         </div>
       )}
       <span className="m-field-watermark" aria-hidden="true">
-        MiSi / LIVING INTELLIGENCE
+        SalesIntel / LIVING INTELLIGENCE
       </span>
     </div>
   );

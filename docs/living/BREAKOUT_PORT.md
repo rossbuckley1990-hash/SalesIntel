@@ -1,8 +1,8 @@
 # BREAKOUT port and visual contract
 
-The user-supplied `/Users/ross/Breakout.zip` was inspected by extracting only source files to a temporary directory. Its archive, Git metadata, dependencies, browser profiles and capture assets were not copied into MiSi. This is a source adaptation, not an unmodified package import. Retain the source owner's licensing/provenance review before distributing the application externally.
+The user-supplied `/Users/ross/Breakout.zip` was inspected by extracting only source files to a temporary directory. Its archive, Git metadata, dependencies, browser profiles and capture assets were not copied into SalesIntel. This is a source adaptation, not an unmodified package import. Retain the source owner's licensing/provenance review before distributing the application externally.
 
-| BREAKOUT source | MiSi implementation | Adaptation |
+| BREAKOUT source | SalesIntel implementation | Adaptation |
 | --- | --- | --- |
 | `src/core/spring.ts` | `frontend/src/features/field/engine/spring.ts` | Analytic damped oscillator, camera presets, seeded random generator. Frame-partition invariance tested. |
 | `src/core/timeline.ts` | `engine/timeline.ts` | Interruptible track timeline used by asset convergence. Stop clears pending callbacks. |

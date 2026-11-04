@@ -14,7 +14,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("csv", type=Path, help="Local exact NHS England ERIC 2025/26 v2 site CSV")
     parser.add_argument("--retrieved-at", required=True, help="When the CSV was downloaded, as an ISO timestamp with timezone, e.g. 2026-10-28T12:00:00+00:00")
-    parser.add_argument("--apply", action="store_true", help="Explicitly import to the configured MiSi database; default is preview only")
+    parser.add_argument("--apply", action="store_true", help="Explicitly import to the configured SalesIntel database; default is preview only")
     args = parser.parse_args()
     try:
         retrieved_at = datetime.fromisoformat(args.retrieved_at.replace("Z", "+00:00"))

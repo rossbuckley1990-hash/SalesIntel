@@ -1,4 +1,4 @@
-/* MiSi living workspace: one restrained, accessible visual language. */
+/* SalesIntel living workspace: one restrained, accessible visual language. */
 .m-workspace {
   --bg: #101512;
   --panel: #151c17;
@@ -3413,7 +3413,7 @@
   .m-shell-main { margin-left: 0; }
 }
 
-/* MiSi workspace foundation: quiet navigation and a clear working canvas. */
+/* SalesIntel workspace foundation: quiet navigation and a clear working canvas. */
 .m-workspace {
   --misi-canvas: #f7f8f5;
   --misi-surface: #ffffff;
@@ -3668,7 +3668,7 @@
 :is(.m-view-imports, .m-view-outcomes) .m-table tbody tr:hover { background: #f7f8fc; }
 :is(.m-view-imports, .m-view-outcomes) .m-table small { color: var(--misi-muted); }
 
-/* MiSi — Porcelain & Obsidian: shared workspace foundation. */
+/* SalesIntel — Porcelain & Obsidian: shared workspace foundation. */
 .m-workspace {
   --misi-canvas: #fbfcfe;
   --misi-surface: #fff;

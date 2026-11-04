@@ -23,7 +23,7 @@ test('capture actual workspace screens for local design review', async ({ page }
   if (stage === 'after') {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/?view=today', { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: /Search or ask MiSi/ }).click();
+    await page.getByRole('button', { name: /Search or ask SalesIntel/ }).click();
     await page.getByRole('dialog', { name: 'Search and command' }).waitFor();
     await page.screenshot({ path: path.join(folder, 'search-interaction-desktop.png'), animations: 'disabled' });
   }

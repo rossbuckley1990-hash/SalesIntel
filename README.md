@@ -2,13 +2,13 @@
 
 Start the new synthetic workspace with `pnpm dev:living`. See [startup, demonstrations and deployment boundaries](docs/living/README.md). The original workspace remains at `/classic`.
 
-# MiSi - Mitie Sales Intelligence
+# SalesIntel
 
 For the public-data false-alarm pilot, run `pnpm dev:sensor` and see [setup, sources and limitations](docs/VIRTUAL_SENSOR.md).
 
 For the optional public-source network, see [setup and limits](docs/PUBLIC_SOURCE_NETWORK.md).
 
-MiSi is a secure sales intelligence command centre for Mitie Fire & Security. It is designed to combine internal pipeline data, self-delivery data, public tender signals, buyer intelligence, competitor intelligence, OpenAI-powered opportunity analysis, finance forecasting, and executive reporting.
+SalesIntel is a secure sales intelligence command centre for Mitie Fire & Security. It is designed to combine internal pipeline data, self-delivery data, public tender signals, buyer intelligence, competitor intelligence, OpenAI-powered opportunity analysis, finance forecasting, and executive reporting.
 
 Phase 0 establishes the repository, local development workflow, backend boundary, frontend shell, and extension points. The backend now includes early rule-based intelligence, LE1-style forecasting, and a backend-only OpenAI analysis integration.
 
@@ -91,7 +91,7 @@ The backend runs on [http://localhost:8000](http://localhost:8000) and the front
 
 ## Real Data Mode: Empty Database
 
-Use this when you want MiSi to start from scratch with no seeded opportunities, market signals, buyer profiles, competitor profiles, actions, or forecasts.
+Use this when you want SalesIntel to start from scratch with no seeded opportunities, market signals, buyer profiles, competitor profiles, actions, or forecasts.
 
 ```bash
 ./scripts/reset-empty-db.sh
@@ -135,7 +135,7 @@ The evidence inbox can import public observations and can refresh a bounded batc
 
 Search results are not exhaustive UK coverage. URLs returned by the web tool are not independent verification that a claim is true, that sources are independent, or that a buyer intends to procure. Confirm source content, current identity, contact role and service requirements before action. The local workspace has no user authentication and is for local review, not shared production use.
 
-MiSi can run backend-owned internet research through OpenAI's Responses API with the hosted `web_search` tool. This powers the **Internet Intelligence Scan** in Market Radar.
+SalesIntel can run backend-owned internet research through OpenAI's Responses API with the hosted `web_search` tool. This powers the **Internet Intelligence Scan** in Market Radar.
 
 **Early Opportunity Research** in Market Radar and the Living Discover view looks for business signals before a tender, prioritising ongoing fire and security maintenance across existing estates. It looks for signals such as estate change, compliance priorities or evidence of a service review, and separates those facts from a possible need. It suggests a contact role and engagement approach. Names require a source; results stay in the research view until reviewed and are not automatically added to the pipeline.
 
@@ -162,7 +162,7 @@ The scan returns structured JSON with findings, source URLs, risk warnings, limi
 
 Use `./scripts/dev.sh` for live research, either in Discover or in `/classic`. The separate `pnpm dev:living` synthetic demo deliberately disables the API key; its local Discover search works, but its external research action requires an API-enabled backend.
 
-MiSi now also has an AI enrichment data layer for turning incomplete opportunity
+SalesIntel now also has an AI enrichment data layer for turning incomplete opportunity
 signals into reviewed commercial records. Enrichment runs, opportunity
 intelligence packs and field-by-field confidence metadata are stored separately
 from the core opportunity so inferred or estimated values can be useful without
@@ -182,15 +182,15 @@ enter the SQLite database.
 ## ChatGPT Plus Assist Mode
 
 ChatGPT Plus does not include OpenAI API quota. For local demos where the API
-project has no credits, MiSi includes a manual **ChatGPT Plus Assist** workflow
+project has no credits, SalesIntel includes a manual **ChatGPT Plus Assist** workflow
 inside the AI Research Workspace:
 
 1. Enter a buyer, tender, market or sector phrase.
 2. Click **Use ChatGPT Plus Assist**.
-3. Copy the MiSi-generated structured research prompt.
+3. Copy the SalesIntel-generated structured research prompt.
 4. Paste it into ChatGPT Plus and ask for JSON only.
-5. Paste the JSON result back into MiSi.
-6. MiSi validates the JSON, labels known/inferred/estimated/unknown fields, and
+5. Paste the JSON result back into SalesIntel.
+6. SalesIntel validates the JSON, labels known/inferred/estimated/unknown fields, and
    saves the opportunity intelligence pack.
 
 This mode does not automate ChatGPT, scrape a browser session, or bypass API
@@ -199,7 +199,7 @@ not available. The production path remains backend-owned OpenAI API usage.
 
 ## Seed Demo Data
 
-Reset and seed the local SQLite demo database with synthetic MiSi data:
+Reset and seed the local SQLite demo database with synthetic SalesIntel data:
 
 ```bash
 ./scripts/seed-demo.sh
@@ -246,7 +246,7 @@ uvicorn app.main:app --app-dir backend --reload --port 8000
 pnpm --dir frontend dev
 ```
 
-4. Open MiSi dashboard at [http://localhost:3000](http://localhost:3000).
+4. Open SalesIntel dashboard at [http://localhost:3000](http://localhost:3000).
 5. Filter opportunities by sector, region, stage, risk rating, owner, or search.
 6. Open an opportunity detail view from the opportunity table.
 7. Run AI analysis only if `OPENAI_API_KEY` is configured in `.env`; without it, the backend returns a clear configuration error and the seeded demo still works.
@@ -271,7 +271,7 @@ For an MD / FD / GSD / Bid / Commercial review, use this route:
 - SQLite is the default local database; PostgreSQL is supported by `DATABASE_URL` but production migration, backups and monitoring are not yet built.
 - Public tender connectors use controlled sample/mock data unless a safe approved source is connected.
 - Buyer and competitor records are seeded demo intelligence, not live CRM or market data.
-- AI analysis and leadership briefing require `OPENAI_API_KEY` on the backend. Without it, MiSi still runs with seeded data, rule-based scoring, LE1 finance and report export.
+- AI analysis and leadership briefing require `OPENAI_API_KEY` on the backend. Without it, SalesIntel still runs with seeded data, rule-based scoring, LE1 finance and report export.
 - Do not use local demo output as an authoritative commercial forecast without validation against source systems.
 
 ## Smoke Test
@@ -307,7 +307,7 @@ pnpm --dir frontend test
 
 ## Tracker Upload Format
 
-MiSi can import internal opportunity tracker files through:
+SalesIntel can import internal opportunity tracker files through:
 
 ```bash
 curl -F "file=@sample_data/tracker_upload_sample.csv" http://localhost:8000/api/upload-tracker

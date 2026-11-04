@@ -356,7 +356,7 @@ function AssetPreview({
     <Modal title="Saved commercial asset" close={close} wide>
       <div className="m-asset-preview">
         <header>
-          <p className="m-eyebrow">MiSi / Commercial intelligence</p>
+          <p className="m-eyebrow">SalesIntel / Commercial intelligence</p>
           <h2>{asset.title}</h2>
           <div className="m-wrap">
             <Badge>Version {asset.version}</Badge>

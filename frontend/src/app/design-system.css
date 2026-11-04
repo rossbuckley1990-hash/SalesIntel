@@ -1,4 +1,4 @@
-/* MiSi design system: one light, calm, high-clarity language for the whole product.
+/* SalesIntel design system: one light, calm, high-clarity language for the whole product.
    Loaded last, so these tokens are the source of truth for every view. */
 :root { color-scheme: light; }
 html, body { background: #f7f8fa; color: #101828; }

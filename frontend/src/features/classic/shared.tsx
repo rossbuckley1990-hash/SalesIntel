@@ -204,7 +204,7 @@ export const navigation: NavigationItem[] = [
 
 export const moduleDescriptions: Record<ViewId, string> = {
   research:
-    "Start with a rough phrase and let MiSi research, infer, estimate and build a commercial intelligence pack.",
+    "Start with a rough phrase and let SalesIntel research, infer, estimate and build a commercial intelligence pack.",
   executive:
     "Where is the opportunity, what is it worth, what is the risk, and what action is needed this week.",
   market:
@@ -266,7 +266,7 @@ export const researchProgressSteps = [
   "Assessing self-delivery fit",
   "Scoring bid/no-bid",
   "Creating executive actions",
-  "Updating MiSi dashboard",
+  "Updating SalesIntel dashboard",
 ];
 
 export const researchProgressDetails = [

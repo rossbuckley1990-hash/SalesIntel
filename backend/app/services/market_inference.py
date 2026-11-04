@@ -1,4 +1,4 @@
-"""Carry public observations through to hypotheses and MiSi opportunities.
+"""Carry public observations through to hypotheses and SalesIntel opportunities.
 
 Automatic steps cost no model calls. Unchanged observations are recognised by
 fingerprint, and a hypothesis gets a new revision only when its reasoning changes.

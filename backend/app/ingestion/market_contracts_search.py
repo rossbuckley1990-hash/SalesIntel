@@ -100,4 +100,4 @@ def collect(client, criteria: dict, start: date, end: date, budget: Budget, *, p
 
 def client() -> httpx.Client:
     return httpx.Client(timeout=httpx.Timeout(90, connect=10), follow_redirects=False,
-                        headers={'User-Agent': 'MiSi public-market-monitor/1.0', 'Accept': 'application/json'})
+                        headers={'User-Agent': 'SalesIntel public-market-monitor/1.0', 'Accept': 'application/json'})

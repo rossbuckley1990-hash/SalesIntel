@@ -58,7 +58,7 @@ export function BuyersView({ buyers }: { buyers: BuyerProfile[] }) {
       ) : (
         <EmptyState
           title="No confirmed buyer intelligence yet"
-          message="MiSi has not researched these buyers yet. Start with a buyer, sector or tender phrase and MiSi will infer drivers, pain points and next best action with confidence labels."
+          message="SalesIntel has not researched these buyers yet. Start with a buyer, sector or tender phrase and SalesIntel will infer drivers, pain points and next best action with confidence labels."
         />
       )}
     </Panel>
@@ -120,7 +120,7 @@ export function CompetitorsView({
       ) : (
         <EmptyState
           title="No confirmed competitor evidence yet"
-          message="MiSi can infer likely competitor threat from sector, scope and incumbent patterns, then separate inferred threat from confirmed competitor evidence."
+          message="SalesIntel can infer likely competitor threat from sector, scope and incumbent patterns, then separate inferred threat from confirmed competitor evidence."
         />
       )}
     </Panel>

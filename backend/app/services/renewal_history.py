@@ -2,7 +2,7 @@
 
 Contracts Finder keyword rows and Find a Tender weeks are held in resumable local
 checkpoints, then loaded into market_source_revisions in the OCDS shape every
-MiSi rule reads. Loading is idempotent, so unchanged history is never duplicated.
+SalesIntel rule reads. Loading is idempotent, so unchanged history is never duplicated.
 A record loaded from a checkpoint is a reduced copy of the published notice and
 says so in x_misi_capture; its source_url remains the original notice.
 """
@@ -223,7 +223,7 @@ def import_checkpoints(db: Session, *, search_path: Path = SEARCH_CACHE, tender_
 
 
 def record_history(db: Session, cache: dict):
-    """Keep the Find a Tender coverage on MiSi's own source state, so limits stay visible."""
+    """Keep the Find a Tender coverage on SalesIntel's own source state, so limits stay visible."""
     weeks = sorted(x[5:] for x in cache['done'] if x.startswith('week:'))
     if not weeks:
         return

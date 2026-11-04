@@ -94,7 +94,7 @@ def review(opportunity_id: int, payload: Review, db: Session = Depends(get_db)):
 
 @router.post('/{opportunity_id}/promote')
 def promote(opportunity_id: int, db: Session = Depends(get_db)):
-    """Add a reviewed lead to pursuits through MiSi's own signal conversion, once only."""
+    """Add a reviewed lead to pursuits through SalesIntel's own signal conversion, once only."""
     item = db.get(MarketOpportunity, opportunity_id)
     version = db.get(MarketOpportunityRevision, item.current_revision_id) if item and item.current_revision_id else None
     if not version or item.state != 'suggested':

@@ -26,9 +26,9 @@ for attempt in range(20):
         break
     except (OSError, URLError):
         if attempt == 19:
-            print("Source discovery is unavailable; MiSi can continue without it.", file=sys.stderr)
+            print("Source discovery is unavailable; SalesIntel can continue without it.", file=sys.stderr)
             break
         time.sleep(0.25)
     except (ValueError, RuntimeError):
-        print("The approved public source could not load; MiSi can continue without it.", file=sys.stderr)
+        print("The approved public source could not load; SalesIntel can continue without it.", file=sys.stderr)
         break

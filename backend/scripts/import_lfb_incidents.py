@@ -23,7 +23,7 @@ def download_official(destination: Path) -> datetime:
     """Download only the fixed HTTPS official URL, bounded in memory and size."""
     total = 0
     opener = build_opener(NoRedirect())
-    request = Request(DOWNLOAD_URL, headers={"User-Agent": "Mozilla/5.0 MiSi-public-data-import/1.0"})
+    request = Request(DOWNLOAD_URL, headers={"User-Agent": "Mozilla/5.0 SalesIntel-public-data-import/1.0"})
     with opener.open(request, timeout=120) as response, destination.open("wb") as out:
         while chunk := response.read(1024 * 1024):
             total += len(chunk)

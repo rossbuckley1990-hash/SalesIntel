@@ -62,5 +62,5 @@ def _table_counts() -> dict[str, int]:
 if __name__ == "__main__":
     _ensure_reset_is_allowed()
     reset_db()
-    print("MiSi database reset to empty tables. No sample or demo data inserted.")
+    print("SalesIntel database reset to empty tables. No sample or demo data inserted.")
     print(f"Empty table counts: {_table_counts()}")

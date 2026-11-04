@@ -111,7 +111,7 @@ def collect_rightclick_context(request: UniversalResearchRequest, settings: Sett
         receipt_hash = receipt.get("hash") if isinstance(receipt, dict) else None
         if not isinstance(receipt_hash, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", receipt_hash):
             receipt_hash = None
-        result.update(status="searched", message="MiSi searched the approved public source. Records are unverified context, not proof of a sales opportunity. Coverage is incomplete; no result does not mean no activity.",
+        result.update(status="searched", message="SalesIntel searched the approved public source. Records are unverified context, not proof of a sales opportunity. Coverage is incomplete; no result does not mean no activity.",
             query={"identifier": request.rightclick_identifier.strip().upper(), "dataset": request.rightclick_dataset,
                    "records": records, "receipt": receipt_hash})
         return result, observations

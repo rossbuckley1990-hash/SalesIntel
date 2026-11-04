@@ -37,7 +37,7 @@ def fetch_company_profile(company_number: str, *, api_key: str | None, client: h
     try:
         try:
             with client.stream("GET", f"{API_BASE}/company/{number}", auth=(api_key, ""),
-                               headers={"Accept": "application/json", "User-Agent": "MiSi market intelligence/1.0"},
+                               headers={"Accept": "application/json", "User-Agent": "SalesIntel market intelligence/1.0"},
                                follow_redirects=False) as response:
                 if response.status_code == 429:
                     raise CompaniesHouseError("Companies House rate limit reached; retry later")
@@ -98,7 +98,7 @@ def fetch_corporate_control_snapshot(company_number: str, *, api_key: str | None
             try:
                 with client.stream('GET', f'{API_BASE}/company/{number}/persons-with-significant-control',
                      params={'items_per_page':100,'start_index':page*100,'register_view':'false'},
-                     auth=(api_key,''),headers={'Accept':'application/json','User-Agent':'MiSi market intelligence/1.0'},
+                     auth=(api_key,''),headers={'Accept':'application/json','User-Agent':'SalesIntel market intelligence/1.0'},
                      follow_redirects=False) as response:
                     if response.status_code == 429:
                         raise CompaniesHouseError('Companies House rate limit reached; retry later')

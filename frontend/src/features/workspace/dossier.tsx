@@ -13,7 +13,7 @@ const STANCE: Record<string, { label: string; tone: Tone; line: string }> = {
   monitor: { label: "Monitor", tone: "neutral", line: "Not yet. Keep watching for a trigger." },
   step_back: { label: "Step back", tone: "red", line: "The evidence does not support pursuit now." },
 };
-const STEPS = ["Reading MiSi's record and published notices", "Searching the buyer's news, strategy and estate", "Checking contract history and incumbents", "Weighing signals for and against", "Writing your dossier"];
+const STEPS = ["Reading SalesIntel's record and published notices", "Searching the buyer's news, strategy and estate", "Checking contract history and incumbents", "Weighing signals for and against", "Writing your dossier"];
 
 export function DeepResearch({ id, customer }: { id: number; customer: string }) {
   const [dossier, setDossier] = useState<Dossier | null>(null);

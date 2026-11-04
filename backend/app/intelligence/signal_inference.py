@@ -472,7 +472,7 @@ def buyer_hypotheses(views: list[dict], observations: list[dict], notices: list[
             standing = [x for x in standing if x['signal_type'] in REQUIREMENT_SIGNALS or set(x['families']) & FIRE_WORK]
         recent = [x for x in held.get(key, []) if x.get('published') and x['fit'] in {'core', 'bundled', 'adjacent'}]
         # Holding contracts shows the customer buys this work. It is context, not corroboration.
-        link = f"Customer level, not tied to one contract. MiSi holds {len(recent)} relevant published contracts for this customer."
+        link = f"Customer level, not tied to one contract. SalesIntel holds {len(recent)} relevant published contracts for this customer."
         name = next((x['buyer'] for x in items if x['signal_type'] in REQUIREMENT_SIGNALS), items[0]['buyer'])
         found[f'requirement:{key}'] = (assess('hidden_requirement', standing if pressure else sorted(items, key=lambda x: x['occurred_on']), today=today, contradicted=[] if pressure else against, estate=[], buyer=name, link=link), None)
     return found

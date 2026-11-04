@@ -204,7 +204,7 @@ export function buildExecutiveReportHtml(report: ExecutiveReport): string {
 <body>
   <main>
     <header>
-      <p class="label">MiSi - Mitie Sales Intelligence</p>
+      <p class="label">SalesIntel</p>
       <h1>${escapeHtml(report.report_name)}</h1>
       <p class="meta">Generated ${escapeHtml(formatDateTime(report.generated_at))} for ${escapeHtml(report.audience.join(", "))}</p>
       <p class="note">${escapeHtml(report.data_note)}</p>

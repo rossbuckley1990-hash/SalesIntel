@@ -496,7 +496,7 @@ def test_chatgpt_assist_import_rejects_invalid_json(
     )
 
     assert response.status_code == 422
-    assert "not valid MiSi structured JSON" in response.json()["detail"]
+    assert "not valid SalesIntel structured JSON" in response.json()["detail"]
 
     with testing_session() as db:
         assert db.scalar(select(func.count(Opportunity.id))) == 0

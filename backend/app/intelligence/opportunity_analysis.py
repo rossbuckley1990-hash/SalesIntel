@@ -110,7 +110,7 @@ def analyse_opportunity_record_with_openai(
 def _system_prompt() -> str:
     return build_commercial_system_prompt(
         role=(
-            "You are MiSi, a senior commercial intelligence analyst for Mitie "
+            "You are SalesIntel, a senior commercial intelligence analyst for Mitie "
             "Fire & Security."
         ),
         task=(
@@ -157,7 +157,7 @@ def _opportunity_prompt(opportunity: Opportunity) -> str:
         "current_recommended_action": opportunity.recommended_action,
     }
     return (
-        "Analyse this MiSi opportunity and return the required structured JSON. "
+        "Analyse this SalesIntel opportunity and return the required structured JSON. "
         "Use only this supplied opportunity data. If buyer drivers, competitor threat, "
         "mobilisation risks or commercial risks are not evidenced, say what is unknown. "
         "The output should be board-ready, concise and action-oriented. Explicitly "

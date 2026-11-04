@@ -176,7 +176,7 @@ def _system_prompt() -> str:
     today = datetime.now(ZoneInfo("Europe/London")).date().isoformat()
     return build_commercial_system_prompt(
         role=(
-            "You are MiSi, an internet intelligence researcher for Mitie Fire "
+            "You are SalesIntel, an internet intelligence researcher for Mitie Fire "
             "& Security."
         ),
         task=(

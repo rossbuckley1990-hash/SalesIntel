@@ -26,7 +26,7 @@ contact roles and the site before engagement.
 Run `pnpm dev:sensor`, open `http://127.0.0.1:3100`, then choose **Discover →
 Repeated fire-alarm attendances**. This command uses the separate
 `.runtime/false-alarm-pilot-v2.db` and ports 8002/3100. It does not modify the
-main MiSi database. Override the database path with `MISI_PILOT_DB`; override
+main SalesIntel database. Override the database path with `MISI_PILOT_DB`; override
 ports with `MISI_PILOT_API_PORT` and `MISI_PILOT_FRONTEND_PORT`. The backend
 reads `OPENAI_API_KEY` and `OPENAI_MODEL` from the existing local configuration
 for the optional web research action. Research sends selected public property

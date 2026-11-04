@@ -1,8 +1,8 @@
 # Signal inference
 
-MiSi cannot see whether a customer is unhappy or a contractor is struggling, so it reasons from what is published. The engine turns public observations into dated, source-linked events, joins them to customers and contracts, proposes competing explanations and decides what each one justifies. Results appear in **Renewal Radar**: on the contract they concern, or as an **Inferred signal** when no contract applies.
+SalesIntel cannot see whether a customer is unhappy or a contractor is struggling, so it reasons from what is published. The engine turns public observations into dated, source-linked events, joins them to customers and contracts, proposes competing explanations and decides what each one justifies. Results appear in **Renewal Radar**: on the contract they concern, or as an **Inferred signal** when no contract applies.
 
-An inference is not a finding about any company. Do not repeat one to a customer as fact. MiSi records a contractor as responsible only when a source says so.
+An inference is not a finding about any company. Do not repeat one to a customer as fact. SalesIntel records a contractor as responsible only when a source says so.
 
 ## How it works
 
@@ -51,6 +51,6 @@ An early design counted published early re-lets as signals. They are the outcome
 - **HSE enforcement register:** not reachable from this machine.
 - **Fire service data:** London only, and only sites in the published NHS site list.
 - **Regulator data:** social landlords only. Up to 80 pages are read a day, so the full list takes several days.
-- **Gazette:** no supplier in MiSi has matched yet. Matches rely on exact names, so confirm the company number.
+- **Gazette:** no supplier in SalesIntel has matched yet. Matches rely on exact names, so confirm the company number.
 - **Names:** customers with different published names can fail to join.
 - **Spend data:** no council or NHS spending files are read, so repeated expenditure patterns are not detected.

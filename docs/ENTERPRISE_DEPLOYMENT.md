@@ -1,12 +1,12 @@
-# MiSi Enterprise Authentication And Deployment Plan
+# SalesIntel Enterprise Authentication And Deployment Plan
 
-This document describes how MiSi should move from a local MVP into a secure internal web application for Mitie Fire & Security.
+This document describes how SalesIntel should move from a local MVP into a secure internal web application for Mitie Fire & Security.
 
 Status: planning only. Authentication, authorization, production deployment automation, and user-level audit logging are not implemented in the current MVP. Do not treat the local demo as secure for real confidential data.
 
 ## Executive Summary
 
-MiSi will hold commercially sensitive sales, tender, finance, buyer, competitor, self-delivery, and AI-generated decision-support data. Before internal pilot use with real data, MiSi should add:
+SalesIntel will hold commercially sensitive sales, tender, finance, buyer, competitor, self-delivery, and AI-generated decision-support data. Before internal pilot use with real data, SalesIntel should add:
 
 - Microsoft Entra ID login for single sign-on.
 - Backend-enforced role-based access control.
@@ -19,7 +19,7 @@ The frontend should remain a presentation and workflow surface. The FastAPI back
 
 ## Data Sensitivity
 
-MiSi data should be classified as internal sensitive by default.
+SalesIntel data should be classified as internal sensitive by default.
 
 Examples of sensitive commercial data:
 
@@ -86,17 +86,17 @@ Recommended Azure-aligned deployment:
 
 ## Microsoft Entra ID Login Plan
 
-MiSi should use Microsoft Entra ID (formerly Azure AD) for internal single sign-on.
+SalesIntel should use Microsoft Entra ID (formerly Azure AD) for internal single sign-on.
 
 Recommended flow:
 
-1. Register a MiSi frontend application in the Mitie Entra tenant.
-2. Register or expose a MiSi backend API application with a stable audience.
+1. Register a SalesIntel frontend application in the Mitie Entra tenant.
+2. Register or expose a SalesIntel backend API application with a stable audience.
 3. Use Authorization Code with PKCE for browser login.
-4. The frontend obtains an access token for the MiSi API.
+4. The frontend obtains an access token for the SalesIntel API.
 5. The frontend sends the access token to the backend in the `Authorization: Bearer <token>` header.
 6. The backend validates token signature, issuer, audience, expiry, tenant, and required claims using the Entra JWKS endpoint.
-7. The backend maps group or app role claims to MiSi application roles.
+7. The backend maps group or app role claims to SalesIntel application roles.
 8. The backend enforces authorization on every protected endpoint.
 
 Implementation options:
@@ -134,7 +134,7 @@ Authorization must be enforced in the backend. The frontend may hide controls fo
 
 | Role | Purpose | Typical access |
 | --- | --- | --- |
-| Admin | Operate MiSi and manage secure configuration | Manage users and roles, source connectors, settings, import controls, audit views, and system health |
+| Admin | Operate SalesIntel and manage secure configuration | Manage users and roles, source connectors, settings, import controls, audit views, and system health |
 | Sales User | Own and progress pipeline opportunities | Read dashboards, edit assigned opportunities, upload controlled trackers if permitted, run opportunity analysis, create executive actions |
 | Finance User | Review LE1 forecast, margin, and risk-adjusted revenue | Read pipeline and finance views, edit or approve forecast assumptions, export finance review packs, view finance warnings |
 | Read-Only Executive | Consume board-level command centre outputs | Read dashboards, reports, opportunity detail, leadership briefing, finance forecast, self-delivery summary, and executive actions |
@@ -186,7 +186,7 @@ Suggested role mapping:
 
 ## Audit Logging Plan
 
-MiSi should add append-only audit records before any internal pilot with real data.
+SalesIntel should add append-only audit records before any internal pilot with real data.
 
 Audit records should include:
 
@@ -369,7 +369,7 @@ Connectors that require credentials should use the backend secret store only.
 
 ### 2. Internal Pilot
 
-- Map Entra users, groups, or app roles to MiSi roles.
+- Map Entra users, groups, or app roles to SalesIntel roles.
 - Restrict pilot access to approved users.
 - Use approved internal test or pilot data.
 - Enable audit logging for imports, AI analysis, finance changes, and exports.
@@ -421,7 +421,7 @@ Do not do this:
 
 ## Definition Of Done For Enterprise Pilot
 
-MiSi should not enter an internal pilot with real sensitive data until:
+SalesIntel should not enter an internal pilot with real sensitive data until:
 
 - Entra ID login works.
 - Backend role checks protect sensitive endpoints.

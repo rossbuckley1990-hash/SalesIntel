@@ -29,6 +29,7 @@ from app.routers.public_sources import router as public_sources_router
 from app.routers.evidence_graph import router as evidence_graph_router
 from app.routers.research_investigations import router as research_investigations_router
 from app.routers.market_opportunities import router as market_opportunities_router
+from app.routers.prospects import router as prospects_router
 from app.routers.market_cross_source import router as market_cross_source_router
 from app.routers.market_network import router as market_network_router
 
@@ -37,7 +38,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     application = FastAPI(
         title=settings.app_name,
-        description="Backend API for Mitie Sales Intelligence.",
+        description="Backend API for SalesIntel.",
         version=settings.app_version,
     )
 
@@ -71,6 +72,7 @@ def create_app() -> FastAPI:
     application.include_router(evidence_graph_router)
     application.include_router(research_investigations_router)
     application.include_router(market_opportunities_router)
+    application.include_router(prospects_router)
     application.include_router(market_cross_source_router)
     application.include_router(market_network_router)
     application.include_router(public_sources_router)

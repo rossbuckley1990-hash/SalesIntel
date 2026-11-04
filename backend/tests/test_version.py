@@ -10,7 +10,7 @@ def test_version_endpoint_returns_app_name_and_version() -> None:
 
     assert response.status_code == 200
     assert response.json() == {
-        "app_name": "MiSi API",
+        "app_name": "SalesIntel API",
         "version": "0.1.0",
         "environment": "local",
     }

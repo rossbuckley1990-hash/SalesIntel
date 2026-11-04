@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
+  Telescope,
   Undo2,
   Upload,
   X,
@@ -55,6 +56,9 @@ const Accounts = dynamic(() => import("./accounts").then((m) => m.Accounts), {
 const RenewalRadar = dynamic(() => import("./renewal-radar").then((m) => m.RenewalRadar), {
   loading: () => <Loading />,
 });
+const Prospects = dynamic(() => import("./prospects").then((m) => m.Prospects), {
+  loading: () => <Loading />,
+});
 const Imports = dynamic(() => import("./imports").then((m) => m.Imports), {
   loading: () => <Loading />,
 });
@@ -62,6 +66,7 @@ const Imports = dynamic(() => import("./imports").then((m) => m.Imports), {
 const navigation = [
   { id: "today", label: "Home", icon: House, group: "Find" },
   { id: "radar", label: "Opportunity Finder", icon: Radar, group: "Find" },
+  { id: "prospects", label: "Prospects", icon: Telescope, group: "Find" },
   { id: "discover", label: "AI Research", icon: Sparkles, group: "Find" },
   { id: "opportunities", label: "Pipeline", icon: BriefcaseBusiness, group: "Win" },
   { id: "pursuits", label: "Pursuits", icon: Flag, group: "Win" },
@@ -73,11 +78,11 @@ const navigation = [
   { id: "field", label: "Intelligence Field", icon: Orbit },
   { id: "outcomes", label: "Outcomes", icon: CheckCheck },
 ] as const;
-const primaryViews: View[] = ["today", "radar", "discover", "opportunities", "pursuits", "accounts"];
+const primaryViews: View[] = ["today", "radar", "prospects", "discover", "opportunities", "pursuits", "accounts"];
 const navGroups = ["Find", "Win"] as const;
 
 function navGroupOf(id: string) {
-  return ["today", "radar", "discover"].includes(id) ? "Find" : "Win";
+  return ["today", "radar", "prospects", "discover"].includes(id) ? "Find" : "Win";
 }
 
 export function LivingWorkspace() {
@@ -212,6 +217,8 @@ export function LivingWorkspace() {
         return <Discover key={query} {...shared} initialQuery={query} />;
       case "radar":
         return <RenewalRadar {...shared} />;
+      case "prospects":
+        return <Prospects {...shared} />;
       case "opportunities":
         return <Opportunities {...shared} />;
       case "pursuits":
@@ -240,9 +247,9 @@ export function LivingWorkspace() {
         Skip to workspace
       </a>
       <aside id="m-navigation" className={`m-sidebar ${mobile ? "open" : ""}`}>
-        <a className="m-brand" href="/?view=today" aria-label="MiSi home">
-          <span className="m-brand-mark" aria-hidden="true">m<span>·</span></span>
-          <span className="m-brand-wordmark">MiSi<small>Sales intelligence</small></span>
+        <a className="m-brand" href="/?view=today" aria-label="SalesIntel home">
+          <span className="m-brand-mark" aria-hidden="true">S<span>i</span></span>
+          <span className="m-brand-wordmark">SalesIntel<small>Find · Research · Win</small></span>
         </a>
         <div className="m-workspace-name">
           <div>
@@ -329,7 +336,7 @@ export function LivingWorkspace() {
             >
               <Menu size={20} />
             </button>
-            <span>MiSi</span>
+            <span>SalesIntel</span>
             <ChevronRight size={13} />
             <strong>
               {navigation.find((n) => n.id === view)?.label || "Import data"}
@@ -337,11 +344,11 @@ export function LivingWorkspace() {
           </div>
           <button
             className="m-command-trigger"
-            aria-label="Search or ask MiSi"
+            aria-label="Search or ask SalesIntel"
             onClick={() => setCommand(true)}
           >
             <Search size={15} />
-            <span>Search, or ask MiSi to find opportunities…</span>
+            <span>Search, or ask SalesIntel to find opportunities…</span>
             <kbd>⌘ K</kbd>
           </button>
           <div className="m-topbar-right">
@@ -383,7 +390,7 @@ export function LivingWorkspace() {
           {data && content()}
         </main>
         <footer className="m-shell-footer">
-          <span>{data?.notice || "MiSi / Local commercial intelligence"}</span>
+          <span>{data?.notice || "SalesIntel / Local commercial intelligence"}</span>
           <span>Public sources only · every lead links to its evidence</span>
         </footer>
       </div>
@@ -466,7 +473,7 @@ function CommandMenu({
         >
           <Search size={20} />
           <input
-            aria-label="Search or ask MiSi"
+            aria-label="Search or ask SalesIntel"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search records, open a workspace or ask a question…"

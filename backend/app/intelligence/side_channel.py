@@ -129,7 +129,7 @@ def synthesise_hypotheses(organisation_id: str, site: str, observations: list[An
                "published_at": str(o.published_at) if o.published_at else None,
                "observed_at": str(o.observed_at) if o.observed_at else None} for o in observations]
     prompt = (
-        "You are reviewing PUBLIC observations supplied by MiSi for one UK organisation and site. "
+        "You are reviewing PUBLIC observations supplied by SalesIntel for one UK organisation and site. "
         "Identify testable hypotheses about potential fire and security maintenance needs from combinations "
         "of observable effects. The statements, classifications, identities and links are unverified; "
         "do not treat them as verified facts. Explain the inference step and plausible alternative explanations. "

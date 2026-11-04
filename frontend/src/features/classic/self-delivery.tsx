@@ -114,7 +114,7 @@ export function SelfDeliveryView({
           ) : (
             <EmptyState
               title="No discipline opportunity"
-              message="MiSi has not found enough discipline evidence yet. Research or upload opportunities and it will infer Fire & Security scope, fit and leakage risk."
+              message="SalesIntel has not found enough discipline evidence yet. Research or upload opportunities and it will infer Fire & Security scope, fit and leakage risk."
             />
           )}
         </Panel>
@@ -139,7 +139,7 @@ export function SelfDeliveryView({
         <SelfDeliveryOpportunityList
           opportunities={summary.routeOpportunities}
           emptyTitle="No routed opportunities"
-          emptyMessage="No opportunities currently meet the self-delivery routing threshold. MiSi will flag capture opportunities when fit, value and discipline evidence strengthen."
+          emptyMessage="No opportunities currently meet the self-delivery routing threshold. SalesIntel will flag capture opportunities when fit, value and discipline evidence strengthen."
         />
       </Panel>
 
@@ -155,7 +155,7 @@ export function SelfDeliveryView({
         <SelfDeliveryOpportunityList
           opportunities={summary.leakageOpportunities}
           emptyTitle="No leakage risks"
-          emptyMessage="No third-party leakage risks are currently flagged. MiSi will warn when high-fit Fire & Security work appears likely to leave Mitie delivery."
+          emptyMessage="No third-party leakage risks are currently flagged. SalesIntel will warn when high-fit Fire & Security work appears likely to leave Mitie delivery."
         />
       </Panel>
     </div>

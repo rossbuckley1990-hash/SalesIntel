@@ -264,7 +264,7 @@ function HypothesisPanel({ organisationId }: { organisationId: string }) {
           <ObservationReferences ids={hypothesis.observation_ids} observations={rules.observations} label="Observations to review" />
           <p className="mt-2 text-sm text-[var(--misi-accent)]"><strong>Investigate:</strong> {hypothesis.question}</p>
         </article>)}
-        <p className="m-small m-muted mt-3">Select 2–100 observations for this organisation and site. Only select publicly available observations; MiSi cannot verify source accessibility. The organisation ID, site, selected text, categories, dates, source titles, references and URL origins and paths are sent to the configured AI model. URL query strings are omitted.</p>
+        <p className="m-small m-muted mt-3">Select 2–100 observations for this organisation and site. Only select publicly available observations; SalesIntel cannot verify source accessibility. The organisation ID, site, selected text, categories, dates, source titles, references and URL origins and paths are sent to the configured AI model. URL query strings are omitted.</p>
         <div className="grid gap-2 mt-2">{rules.observations.filter(item => item.site === group.site && item.source_url && safeSource(item.source_url)).map(item => <label key={item.id} className="flex items-start gap-2 rounded border border-[var(--misi-border)] p-2 text-sm">
           <input type="checkbox" checked={selectionSite === group.site && selectedIds.includes(item.id)} disabled={busySite !== null || (selectionSite === group.site && selectedIds.length >= 100 && !selectedIds.includes(item.id))} onChange={event => {
             setAi(null);

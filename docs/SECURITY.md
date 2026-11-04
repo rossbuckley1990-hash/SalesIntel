@@ -1,6 +1,6 @@
-# MiSi Security
+# SalesIntel Security
 
-MiSi will handle sensitive internal commercial data for Mitie Fire & Security. Even during prototype work, the system should be designed as if pipeline values, buyer intelligence, competitor intelligence, finance forecasts, and pursuit recommendations are confidential.
+SalesIntel will handle sensitive internal commercial data for Mitie Fire & Security. Even during prototype work, the system should be designed as if pipeline values, buyer intelligence, competitor intelligence, finance forecasts, and pursuit recommendations are confidential.
 
 ## Security Principles
 
@@ -47,7 +47,7 @@ If an OpenAI API key is placed in frontend code, it can be extracted and misused
 - Difficulty rotating keys without breaking deployed clients.
 - Potential breach of internal security policy.
 
-The backend must be the only component that reads `OPENAI_API_KEY`. The frontend should request analysis from MiSi backend endpoints, and the backend should decide what context is allowed to be sent.
+The backend must be the only component that reads `OPENAI_API_KEY`. The frontend should request analysis from SalesIntel backend endpoints, and the backend should decide what context is allowed to be sent.
 
 ## Secret Handling
 
@@ -174,7 +174,7 @@ CSV/XLSX ingestion should:
 
 ## Audit Logging
 
-Before internal pilot, MiSi should record:
+Before internal pilot, SalesIntel should record:
 
 - User login and logout events.
 - File uploads.

@@ -172,7 +172,7 @@ describe("api configuration", () => {
             {
               title: "Framework signal",
               finding: "A public source references compliance-led estates activity.",
-              so_what: "MiSi should qualify whether this maps to Fire & Security scope.",
+              so_what: "SalesIntel should qualify whether this maps to Fire & Security scope.",
               recommended_action: "Create a source-backed target account review.",
               confidence_score: 0.7,
               source_urls: ["https://example.invalid/source"],
@@ -546,7 +546,7 @@ describe("api configuration", () => {
       "http://localhost:8000/api/reports/executive-summary",
       expect.objectContaining({ cache: "no-store" }),
     );
-    expect(result.report_name).toBe("MiSi Executive Summary");
+    expect(result.report_name).toBe("SalesIntel Executive Summary");
     expect(result.risks_and_recommendations[0]?.category).toBe("Pipeline risk");
   });
 
@@ -583,7 +583,7 @@ describe("executive report export", () => {
 
     const html = buildExecutiveReportHtml(report);
 
-    expect(html).toContain("MiSi Executive Summary");
+    expect(html).toContain("SalesIntel Executive Summary");
     expect(html).toContain("Buyer &lt;Confidential&gt;");
     expect(html).not.toContain("Buyer <Confidential>");
     expect(html).toContain("LE1 Finance Forecast");
@@ -699,11 +699,11 @@ function executiveReportFixture(): ExecutiveReport {
   });
 
   return {
-    report_name: "MiSi Executive Summary",
+    report_name: "SalesIntel Executive Summary",
     generated_at: "2026-06-29T09:00:00Z",
     reporting_date: "2026-06-29",
     audience: ["Managing Director", "Finance Director", "Group Sales Director"],
-    data_note: "MVP report generated from current MiSi local data.",
+    data_note: "MVP report generated from current SalesIntel local data.",
     dashboard_kpis: {
       total_pipeline_value: 2_000_000,
       weighted_pipeline_value: 1_200_000,

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MiSi on this Mac's real database. Local data has no login, so this binds to this machine only.
+# SalesIntel on this Mac's real database. Local data has no login, so this binds to this machine only.
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"

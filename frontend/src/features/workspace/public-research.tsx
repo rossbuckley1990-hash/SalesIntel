@@ -269,7 +269,7 @@ export function PublicResearch({ initialBrief }: { initialBrief?: string } = {})
           <span className="text-[11px] font-medium tracking-wide text-[var(--misi-muted)]">AI research · Public sources</span>
         </div>
         <div className="px-5 pb-6 pt-5 sm:px-6">
-          <div className="max-w-3xl"><h2 className="max-w-2xl text-[18px] font-semibold leading-[1.35] tracking-[-.015em] text-[var(--misi-ink)]">Investigate a market</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--misi-muted)]">Start with a question. MiSi investigates public signals and surfaces evidence to review.</p></div>
+          <div className="max-w-3xl"><h2 className="max-w-2xl text-[18px] font-semibold leading-[1.35] tracking-[-.015em] text-[var(--misi-ink)]">Investigate a market</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--misi-muted)]">Start with a question. SalesIntel investigates public signals and surfaces evidence to review.</p></div>
           <form ref={formRef} onSubmit={submit} className="mt-5">
             <div className="grid gap-5">
               <div>

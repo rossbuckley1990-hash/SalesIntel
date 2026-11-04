@@ -17,6 +17,7 @@ from app.models.market_graph import MarketRelationship
 from app.models.market_opportunity import MarketOpportunity, MarketOpportunityDossier, MarketOpportunityRevision
 from app.models.market_contract import MarketContract, MarketContractLink
 from app.models.market_inference import MarketObservation, MarketHypothesis, MarketHypothesisRevision
+from app.models.prospect import Prospect, ProspectSearch
 
 __all__ = [
     "BuyerProfile",

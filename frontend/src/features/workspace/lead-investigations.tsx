@@ -35,7 +35,7 @@ function InvestigationResult({ run, onOpenLead }: { run: SavedRun; onOpenLead: (
   </div>;
 }
 
-/** Research turns are separate saved jobs, never a claim that MiSi verified the lead. */
+/** Research turns are separate saved jobs, never a claim that SalesIntel verified the lead. */
 export function LeadInvestigations({ leadId, organisation, onOpenLead, onResearchSaved }: { leadId: number; organisation: string; onOpenLead: (leadId: number) => void; onResearchSaved: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [question, setQuestion] = useState("");
@@ -120,11 +120,11 @@ export function LeadInvestigations({ leadId, organisation, onOpenLead, onResearc
   const statusText: Record<Investigation["status"], string> = { queued: "Queued", running: "Researching", completed: "Saved", failed: "Research failed", interrupted: "Interrupted", completed_unsaved: "Completed but not saved" };
   return <details className="mt-5 border-t border-[var(--misi-border)] pt-5" onToggle={(event) => setExpanded(event.currentTarget.open)}>
     <summary className="cursor-pointer text-sm font-semibold text-[var(--misi-ink)]">Ask a follow-up about {organisation}</summary>
-    <p className="mt-2 text-xs leading-5 text-[var(--misi-muted)]">Ask a new question about this lead. MiSi searches public sources again using the selected organisation, location, headline, prior hypothesis and verification step; up to one cited web observation from the lead and each of the last two saved follow-ups; and up to two earlier follow-up questions (80 characters each), all as unverified context. Imported observations and private notes are not included.</p>
+    <p className="mt-2 text-xs leading-5 text-[var(--misi-muted)]">Ask a new question about this lead. SalesIntel searches public sources again using the selected organisation, location, headline, prior hypothesis and verification step; up to one cited web observation from the lead and each of the last two saved follow-ups; and up to two earlier follow-up questions (80 characters each), all as unverified context. Imported observations and private notes are not included.</p>
     <p className="mt-2 text-xs leading-5 text-[var(--misi-muted)]">Each follow-up starts a new, bounded research run; findings depend on the selected breadth and available sources. The question and context are sent to your configured AI provider. Model and web research may incur costs. This does not contact the organisation.</p>
     <form onSubmit={(event) => void submit(event)} className="mt-4">
       <label htmlFor={`followup-question-${leadId}`} className="text-xs font-semibold text-[var(--misi-ink)]">Your follow-up question</label>
-      <textarea id={`followup-question-${leadId}`} value={question} onChange={(event) => setQuestion(event.target.value)} required minLength={8} maxLength={600} rows={3} placeholder="What would you like MiSi to investigate next?" className="mt-2 block w-full rounded-md border border-[var(--misi-border)] bg-white p-3 text-sm text-[var(--misi-ink)]" />
+      <textarea id={`followup-question-${leadId}`} value={question} onChange={(event) => setQuestion(event.target.value)} required minLength={8} maxLength={600} rows={3} placeholder="What would you like SalesIntel to investigate next?" className="mt-2 block w-full rounded-md border border-[var(--misi-border)] bg-white p-3 text-sm text-[var(--misi-ink)]" />
       <div className="mt-3 flex flex-wrap items-end gap-3"><label htmlFor={`followup-depth-${leadId}`} className="text-xs text-[var(--misi-muted)]">Research breadth<select id={`followup-depth-${leadId}`} value={breadth} onChange={(event) => setBreadth(Number(event.target.value))} className="mt-1 block rounded-md border border-[var(--misi-border)] bg-white px-3 py-2 text-sm text-[var(--misi-ink)]"><option value={3}>Quick · up to 3 passes</option><option value={6}>Broader · up to 6 passes</option><option value={12}>Deep · up to 12 passes</option></select></label><Button type="submit" kind="primary" disabled={busy || !loaded || question.trim().length < 8}>{busy ? "Starting…" : "Research follow-up"}</Button></div>
     </form>
     {error && <div className="mt-3"><p className="text-xs leading-5 text-[#825929]" role="alert">{error}</p>{!loaded && <button type="button" className="mt-2 text-xs font-semibold text-[var(--misi-accent)] underline" onClick={() => void load()}>Retry loading research history</button>}</div>}

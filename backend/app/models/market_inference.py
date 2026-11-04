@@ -1,6 +1,6 @@
 """Public observations, the hypotheses drawn from them, and how each was decided.
 
-An observation is what a named source published. A hypothesis is MiSi's inference
+An observation is what a named source published. A hypothesis is SalesIntel's inference
 from observations and is never a fact about a customer or supplier. Every change
 to a hypothesis keeps its earlier reasoning.
 """

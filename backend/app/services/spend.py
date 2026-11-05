@@ -31,7 +31,7 @@ def limits() -> tuple[int, int]:
     if s.ai_daily_limit_cents_per_workspace is not None:
         return s.ai_daily_limit_cents_per_workspace, s.ai_daily_limit_cents_per_user if s.ai_daily_limit_cents_per_user is not None else s.ai_daily_limit_cents_per_workspace
     if s.app_env in {'demo', 'test'}:
-        return 100, 60
+        return 1000, 600
     if s.auth_mode == 'local':
         return 1000, 1000  # $10 a day for a single-user install
     return 0, 0  # hosted: off until set

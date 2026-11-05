@@ -42,6 +42,9 @@ NONE_FOUND = 'No reliable business contact route was found in the permitted sour
 OFFICIAL_HOSTS = ('contractsfinder.service.gov.uk', 'find-tender.service.gov.uk', 'publiccontractsscotland.gov.uk', 'sell2wales.gov.wales')
 INJECTION = re.compile(r'\b(ignore (all |your |previous )?(rules|instructions)|system (notice|prompt)|to ai\b|as an ai)\b', re.I)
 STALE_DAYS = 548  # 18 months
+# Never sources for contact details: social networks and contact-data aggregators (use a licensed integration instead).
+EXCLUDED_SOURCES = ('linkedin.com', 'facebook.com', 'instagram.com', 'x.com', 'twitter.com', 'tiktok.com', 'zoominfo.com', 'rocketreach.co',
+                    'lusha.com', 'apollo.io', 'signalhire.com', 'contactout.com', 'hunter.io', 'adapt.io', 'seamless.ai', 'uplead.com')
 
 ROLES = {
     'procurement': ('Procurement or category manager', 'Runs the buying process and decides how suppliers are approached.'),
@@ -192,6 +195,8 @@ def saved_research_candidates(db: Session, account: Account) -> list[Candidate]:
     return out
 
 
+DIAGNOSTICS: dict[str, Any] = {}  # how the last web research call ended; reported on the job
+
 NAV_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["website", "people", "routes", "roles_seen"], "properties": {
     "website": {"type": "string", "description": "The organisation's own website, only if a retrieved page shows it; otherwise empty."},
     "people": {"type": "array", "items": {"type": "object", "additionalProperties": False,
@@ -213,16 +218,41 @@ def web_candidates(meter: Meter, org: dict, roles: list[dict], seller: str) -> t
               "business use. Never guess or construct email addresses. Never use personal email, home addresses or personal social accounts.")
     task = (f"Organisation: {org['name']}" + (f" (website {org['domain']})" if org['domain'] else '') +
             f". Find the people in these roles and their published business contact routes: {', '.join(r['label'] for r in roles)}. "
-            "Also find the organisation's published switchboard, enquiries email and enquiry form.")
-    research = meter({"model": meter.model, "max_tokens": 8000, "system": system, "thinking": {"type": "adaptive"},
-                      "tools": [{"type": "web_search_20260209", "name": "web_search", "max_uses": 8}], "messages": [{"role": "user", "content": task}]})
+            "Also find the organisation's published switchboard, enquiries email and enquiry form. Open the organisation's own "
+            "contact, leadership, procurement or property pages. For every person and every contact detail you report, quote "
+            "the exact sentence from the page that states it, citing that page. Report nothing you cannot quote.")
+    payload = {"model": meter.model, "max_tokens": 8000, "system": system, "thinking": {"type": "adaptive"},
+               # The basic search tool, not the dynamically filtered one: filtered results come back without cited
+               # excerpts, and every person or address must be checked against the words on the page.
+               "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 8}]}
+    messages: list[dict[str, Any]] = [{"role": "user", "content": task}]
+    blocks: list[dict[str, Any]] = []
+    stops: list[str] = []
+    for _ in range(4):  # the API pauses long web-search turns; continue until the model has written its cited answer
+        research = meter({**payload, "messages": messages})
+        content = [b for b in research.get("content") or [] if isinstance(b, dict)]
+        blocks.extend(content)
+        stops.append(str(research.get("stop_reason")))
+        if research.get("stop_reason") != "pause_turn":
+            break
+        messages = [messages[0], {"role": "assistant", "content": content}]
+    types: dict[str, int] = {}
+    for b in blocks:
+        types[str(b.get("type"))] = types.get(str(b.get("type")), 0) + 1
+    DIAGNOSTICS.update({"stop_reasons": stops, "blocks": len(blocks), "cited_blocks": sum(1 for b in blocks if b.get("citations")), "types": types,
+                        "text_chars": sum(len(b.get("text") or "") for b in blocks if b.get("type") == "text")})
     retrieved: dict[str, str] = {}
     excerpts: dict[str, str] = {}
-    for block in research.get("content") or []:
+    for block in blocks:
         if block.get("type") == "web_search_tool_result":
             for hit in block.get("content") or []:
                 if isinstance(hit, dict) and isinstance(hit.get("url"), str):
                     retrieved.setdefault(hit["url"], hit.get("page_age") or "")
+        if block.get("type") == "web_fetch_tool_result":  # full page text, when a fetch tool is used
+            page = block.get("content") or {}
+            doc = (page.get("content") or {}).get("source") or {}
+            if isinstance(page.get("url"), str) and isinstance(doc.get("data"), str):
+                excerpts[page["url"]] = excerpts.get(page["url"], "") + " " + doc["data"][:20000]
         for c in block.get("citations") or []:
             if isinstance(c, dict) and isinstance(c.get("url"), str):
                 excerpts[c["url"]] = excerpts.get(c["url"], "") + " " + str(c.get("cited_text") or "")
@@ -235,15 +265,27 @@ def web_candidates(meter: Meter, org: dict, roles: list[dict], seller: str) -> t
         answer = json.loads(text)
     except ValueError:
         answer = {"website": "", "people": [], "routes": [], "roles_seen": []}
+    dated = lambda url, given: given or _page_date(retrieved.get(url, ''))  # noqa: E731  the search's own page date when the model gives none
     found = [Candidate('person', p.get('name', ''), role=p.get('role', ''), role_category=p.get('role_category', ''), source_url=p.get('source_url', ''),
-                       quote=p.get('quote', ''), source_date=p.get('source_date', ''), source='web_research', employer=p.get('employer', ''))
+                       quote=p.get('quote', ''), source_date=dated(p.get('source_url', ''), p.get('source_date', '')), source='web_research', employer=p.get('employer', ''))
              for p in answer.get('people') or []]
     found += [Candidate(r.get('kind', ''), r.get('value', ''), label=r.get('label', ''), person=r.get('person_name', ''), source_url=r.get('source_url', ''),
-                        quote=r.get('quote', ''), source_date=r.get('source_date', ''), source='web_research') for r in answer.get('routes') or []]
+                        quote=r.get('quote', ''), source_date=dated(r.get('source_url', ''), r.get('source_date', '')), source='web_research') for r in answer.get('routes') or []]
     return found, excerpts, answer.get('roles_seen') or [], str(answer.get('website') or '')
 
 
 # ---------------------------------------------------------------- validation
+
+def _page_date(text: str) -> str:
+    """The search result's page date as YYYY-MM-DD, when it is a real date ('April 30, 2025' or ISO); otherwise empty."""
+    text = (text or '').strip()
+    for fmt in ('%Y-%m-%d', '%B %d, %Y', '%d %B %Y', '%b %d, %Y'):
+        try:
+            return datetime.strptime(text[:20].strip(), fmt).date().isoformat()
+        except ValueError:
+            continue
+    return text[:10] if re.fullmatch(r'\d{4}-\d{2}-\d{2}.*', text) else ''
+
 
 def _stale(day: str) -> bool:
     try:
@@ -257,6 +299,8 @@ def validate(c: Candidate, org: dict, excerpts: dict[str, str] | None) -> tuple[
     host = _host(c.source_url)
     own_site = bool(org['domain']) and (host == org['domain'] or host.endswith('.' + org['domain']))
     official = host.endswith(OFFICIAL_HOSTS)
+    if c.source != 'provider' and any(host == x or host.endswith('.' + x) for x in EXCLUDED_SOURCES):
+        return False, '', ['Social networks and contact-data aggregators are not used as sources for contact details.']
     if c.source in ('web_research',):
         if not c.source_url.startswith('https://') or c.source_url not in (excerpts or {}):
             return False, '', ['The source was not one the research actually retrieved.']
@@ -297,11 +341,15 @@ def validate(c: Candidate, org: dict, excerpts: dict[str, str] | None) -> tuple[
             return False, '', ['The address does not appear in the source; it is not guessed.']
         if not (official or (org['domain'] and (domain == org['domain'] or domain.endswith('.' + org['domain'])))):
             return False, '', ["The address is not on the organisation's own domain."]
-        return True, 'public_source', ['Stated verbatim on ' + ('the official notice' if official else "the organisation's website" if own_site else 'a source')]
+        if not (own_site or official):  # an address quoted on someone else's page may be old or copied
+            return True, 'unverified', ['Stated on a third-party page, not by the organisation itself. Confirm before use.']
+        return True, 'public_source', ['Stated verbatim on ' + ('the official notice' if official else "the organisation's website")]
     if c.kind in ('phone', 'switchboard'):
         if not PHONE.fullmatch(c.value.strip()) or c.value not in (c.quote or ''):
             return False, '', ['The number does not appear in the source.']
-        return True, 'public_source', ['Stated verbatim on ' + ('the official notice' if official else 'the source')]
+        if not (own_site or official or c.source in ('notice', 'saved_research')):
+            return True, 'unverified', ['Stated on a third-party page, not by the organisation itself. Confirm before use.']
+        return True, 'public_source', ['Stated verbatim on ' + ('the official notice' if official else "the organisation's website" if own_site else 'the source')]
     if c.kind == 'web_form':
         if not c.value.startswith('https://') or not org['domain'] or _host(c.value) != org['domain']:
             return False, '', ["The form is not on the organisation's own website."]
@@ -390,6 +438,8 @@ def save(db: Session, account: Account, accepted: list[tuple[Candidate, str, lis
                 continue
             for k, v in fields.items():
                 setattr(current, k, v)
+            if c.person and not current.name:
+                current.name = c.person
             current.updated_at = moment
             if blocked:
                 current.status = 'do_not_contact'
@@ -427,6 +477,8 @@ def ranked(db: Session, account: Account, roles: list[dict]) -> list[dict]:
     for c in db.scalars(select(Contact).where(Contact.account_id == account.id)):
         if c.status == 'do_not_contact':
             continue
+        if c.basis != 'user_entered' and any(_host(c.source_url or '') == x or _host(c.source_url or '').endswith('.' + x) for x in EXCLUDED_SOURCES):
+            continue  # saved before today's source rules; not offered again
         relevance = (len(wanted) - wanted.index(c.role_category)) if c.role_category in wanted else 0
         score = relevance * 3 + RANK_ROUTE.get(c.route_kind, 1) + RANK_QUALITY.get(c.quality, 1) - 2 * ('stale' in c.flags) - 3 * ('may_have_moved' in c.flags) - ('conflict' in c.flags)
         why = [f"{ROLES[c.role_category][0]}" if c.role_category in ROLES else 'Role not matched', ROUTE_LABEL.get(c.route_kind, 'Contact'),
@@ -460,6 +512,7 @@ def run(db: Session, account_id: int, meter: Meter | None, *, seller: str, fetch
     candidates = notice_candidates(db, account, fetch_notices) + saved_research_candidates(db, account)
     excerpts: dict[str, str] = {}
     roles_seen: list[dict] = []
+    DIAGNOSTICS.clear()
     if meter is not None:
         step('Researching the organisation and its people')
         found, excerpts, roles_seen, website = web_candidates(meter, org, roles, seller)
@@ -509,4 +562,4 @@ def run(db: Session, account_id: int, meter: Meter | None, *, seller: str, fetch
         status, message = 'partial', NONE_FOUND
     return {'status': status, 'stage': 'Complete', 'message': message, 'roles': roles, 'routes': ranked(db, account, roles),
             'checked': len(candidates), 'accepted': len(accepted), 'rejected': rejected, 'saved': saved, 'moved': moved_count,
-            'sources_retrieved': len(excerpts)}
+            'sources_retrieved': len(excerpts), 'diagnostics': dict(DIAGNOSTICS) if meter is not None else {}}

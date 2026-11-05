@@ -114,6 +114,13 @@ def test_private_brief_to_sourced_prospect_people_and_no_fabricated_contacts(hos
     assert "sam.patel@northgate-distribution.example" not in values and "md.northgate@gmail.com" not in values and "Alex Northgate" not in values
     assert {"Sam Patel", "0113 496 0000"} <= values
     assert all(c.source_url and c.source_url.startswith("https://") for c in contacts)
+    assert "property@northgate-distribution.example" not in values  # a social network is never a source for contact details
+    assert "Social networks and contact-data aggregators are not used as sources for contact details." in reasons
+    third_party = next(c for c in contacts if c.email == "enquiries@northgate-distribution.example")
+    assert third_party.quality == "unverified" and "stale" in third_party.flags  # someone else's page, three years old
+    ranks = [r["contact_id"] for r in view["routes"]]
+    switchboard = next(c.id for c in contacts if c.phone == "0113 496 0000")
+    assert ranks.index(switchboard) < ranks.index(third_party.id)
 
 
 def test_roles_only_is_a_reported_partial_result_and_nothing_is_invented(hosted):
@@ -132,7 +139,7 @@ def test_roles_only_is_a_reported_partial_result_and_nothing_is_invented(hosted)
 
 def test_suppression_survives_repeated_research_and_new_sources(hosted, monkeypatch):
     h = hosted
-    monkeypatch.setenv("AI_DAILY_LIMIT_CENTS_PER_WORKSPACE", "1000")  # this test researches the same account three times
+    monkeypatch.setenv("AI_DAILY_LIMIT_CENTS_PER_WORKSPACE", "5000")  # this test researches the same account three times
     from app.config import get_settings
     get_settings.cache_clear()
     with h.system() as db:
@@ -247,8 +254,10 @@ def test_postgres_row_level_security_refuses_raw_sql_across_workspaces(hosted):
 
 def test_spending_limits_cannot_be_bypassed_by_concurrent_requests(hosted, monkeypatch):
     h = hosted
-    monkeypatch.setenv("AI_DAILY_LIMIT_CENTS_PER_WORKSPACE", "100")
-    monkeypatch.setenv("AI_DAILY_LIMIT_CENTS_PER_USER", "100")
+    from app.services.ai_costs import ESTIMATE_CENTS
+    each = ESTIMATE_CENTS["contact_navigator"]
+    monkeypatch.setenv("AI_DAILY_LIMIT_CENTS_PER_WORKSPACE", str(3 * each + each // 2))  # room for exactly three
+    monkeypatch.setenv("AI_DAILY_LIMIT_CENTS_PER_USER", str(3 * each + each // 2))
     from app.config import get_settings
     get_settings.cache_clear()
     alice, a_org = workspace(h, "alice", "Alpha Fire Ltd")
@@ -260,10 +269,10 @@ def test_spending_limits_cannot_be_bypassed_by_concurrent_requests(hosted, monke
         return c.post(f"/api/si/accounts/{account}/people-search", json={}).status_code
     with ThreadPoolExecutor(max_workers=8) as pool:
         codes = list(pool.map(start, accounts))
-    assert codes.count(200) == 3 and codes.count(429) == 5, codes  # 3 x 30 cents fit in 100; the fourth would not
+    assert codes.count(200) == 3 and codes.count(429) == 5, codes  # three reservations fit; the fourth would not
     with h.as_workspace(a_org) as db:
         row = db.scalar(select(SpendBudget).where(SpendBudget.user_id == 0))
-        assert row.reserved_cents == 90 and db.scalar(select(text("count(*)")).select_from(ResearchJob)) == 3
+        assert row.reserved_cents == 3 * each and db.scalar(select(text("count(*)")).select_from(ResearchJob)) == 3
     jobs.drain(h.engine)
     with h.as_workspace(a_org) as db:
         row = db.scalar(select(SpendBudget).where(SpendBudget.user_id == 0))
@@ -332,5 +341,6 @@ def test_jobs_recover_from_a_dead_worker_retry_and_cancel(hosted, monkeypatch):
     queued = alice.post(f"/api/si/accounts/{other}/people-search", json={}).json()
     before = alice.get("/api/si/spend").json()["workspace"]["reserved_cents"]
     assert alice.post(f"/api/si/research-jobs/{queued['id']}/cancel").json()["status"] == "cancelled"
-    assert alice.get("/api/si/spend").json()["workspace"]["reserved_cents"] == before - 30
+    from app.services.ai_costs import ESTIMATE_CENTS
+    assert alice.get("/api/si/spend").json()["workspace"]["reserved_cents"] == before - ESTIMATE_CENTS["contact_navigator"]
     jobs.HANDLERS.pop("flaky_test")

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 const cors = { 'access-control-allow-origin': 'http://127.0.0.1:3100', 'access-control-allow-methods': 'GET,OPTIONS', 'access-control-allow-headers': 'content-type' };
 
 test('customer search filters recorded accounts and competitors without changing data', async ({ page, request }) => {
-  const response = await request.get('http://127.0.0.1:8002/api/living/workspace');
+  const response = await request.get('http://127.0.0.1:8011/api/living/workspace');
   expect(response.ok()).toBeTruthy();
   const workspace = await response.json();
   workspace.buyers = [

@@ -290,7 +290,7 @@ def _build_executive_summary_text(
     )
     weighted_millions = weighted_pipeline_value / 1_000_000
     return (
-        f"MiSi is tracking GBP {weighted_millions:.1f}m weighted pipeline across "
+        f"SalesIntel is tracking GBP {weighted_millions:.1f}m weighted pipeline across "
         f"{live_opportunity_count} live opportunities, with {high_risk_count} Red-risk "
         f"pursuits and {urgent_deadline_count} deadline warnings. Recommended next action: "
         f"{action_text}"

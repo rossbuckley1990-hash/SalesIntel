@@ -109,13 +109,13 @@ export class FieldStage {
       powerPreference: "high-performance",
     });
     this.renderer.outputColorSpace = SRGBColorSpace;
-    this.renderer.setClearColor(0x0b110f, 1);
-    this.scene.background = new Color(0x0b110f);
+    this.renderer.setClearColor(0xf4f6fa, 1);
+    this.scene.background = new Color(0xf4f6fa);
     this.fragments = new CommercialFragments(graph);
     this.scene.add(this.fragments.group);
-    this.floor.uniforms.uSpill.value.set(0x8cbf71);
-    this.floor.uniforms.uSpillAmount.value = 0.25;
-    this.floor.uniforms.uReflect.value = 0.35;
+    this.floor.uniforms.uSpill.value.set(0x3b4fd8);
+    this.floor.uniforms.uSpillAmount.value = 0.12;
+    this.floor.uniforms.uReflect.value = 0.12;
     this.scene.add(this.floor.mesh);
     this.composer = new EffectComposer(this.renderer, {
       frameBufferType: HalfFloatType,
@@ -126,8 +126,8 @@ export class FieldStage {
       new EffectPass(
         this.camera,
         new BloomEffect({
-          intensity: 0.12,
-          luminanceThreshold: 0.95,
+          intensity: 0.04,
+          luminanceThreshold: 1.2,
           mipmapBlur: true,
         }),
       ),
@@ -141,9 +141,9 @@ export class FieldStage {
     this.lines = new LineSegments(
       geometry,
       new LineBasicMaterial({
-        color: 0x507562,
+        color: 0x98a2b3,
         transparent: true,
-        opacity: 0.45,
+        opacity: 0.7,
       }),
     );
     this.lines.frustumCulled = false;

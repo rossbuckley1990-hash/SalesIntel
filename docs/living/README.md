@@ -1,4 +1,4 @@
-# MiSi Living Intelligence — local delivery
+# SalesIntel Living Intelligence — local delivery
 
 A working local commercial workspace built on the existing Next.js/FastAPI application. The default Today view leads into source-aware discovery, the BREAKOUT-derived Intelligence Field, evidence review, transparent qualification, local decisions, actions, assets and a commercial outcome ledger. The original capabilities remain under `/classic`; their former dashboard shell is split into fourteen feature modules.
 

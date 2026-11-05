@@ -401,7 +401,7 @@ def build_chatgpt_assist_prompt(
 ) -> ChatGPTAssistPromptResponse:
     prompt = "\n".join(
         [
-            "You are MiSi, a senior commercial intelligence analyst for Mitie Fire & Security.",
+            "You are SalesIntel, a senior commercial intelligence analyst for Mitie Fire & Security.",
             "",
             "Task: research and build a UK Fire & Security commercial opportunity intelligence pack.",
             "Use ChatGPT web research if available. If you cannot verify a fact, label it inferred, estimated or unknown. Do not present guesses as known facts.",
@@ -432,11 +432,11 @@ def build_chatgpt_assist_prompt(
         copy_steps=[
             "Copy this prompt into ChatGPT Plus.",
             "Let ChatGPT research and return JSON only.",
-            "Paste the JSON back into MiSi ChatGPT Assist Import.",
-            "MiSi will validate, label and import the intelligence pack without using the API.",
+            "Paste the JSON back into SalesIntel ChatGPT Assist Import.",
+            "SalesIntel will validate, label and import the intelligence pack without using the API.",
         ],
         safety_note=(
-            "This is a manual human-in-the-loop workflow. MiSi does not automate "
+            "This is a manual human-in-the-loop workflow. SalesIntel does not automate "
             "ChatGPT, scrape a Plus session or send OpenAI keys to the browser."
         ),
     )
@@ -577,12 +577,12 @@ def import_chatgpt_assist_result(
             overall_confidence=draft_enrichment.overall_confidence,
         )
     except InvalidOpenAIJSONError as exc:
-        _mark_run_failed(db, run.id, "Manual ChatGPT JSON failed MiSi validation.")
+        _mark_run_failed(db, run.id, "Manual ChatGPT JSON failed SalesIntel validation.")
         raise exc
     except Exception as exc:
         _mark_run_failed(db, run.id, "Manual ChatGPT import failed before completion.")
         raise InvalidOpenAIJSONError(
-            "Manual ChatGPT output could not be imported as structured MiSi JSON."
+            "Manual ChatGPT output could not be imported as structured SalesIntel JSON."
         ) from exc
 
 
@@ -869,7 +869,7 @@ def _autofill_field_intelligence_records(
                         field_value=current_value,
                         value_type="system_calculated",
                         confidence_score=_weighted_confidence_from_fields(fields_by_name),
-                        rationale="Calculated by MiSi after autofill from total contract value and probability.",
+                        rationale="Calculated by SalesIntel after autofill from total contract value and probability.",
                         source_urls=source_urls,
                         source_titles=source_titles,
                         recommended_next_step="Confirm value and probability assumptions before LE1 forecast use.",
@@ -1034,7 +1034,7 @@ def _user_provided_field(
         field_value=_serialise_opportunity_field_value(value),
         value_type="user_provided",
         confidence_score=1,
-        rationale=f"Existing MiSi {label} was preserved during bulk autofill.",
+        rationale=f"Existing SalesIntel {label} was preserved during bulk autofill.",
         source_urls=[],
         source_titles=[],
         recommended_next_step="Only change this value if an approved commercial source confirms the update.",
@@ -1115,7 +1115,7 @@ def _validate_chatgpt_assist_json(content: str) -> ResearchOpportunityAIResult:
         return _validate_structured_payload(payload)
     except (json.JSONDecodeError, TypeError, ValidationError) as exc:
         raise InvalidOpenAIJSONError(
-            "Manual ChatGPT output is not valid MiSi structured JSON."
+            "Manual ChatGPT output is not valid SalesIntel structured JSON."
         ) from exc
 
 
@@ -1146,7 +1146,7 @@ def _extract_response_text(response: Any) -> str:
 def _conversion_system_prompt() -> str:
     return build_commercial_system_prompt(
         role=(
-            "You are MiSi, a senior commercial intelligence analyst for Mitie "
+            "You are SalesIntel, a senior commercial intelligence analyst for Mitie "
             "Fire & Security."
         ),
         task=(
@@ -1322,7 +1322,7 @@ def _field_intelligence_from_ai_result(
                     result.opportunity.probability.confidence_score,
                 ),
                 rationale=(
-                    "Calculated by MiSi from AI-estimated total contract value and "
+                    "Calculated by SalesIntel from AI-estimated total contract value and "
                     "probability after numeric normalisation."
                 ),
                 source_urls=[source.url for source in sources[:3]],
@@ -1468,7 +1468,7 @@ def _normalise_field_intelligence(
             value_type="system_calculated",
             confidence_score=_weighted_value_confidence(fields_by_name),
             rationale=(
-                "Calculated by MiSi from estimated total contract value and probability."
+                "Calculated by SalesIntel from estimated total contract value and probability."
             ),
             source_urls=source_urls,
             source_titles=source_titles,

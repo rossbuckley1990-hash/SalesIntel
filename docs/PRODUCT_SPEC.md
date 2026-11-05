@@ -1,6 +1,6 @@
-# MiSi Product Specification
+# SalesIntel Product Specification
 
-MiSi, Mitie Sales Intelligence, is a live commercial command centre for Mitie Fire & Security. It combines sales pipeline, tender market data, buyer intelligence, competitor intelligence, self-delivery intelligence, finance forecasting, and OpenAI-powered analysis.
+SalesIntel is a live commercial command centre for Mitie Fire & Security. It combines sales pipeline, tender market data, buyer intelligence, competitor intelligence, self-delivery intelligence, finance forecasting, and OpenAI-powered analysis.
 
 The product exists to help senior leadership answer:
 
@@ -87,7 +87,7 @@ Should include:
 Market Radar must distinguish:
 
 - Observed source facts.
-- MiSi inference.
+- SalesIntel inference.
 - AI-generated interpretation.
 
 ### 3. Tender Intelligence
@@ -240,7 +240,7 @@ Should include:
 - Status.
 - Decision history.
 
-An insight without a next action is incomplete for MiSi.
+An insight without a next action is incomplete for SalesIntel.
 
 ## AI Product Requirements
 
@@ -277,7 +277,7 @@ AI should not be used as the only authority for:
 
 ## Data Sensitivity
 
-MiSi will handle internal commercial data, future opportunity values, buyer intelligence, competitor intelligence, and finance forecasts. This data must be treated as sensitive even in prototype form.
+SalesIntel will handle internal commercial data, future opportunity values, buyer intelligence, competitor intelligence, and finance forecasts. This data must be treated as sensitive even in prototype form.
 
 Prototype sample data must remain synthetic.
 

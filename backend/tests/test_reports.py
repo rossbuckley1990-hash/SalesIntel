@@ -36,7 +36,7 @@ def test_executive_summary_report_endpoint_returns_report_ready_json(
 
         assert response.status_code == 200
         report = response.json()
-        assert report["report_name"] == "MiSi Executive Summary"
+        assert report["report_name"] == "SalesIntel Executive Summary"
         assert "Managing Director" in report["audience"]
         assert "commercially sensitive" in report["data_note"]
         assert report["dashboard_kpis"]["live_opportunity_count"] == 22

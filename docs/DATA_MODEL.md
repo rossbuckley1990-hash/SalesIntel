@@ -1,4 +1,4 @@
-# MiSi Data Model
+# SalesIntel Data Model
 
 This document defines the practical MVP data model and the direction for a later PostgreSQL-backed implementation. SQLite is acceptable for local MVP, but table design should avoid patterns that make PostgreSQL migration painful.
 
@@ -10,7 +10,7 @@ This document defines the practical MVP data model and the direction for a later
 - Avoid storing secrets in the database.
 - Treat internal commercial data as sensitive.
 - Keep AI outputs structured and schema-validated.
-- Preserve enough evidence for users to understand why MiSi recommended an action.
+- Preserve enough evidence for users to understand why SalesIntel recommended an action.
 - Label enriched fields as `known`, `inferred`, `estimated`, `unknown`,
   `user_provided`, or `system_calculated` instead of visually hiding missing
   data or presenting estimates as facts.
@@ -93,7 +93,7 @@ Suggested fields:
 
 Represents one AI-first enrichment attempt. A run may start from a rough user
 query, an imported market signal, or an existing opportunity record. It stores
-operational metadata so MiSi can explain what happened and whether internet
+operational metadata so SalesIntel can explain what happened and whether internet
 search was used.
 
 Implemented fields:
@@ -203,7 +203,7 @@ Suggested fields:
 
 ### Tender Signal
 
-Represents MiSi's normalized interpretation of a tender notice.
+Represents SalesIntel's normalized interpretation of a tender notice.
 
 Suggested fields:
 

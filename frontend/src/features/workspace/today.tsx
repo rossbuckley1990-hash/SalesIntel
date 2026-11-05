@@ -6,14 +6,12 @@ import {
   FileText,
   Layers3,
   MoveUpRight,
-  Radar,
 } from "lucide-react";
 import { dateLabel, fieldLabel, money } from "./api";
+import { DailyResearchBrief } from "./daily-research-brief";
 import {
   Badge,
   Button,
-  Empty,
-  Heading,
   Metric,
   OpenLink,
   SectionHeading,
@@ -50,15 +48,12 @@ export function Today({ data, navigate, inspect }: SharedProps) {
     )[0];
   return (
     <>
-      <Heading
-        eyebrow={`${date} / Your daily workspace`}
-        title="Make your next move count."
-        description="The commercial position. The evidence behind it. A clear way forward."
-      >
-        <Button kind="primary" onClick={() => navigate("discover")}>
-          <Radar size={16} /> Discover an opportunity <ArrowUpRight size={15} />
-        </Button>
-      </Heading>
+      <header className="p-today-header">
+        <div><p className="p-today-date">{date} <span> / </span> YOUR WORKSPACE</p><h1>Your priorities<span>.</span></h1><p>Recent intelligence and the follow-ups you have chosen.</p></div>
+        <button onClick={() => navigate("discover")} className="p-today-discover">Explore opportunities <ArrowUpRight size={16} /></button>
+      </header>
+      <DailyResearchBrief navigate={navigate} />
+      <div className="m-today-legacy">
       <section className="m-pulse" aria-label="Commercial pulse">
         <Metric
           label="Weighted open pipeline"
@@ -160,7 +155,7 @@ export function Today({ data, navigate, inspect }: SharedProps) {
         >
           <OpenLink onClick={() => navigate("actions")}>All actions</OpenLink>
         </SectionHeading>
-        <div className="m-move-grid">
+        {moves.length > 0 && <div className="m-move-grid">
           {moves.map((action, index) => {
             const opportunity = data.opportunities.find(
               (o) => o.id === action.related_opportunity_id,
@@ -215,11 +210,9 @@ export function Today({ data, navigate, inspect }: SharedProps) {
               </article>
             );
           })}
-        </div>
+        </div>}
         {moves.length === 0 && (
-          <Empty title="No open actions">
-            Create a pursuit decision to assign the next move.
-          </Empty>
+          <p className="p-compact-empty">No open pursuit actions. Create a pursuit decision to assign the next move.</p>
         )}
       </section>
       <div className="m-bottom-grid">
@@ -297,16 +290,14 @@ export function Today({ data, navigate, inspect }: SharedProps) {
               ))}
             </div>
           ) : (
-            <div className="m-asset-empty">
-              <FileText size={28} strokeWidth={1} />
+            <div className="p-asset-empty">
               <h3>Your next decision deserves a better brief.</h3>
               <p>Build a dossier from saved evidence, risks and actions.</p>
-              <Button onClick={() => navigate("assets", focus?.id)}>
-                Create your first asset <ArrowUpRight size={15} />
-              </Button>
+              <button className="p-link" onClick={() => navigate("assets", focus?.id)}>Create your first asset <ArrowUpRight size={15} /></button>
             </div>
           )}
         </section>
+      </div>
       </div>
     </>
   );

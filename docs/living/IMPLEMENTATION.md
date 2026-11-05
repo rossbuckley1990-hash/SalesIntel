@@ -1,4 +1,4 @@
-# MiSi Living Intelligence — implementation record
+# SalesIntel Living Intelligence — implementation record
 
 ## Baseline, 24 October 2026
 

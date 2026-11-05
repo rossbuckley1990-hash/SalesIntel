@@ -1,2 +1,2 @@
-"""MiSi backend package."""
+"""SalesIntel backend package."""
 

@@ -148,7 +148,7 @@ export function buildFilteredExecutiveSummaryText({
     ? topAction.recommended_action
     : "Review the highest weighted opportunities and confirm next actions.";
 
-  return `${scope} MiSi is tracking ${compactCurrency(weightedPipelineValue)} weighted pipeline across ${liveOpportunityCount} live opportunities, with ${highRiskCount} Red-risk pursuits and ${urgentDeadlineCount} deadline warnings. Recommended next action: ${action}`;
+  return `${scope} SalesIntel is tracking ${compactCurrency(weightedPipelineValue)} weighted pipeline across ${liveOpportunityCount} live opportunities, with ${highRiskCount} Red-risk pursuits and ${urgentDeadlineCount} deadline warnings. Recommended next action: ${action}`;
 }
 
 export function buildFilterOptions(

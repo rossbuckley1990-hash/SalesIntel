@@ -244,6 +244,29 @@ export type InternetIntelligenceResult = {
   limitations: string[];
 };
 
+export type EarlyOpportunityFinding = {
+  organisation: string;
+  signal: string;
+  signal_date: string;
+  signal_source_url: string;
+  inferred_need: string;
+  fit_and_timing: string;
+  uncertainties: string;
+  contact_name: string;
+  contact_role: string;
+  contact_source_url: string;
+  engagement_opener: string;
+  discovery_question: string;
+  next_action: string;
+};
+
+export type EarlyOpportunityResult = {
+  query: string;
+  summary: string;
+  findings: EarlyOpportunityFinding[];
+  limitations: string[];
+};
+
 export type ResearchOpportunityRequest = {
   query: string;
   sector_hint?: string;
@@ -594,6 +617,17 @@ export async function runInternetResearch(
     "/api/intelligence/internet-research",
     signal,
     request,
+  );
+}
+
+export async function researchEarlyOpportunities(
+  query: string,
+  signal?: AbortSignal,
+): Promise<EarlyOpportunityResult> {
+  return postJson<EarlyOpportunityResult>(
+    "/api/intelligence/early-opportunities",
+    signal,
+    { query },
   );
 }
 

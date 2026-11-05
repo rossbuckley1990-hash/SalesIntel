@@ -121,11 +121,11 @@ test("API outage provides retry; classic core remains reachable", async ({
   await page.unroute("**/api/living/workspace");
   await page.getByRole("button", { name: "Retry connection" }).click();
   await expect(
-    page.getByRole("heading", { name: "Make your next move count." }),
+    page.getByRole("heading", { name: /^Good (morning|afternoon|evening)/ }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Classic workspace" }).click();
   await expect(
-    page.getByRole("link", { name: "← Living workspace" }),
+    page.getByRole("link", { name: "← Back to SalesIntel" }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Pipeline Forecast", exact: true })

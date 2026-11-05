@@ -141,7 +141,7 @@ def build_executive_summary_context(
         item["value"] for item in self_delivery_capture_opportunities
     )
     return {
-        "source": "MiSi backend dashboard, finance forecast and opportunity records",
+        "source": "SalesIntel backend dashboard, finance forecast and opportunity records",
         "as_of": active_today.isoformat(),
         "instruction_coverage_required": [
             "pipeline position",
@@ -236,7 +236,7 @@ def build_executive_summary_context(
 def _system_prompt() -> str:
     return build_commercial_system_prompt(
         role=(
-            "You are MiSi, producing a concise board-level leadership briefing "
+            "You are SalesIntel, producing a concise board-level leadership briefing "
             "for Mitie Fire & Security."
         ),
         task=(

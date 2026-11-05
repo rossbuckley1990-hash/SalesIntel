@@ -21,4 +21,4 @@ check_endpoint "executive actions" "/api/executive-actions"
 check_endpoint "LE1 finance summary" "/api/finance-forecast/summary"
 check_endpoint "executive report" "/api/reports/executive-summary"
 
-printf "MiSi backend smoke test passed against %s\n" "$API_BASE_URL"
+printf "SalesIntel backend smoke test passed against %s\n" "$API_BASE_URL"

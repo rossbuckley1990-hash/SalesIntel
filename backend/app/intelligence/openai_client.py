@@ -16,7 +16,7 @@ class OpenAIRequestError(OpenAIIntegrationError):
 
 
 class InvalidOpenAIJSONError(OpenAIIntegrationError):
-    """Raised when OpenAI output is not valid structured JSON for MiSi."""
+    """Raised when OpenAI output is not valid structured JSON for SalesIntel."""
 
 
 def get_openai_client(settings: Settings | None = None) -> OpenAI:

@@ -409,7 +409,7 @@ export function AutofillMissingIntelligencePanel({
             Fill weak records without pretending the data is perfect.
           </h3>
           <p className="mt-2 text-sm leading-6 text-cyan-100/75">
-            MiSi scans incomplete opportunities, researches available public
+            SalesIntel scans incomplete opportunities, researches available public
             evidence, fills missing commercial fields, and stores field-level
             rationale. Existing non-empty values are preserved unless a future
             run explicitly allows overwrite.
@@ -452,7 +452,7 @@ export function AutofillMissingIntelligencePanel({
             Researching and labelling missing intelligence...
           </div>
           <p className="mt-2 text-sm leading-6 text-mitie-lime/80">
-            MiSi is enriching records one by one. A failed record will be
+            SalesIntel is enriching records one by one. A failed record will be
             reported in the batch summary without stopping the rest of the run.
           </p>
         </div>
@@ -846,7 +846,7 @@ export function LeadershipBriefingPanel({
               Building leadership briefing...
             </div>
             <p className="mt-2 text-sm leading-6 text-cyan-100/75">
-              MiSi is asking the backend to convert the live dashboard into MD,
+              SalesIntel is asking the backend to convert the live dashboard into MD,
               FD, Sales and Bid Team action lanes.
             </p>
           </div>

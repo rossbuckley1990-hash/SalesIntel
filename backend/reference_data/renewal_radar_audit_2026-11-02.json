@@ -1,0 +1,87 @@
+{
+ "method": "Fixed-seed samples drawn by backend/scripts/audit_renewal_radar.py. One reviewer, Claude, labelled each row from its title and description before seeing the classifier result. A row counts as correct if it is a recurring fire or security system service, or genuine adjacent passive fire or fire risk work.",
+ "independence_limit": "The reviewer also wrote the rules, and there was no second reader. A commercial reviewer should repeat this before the figures are quoted outside the team.",
+ "rounds": [
+  {
+   "round": 1,
+   "seed": 20261102,
+   "rules": "before audit fixes",
+   "random_renewals": {
+    "correct": 52,
+    "of": 60
+   },
+   "high_value_renewals": {
+    "correct": 10,
+    "of": 20
+   },
+   "signals": {
+    "correct": 17,
+    "of": 20
+   },
+   "rejected_records": {
+    "wrongly_rejected": 4,
+    "of": 40
+   }
+  },
+  {
+   "round": 2,
+   "seed": 777,
+   "rules": "after round 1 fixes; fresh draw",
+   "random_renewals": {
+    "correct": 52,
+    "of": 60
+   },
+   "high_value_renewals": {
+    "correct": 15,
+    "of": 20
+   },
+   "signals": {
+    "correct": 16,
+    "of": 20
+   },
+   "rejected_records": {
+    "wrongly_rejected": 2,
+    "of": 30
+   }
+  },
+  {
+   "round": 3,
+   "seed": 4242,
+   "rules": "after round 2 fixes; fresh draw of the top 25 non-adjacent by annualised value and 40 random tier 1",
+   "top_value": {
+    "correct": 22,
+    "of": 25
+   },
+   "tier_1": {
+    "correct": 38,
+    "of": 40
+   },
+   "overlap_note": "High-value samples overlap between rounds because the top of the list is small."
+  }
+ ],
+ "errors_found": [
+  "On-train Wi-Fi and CCTV (Northern Trains)",
+  "Window renewal with fire doors (Wandsworth)",
+  "Lift maintenance with alarm monitoring (Woking)",
+  "Telecare alarm receiving centre (Leicester)",
+  "Supplier recorded as Procedure discontinued (Babergh)",
+  "Prison perimeter wall works (HMPPS Exeter)",
+  "Intelligent transport systems (Derbyshire)",
+  "Traffic and parking enforcement cameras",
+  "Embassy guarding in Nigeria (FCDO)",
+  "General building works held by Mitie Property Services (Camden)",
+  "Cancelled parking notice (Westminster)",
+  "Dynamic purchasing systems and framework lots counted as contracts",
+  "One-off CCTV installation (Peabody)",
+  "One-off fire damper repair (National Highways)",
+  "Same contract under two buyer names (Cheshire)"
+ ],
+ "found_after_rejection": [
+  "Emergency Lighting Services (Orbit)",
+  "Drains and fire suppression servicing (Southend)",
+  "Fire alarm maintenance under a coded title (West Suffolk)",
+  "Fire safety equipment service and repair (Luton)"
+ ],
+ "regression": "Each listed error and miss is pinned in backend/tests/test_renewal_radar_integration.py.",
+ "known_weakness": "Adjacent passive fire works are often one-off projects. They sit in tier 3 rather than being excluded. Manned security and CCTV monitoring contracts can still appear when the title names a system."
+}

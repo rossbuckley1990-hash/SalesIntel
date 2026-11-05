@@ -1,2 +1,2 @@
-"""HTTP routers for the MiSi API."""
+"""HTTP routers for the SalesIntel API."""
 

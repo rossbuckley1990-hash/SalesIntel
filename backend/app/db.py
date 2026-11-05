@@ -36,7 +36,8 @@ def _normalise_postgresql_driver(url: URL) -> URL:
 def _engine_options_for_url(database_url: str) -> dict[str, object]:
     url = make_url(database_url)
     if url.drivername.startswith("sqlite"):
-        return {"connect_args": {"check_same_thread": False}}
+        # Several workers share one file, so a writer waits instead of failing.
+        return {"connect_args": {"check_same_thread": False, "timeout": 60}}
     if url.drivername.startswith("postgresql"):
         return {"pool_pre_ping": True}
     return {}
@@ -72,6 +73,14 @@ def reset_db() -> None:
 def _apply_lightweight_schema_compatibility(bind: Engine) -> None:
     inspector = inspect(bind)
     table_names = set(inspector.get_table_names())
+
+    if "lfb_import_runs" in table_names:
+        lfb_columns = {column["name"] for column in inspector.get_columns("lfb_import_runs")}
+        with bind.begin() as connection:
+            if "retrieved_at" not in lfb_columns:
+                connection.execute(text("ALTER TABLE lfb_import_runs ADD COLUMN retrieved_at DATETIME"))
+            if "acquisition_method" not in lfb_columns:
+                connection.execute(text("ALTER TABLE lfb_import_runs ADD COLUMN acquisition_method VARCHAR(30) DEFAULT 'local_file' NOT NULL"))
 
     if "market_signals" in table_names:
         market_signal_columns = {

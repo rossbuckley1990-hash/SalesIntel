@@ -47,7 +47,7 @@ export function getOpportunityAnalysisErrorMessage(error: unknown): string {
   }
 
   if (error.message.includes("OpenAI analysis is not configured")) {
-    return "AI analysis is not configured yet. Add OPENAI_API_KEY to the backend environment, restart FastAPI, then rerun analysis. MiSi can still show rule-based fit, risk and next action while the key is missing. Never put OpenAI keys in frontend code.";
+    return "AI analysis is not configured yet. Add OPENAI_API_KEY to the backend environment, restart FastAPI, then rerun analysis. SalesIntel can still show rule-based fit, risk and next action while the key is missing. Never put OpenAI keys in frontend code.";
   }
 
   if (
@@ -55,14 +55,14 @@ export function getOpportunityAnalysisErrorMessage(error: unknown): string {
     error.message.includes("OpenAI opportunity analysis request failed") ||
     error.message.includes("OPENAI_MODEL")
   ) {
-    return "MiSi could not complete the structured opportunity analysis. Confirm the backend has a valid OPENAI_API_KEY, the selected OPENAI_MODEL is available to that key, then restart FastAPI and rerun the analysis. The opportunity pack remains usable with rule-based confidence and field evidence.";
+    return "SalesIntel could not complete the structured opportunity analysis. Confirm the backend has a valid OPENAI_API_KEY, the selected OPENAI_MODEL is available to that key, then restart FastAPI and rerun the analysis. The opportunity pack remains usable with rule-based confidence and field evidence.";
   }
 
   if (
     error.message.includes("Failed to fetch") ||
     error.message.includes("fetch failed")
   ) {
-    return "MiSi could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry the analysis.";
+    return "SalesIntel could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry the analysis.";
   }
 
   return error.message || fallback;
@@ -87,14 +87,14 @@ export function getExecutiveBriefingErrorMessage(error: unknown): string {
     error.message.includes("OpenAI executive summary request failed") ||
     error.message.includes("OPENAI_MODEL")
   ) {
-    return "MiSi could not generate the leadership briefing because the backend OpenAI request failed. Confirm OPENAI_API_KEY is valid, the selected OPENAI_MODEL is available to that key, then restart FastAPI and rerun the briefing from current dashboard data.";
+    return "SalesIntel could not generate the leadership briefing because the backend OpenAI request failed. Confirm OPENAI_API_KEY is valid, the selected OPENAI_MODEL is available to that key, then restart FastAPI and rerun the briefing from current dashboard data.";
   }
 
   if (
     error.message.includes("Failed to fetch") ||
     error.message.includes("fetch failed")
   ) {
-    return "MiSi could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry the briefing.";
+    return "SalesIntel could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry the briefing.";
   }
 
   return error.message || fallback;
@@ -112,7 +112,7 @@ export function getInternetResearchErrorMessage(error: unknown): string {
   }
 
   if (error.message.includes("OpenAI analysis is not configured")) {
-    return "Internet intelligence is not configured yet. Add OPENAI_API_KEY to the backend environment and restart FastAPI. The browser never receives OpenAI keys; MiSi only sends research requests through the backend.";
+    return "Internet intelligence is not configured yet. Add OPENAI_API_KEY to the backend environment and restart FastAPI. The browser never receives OpenAI keys; SalesIntel only sends research requests through the backend.";
   }
 
   if (
@@ -126,11 +126,11 @@ export function getInternetResearchErrorMessage(error: unknown): string {
     error.message.includes("Failed to fetch") ||
     error.message.includes("fetch failed")
   ) {
-    return "MiSi could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry the internet scan.";
+    return "SalesIntel could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry the internet scan.";
   }
 
   if (error.message.toLowerCase().includes("invalid structured json")) {
-    return "The internet scan returned weak or malformed structured output. Try a narrower buyer, sector, region or discipline phrase so MiSi can attach stronger evidence and confidence.";
+    return "The internet scan returned weak or malformed structured output. Try a narrower buyer, sector, region or discipline phrase so SalesIntel can attach stronger evidence and confidence.";
   }
 
   return error.message || fallback;
@@ -148,7 +148,7 @@ export function getOpportunityResearchErrorMessage(error: unknown): string {
   }
 
   if (error.message.includes("OpenAI analysis is not configured")) {
-    return "AI opportunity research is not configured yet. Add OPENAI_API_KEY to the backend environment and restart FastAPI. MiSi can still show existing dashboard intelligence; standing-start research begins once the backend can call OpenAI.";
+    return "AI opportunity research is not configured yet. Add OPENAI_API_KEY to the backend environment and restart FastAPI. SalesIntel can still show existing dashboard intelligence; standing-start research begins once the backend can call OpenAI.";
   }
 
   if (
@@ -158,18 +158,18 @@ export function getOpportunityResearchErrorMessage(error: unknown): string {
     error.message.includes("OpenAI opportunity research request failed") ||
     error.message.includes("OPENAI_MODEL")
   ) {
-    return "MiSi could not complete the AI research request. Confirm the backend has a valid OPENAI_API_KEY, the selected OPENAI_MODEL is available to that key, then restart FastAPI and try a specific buyer, sector, region or discipline phrase. The browser never receives the key.";
+    return "SalesIntel could not complete the AI research request. Confirm the backend has a valid OPENAI_API_KEY, the selected OPENAI_MODEL is available to that key, then restart FastAPI and try a specific buyer, sector, region or discipline phrase. The browser never receives the key.";
   }
 
   if (
     error.message.includes("Failed to fetch") ||
     error.message.includes("fetch failed")
   ) {
-    return "MiSi could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry opportunity research.";
+    return "SalesIntel could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry opportunity research.";
   }
 
   if (error.message.toLowerCase().includes("invalid structured json")) {
-    return "MiSi received weak or invalid structured research output. Tighten the research brief with a buyer, sector, region, discipline or known source, then rerun so unknowns can be labelled properly.";
+    return "SalesIntel received weak or invalid structured research output. Tighten the research brief with a buyer, sector, region, discipline or known source, then rerun so unknowns can be labelled properly.";
   }
 
   return error.message || fallback;
@@ -177,23 +177,23 @@ export function getOpportunityResearchErrorMessage(error: unknown): string {
 
 export function getChatGPTAssistErrorMessage(error: unknown): string {
   const fallback =
-    "MiSi could not complete the ChatGPT Assist workflow. Check the backend API and retry.";
+    "SalesIntel could not complete the ChatGPT Assist workflow. Check the backend API and retry.";
   if (!(error instanceof Error)) {
     return fallback;
   }
 
   if (
-    error.message.includes("not valid MiSi structured JSON") ||
+    error.message.includes("not valid SalesIntel structured JSON") ||
     error.message.toLowerCase().includes("json")
   ) {
-    return "The pasted ChatGPT result was not valid MiSi JSON. Ask ChatGPT to return JSON only, with no markdown fence or explanation, then paste the full object back into MiSi.";
+    return "The pasted ChatGPT result was not valid SalesIntel JSON. Ask ChatGPT to return JSON only, with no markdown fence or explanation, then paste the full object back into SalesIntel.";
   }
 
   if (
     error.message.includes("Failed to fetch") ||
     error.message.includes("fetch failed")
   ) {
-    return "MiSi could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry ChatGPT Assist.";
+    return "SalesIntel could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry ChatGPT Assist.";
   }
 
   return error.message || fallback;
@@ -218,7 +218,7 @@ export function getAutofillErrorMessage(error: unknown): string {
     error.message.includes("Failed to fetch") ||
     error.message.includes("fetch failed")
   ) {
-    return "MiSi could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry the autofill run.";
+    return "SalesIntel could not reach the backend API. Start FastAPI, confirm /health returns OK, then retry the autofill run.";
   }
 
   return error.message || fallback;
@@ -235,7 +235,7 @@ export function isOpenAIQuotaError(message: string): boolean {
 
 export function getMarketSignalConversionErrorMessage(error: unknown): string {
   const fallback =
-    "MiSi could not convert this market signal. Check the backend API and retry.";
+    "SalesIntel could not convert this market signal. Check the backend API and retry.";
   if (!(error instanceof Error)) {
     return fallback;
   }
@@ -248,7 +248,7 @@ export function getMarketSignalConversionErrorMessage(error: unknown): string {
     error.message.includes("Failed to fetch") ||
     error.message.includes("fetch failed")
   ) {
-    return "MiSi could not reach the backend API. Confirm FastAPI is running, then retry conversion.";
+    return "SalesIntel could not reach the backend API. Confirm FastAPI is running, then retry conversion.";
   }
 
   return error.message || fallback;
@@ -265,7 +265,7 @@ export function getReportExportErrorMessage(error: unknown): string {
     error.message.includes("Failed to fetch") ||
     error.message.includes("fetch failed")
   ) {
-    return "MiSi could not reach the backend API. Confirm the FastAPI server is running, then retry the executive report export.";
+    return "SalesIntel could not reach the backend API. Confirm the FastAPI server is running, then retry the executive report export.";
   }
 
   return error.message || fallback;

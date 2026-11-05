@@ -18,12 +18,12 @@ import { glslCommon } from "./shaders";
 import { boundedScale, type FieldGraph, type FieldNode } from "../graph";
 
 export function nodeColor(node: FieldNode): string {
-  if (node.unknown) return "#cba268";
-  if (/red|high/i.test(node.risk)) return "#d87772";
-  if (/amber|medium/i.test(node.risk)) return "#cba268";
-  if (node.kind === "opportunity" || /green/i.test(node.risk)) return "#a4d77d";
-  if (node.kind === "action") return "#c4cae5";
-  return "#7cb8bf";
+  if (node.unknown) return "#b54708";
+  if (/red|high/i.test(node.risk)) return "#b42318";
+  if (/amber|medium/i.test(node.risk)) return "#b54708";
+  if (node.kind === "opportunity" || /green/i.test(node.risk)) return "#067647";
+  if (node.kind === "action") return "#3b4fd8";
+  return "#026aa2";
 }
 function fit(
   context: CanvasRenderingContext2D,
@@ -45,13 +45,13 @@ function labelTexture(node: FieldNode): CanvasTexture {
   c.fillStyle = accent;
   c.font = "500 25px system-ui";
   c.fillText(fit(c, node.subtitle, 660), 40, 64);
-  c.fillStyle = "#edf1e9";
+  c.fillStyle = "#101828";
   c.font = "500 38px system-ui";
   c.fillText(fit(c, node.title, 680), 40, 135);
-  c.fillStyle = node.unknown ? "#cba268" : accent;
+  c.fillStyle = node.unknown ? "#b54708" : accent;
   c.font = `${node.kind === "opportunity" || node.kind === "financial" ? "500 66" : "500 42"}px system-ui`;
   c.fillText(fit(c, node.value, 675), 40, 232);
-  c.fillStyle = "#9ba69e";
+  c.fillStyle = "#667085";
   c.font = "400 22px system-ui";
   c.fillText(
     node.confidence == null
@@ -64,7 +64,7 @@ function labelTexture(node: FieldNode): CanvasTexture {
   );
   c.strokeStyle = accent;
   c.lineWidth = 2;
-  c.globalAlpha = 0.6;
+  c.globalAlpha = 0.35;
   if (node.unknown) c.setLineDash([12, 12]);
   c.strokeRect(16, 16, 736, 352);
   const texture = new CanvasTexture(canvas);
@@ -102,7 +102,7 @@ export class CommercialFragments {
       vertexShader: `attribute vec2 aCorner; attribute vec2 aDir; attribute float aInset; attribute vec2 aZ; attribute vec4 iDims; attribute vec3 iTint; varying vec3 vN; varying vec3 vWorld; varying vec3 vTint;
       void main(){ float r=min(iDims.w,min(iDims.x,iDims.y)); float beta=min(iDims.z*.85,r*.6); vec2 xy=aCorner*(iDims.xy-r)+aDir*(r-aInset*beta); float z=aZ.x*(iDims.z-aZ.y*beta); vec4 w=modelMatrix*instanceMatrix*vec4(xy,z,1.); vWorld=w.xyz; vN=normalize(mat3(modelMatrix*instanceMatrix)*normal); vTint=iTint; gl_Position=projectionMatrix*viewMatrix*w; }`,
       fragmentShader: `${glslCommon} varying vec3 vN; varying vec3 vWorld; varying vec3 vTint;
-      void main(){ vec3 n=normalize(vN); vec3 view=normalize(cameraPosition-vWorld); vec3 reflection=studioEnv(reflect(-view,n)); float f=fresnelSchlick(max(dot(n,view),0.),.06); float front=max(n.z,0.); vec3 base=mix(vec3(.04,.055,.055),vec3(.014,.023,.020),front); vec3 c=base+reflection*(.025+f*.22)+vTint*.12*(1.-front); gl_FragColor=vec4(c,1.); }`,
+      void main(){ vec3 n=normalize(vN); vec3 view=normalize(cameraPosition-vWorld); vec3 reflection=studioEnv(reflect(-view,n)); float f=fresnelSchlick(max(dot(n,view),0.),.06); float front=max(n.z,0.); vec3 base=mix(vec3(.62,.66,.72),vec3(.96,.965,.975),front); vec3 c=base+reflection*(f*.08); c=mix(c,vTint,.22*(1.-front)); gl_FragColor=vec4(c,1.); }`,
     });
     this.mesh = new InstancedMesh(geometry, material, count);
     this.mesh.frustumCulled = false;

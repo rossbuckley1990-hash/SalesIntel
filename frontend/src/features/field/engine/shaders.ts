@@ -22,11 +22,11 @@ float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
 /*
  * Analytic studio environment: an overhead softbox, a key strip light and a cool rim
- * strip, in a near-black room. Used for glass sheen and edge glints so every surface
+ * strip, in a bright, neutral room. Used for glass sheen and edge glints so every surface
  * reflects the same imaginary studio.
  */
 vec3 studioEnv(vec3 R) {
-  vec3 c = vec3(0.003, 0.0035, 0.005) + vec3(0.010, 0.011, 0.014) * pow(1.0 - abs(R.y), 8.0);
+  vec3 c = vec3(0.80, 0.82, 0.86) + vec3(0.05, 0.05, 0.06) * pow(1.0 - abs(R.y), 8.0);
   if (R.y > 0.0) {
     vec2 p = R.xz / R.y;
     float box = smoothstep(1.35, 0.95, abs(p.x)) * smoothstep(0.9, 0.55, abs(p.y - 0.55));

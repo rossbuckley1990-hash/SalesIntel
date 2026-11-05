@@ -67,8 +67,8 @@ export function OpportunityTable({
   if (opportunities.length === 0) {
     return (
       <EmptyState
-        title="MiSi has not researched matching opportunities yet"
-        message="Start with a buyer, sector or tender phrase in the AI Research Workspace. MiSi will build the opportunity record, label weak fields and show the next best action."
+        title="SalesIntel has not researched matching opportunities yet"
+        message="Start with a buyer, sector or tender phrase in the AI Research Workspace. SalesIntel will build the opportunity record, label weak fields and show the next best action."
       />
     );
   }
@@ -524,7 +524,7 @@ export function OpportunityDetailDrawer({
                   Building structured commercial analysis...
                 </div>
                 <p className="mt-2 text-sm leading-6 text-cyan-100/75">
-                  MiSi is asking the backend to assess fit, risk, buyer drivers,
+                  SalesIntel is asking the backend to assess fit, risk, buyer drivers,
                   margin and the next leadership action.
                 </p>
               </div>
@@ -723,7 +723,7 @@ export function OpportunityIntelligencePack({
                 )}
               />
               <PackNarrativeCard
-                label="What MiSi recommends"
+                label="What SalesIntel recommends"
                 text={firstUsefulText(
                   enrichment?.executive_recommendation,
                   opportunity.calculated_recommended_action,
@@ -1163,7 +1163,7 @@ export function OpportunityIntelligencePack({
         ) : null}
         {enrichmentState.status === "error" ? (
           <div className="mb-4 rounded-md border border-amber-300/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
-            Enrichment record could not be loaded. MiSi is showing field
+            Enrichment record could not be loaded. SalesIntel is showing field
             evidence and fallback analysis. {enrichmentState.message}
           </div>
         ) : null}
@@ -1181,7 +1181,7 @@ export function OpportunityIntelligencePack({
         ) : null}
         {fieldState.status === "error" ? (
           <div className="mb-4 rounded-md border border-amber-300/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
-            Field evidence could not be loaded. MiSi is showing inferred local
+            Field evidence could not be loaded. SalesIntel is showing inferred local
             explanations instead. {fieldState.message}
           </div>
         ) : null}
@@ -1361,7 +1361,7 @@ export function firstUsefulText(...values: Array<string | null | undefined>) {
     values
       .find((value) => typeof value === "string" && value.trim().length > 0)
       ?.trim() ??
-    "Unknown - MiSi needs more source evidence before this can be treated as confirmed."
+    "Unknown - SalesIntel needs more source evidence before this can be treated as confirmed."
   );
 }
 

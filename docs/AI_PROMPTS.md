@@ -1,6 +1,6 @@
-# MiSi AI Prompt Standard
+# SalesIntel AI Prompt Standard
 
-MiSi AI output must read like a senior commercial analyst briefing Mitie Fire & Security leadership. It must not read like generic AI prose.
+SalesIntel AI output must read like a senior commercial analyst briefing Mitie Fire & Security leadership. It must not read like generic AI prose.
 
 ## Central Contract
 
@@ -51,7 +51,7 @@ Do not force these phrases when unsupported. Evidence and confidence must still 
 
 Unknowns are not failures. They are decision-support signals.
 
-When a fact is not evidenced, MiSi should say:
+When a fact is not evidenced, SalesIntel should say:
 
 - what is unknown
 - why it is unknown
@@ -72,7 +72,7 @@ Output should be suitable for MD, FD and GSD review. It should cover pipeline po
 
 ### Internet Intelligence
 
-Output must use public, source-attributed information only. It must not imply private system access. If web evidence does not prove buyer intent, MiSi should state the limitation and recommend source confirmation.
+Output must use public, source-attributed information only. It must not imply private system access. If web evidence does not prove buyer intent, SalesIntel should state the limitation and recommend source confirmation.
 
 ### Standing-Start Opportunity Research
 

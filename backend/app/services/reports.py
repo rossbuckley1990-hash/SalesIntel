@@ -90,12 +90,12 @@ def build_executive_summary_report(
     )
 
     return ExecutiveSummaryReportRead(
-        report_name="MiSi Executive Summary",
+        report_name="SalesIntel Executive Summary",
         generated_at=datetime.now(UTC),
         reporting_date=reporting_date,
         audience=REPORT_AUDIENCE,
         data_note=(
-            "MVP report generated from current MiSi local data. Treat as commercially "
+            "MVP report generated from current SalesIntel local data. Treat as commercially "
             "sensitive and validate against source systems before external use."
         ),
         dashboard_kpis=dashboard,
@@ -143,7 +143,7 @@ def _build_leadership_summary(
         f"the highest-quality weighted pipeline with finance discipline."
     )
     summary = (
-        f"MiSi is showing {dashboard.live_opportunity_count} live opportunities, "
+        f"SalesIntel is showing {dashboard.live_opportunity_count} live opportunities, "
         f"{dashboard.strategic_must_win_count} strategic must-wins and "
         f"{dashboard.high_risk_count} red risks. Weighted pipeline is "
         f"GBP {dashboard.weighted_pipeline_value:,.0f}; LE1 risk-adjusted revenue is "

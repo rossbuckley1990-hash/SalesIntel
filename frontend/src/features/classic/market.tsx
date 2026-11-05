@@ -32,6 +32,7 @@ import {
   researchFieldToView,
 } from "./evidence";
 import { BriefingLane } from "./executive";
+import { EarlyOpportunitiesPanel } from "./early-opportunities";
 import { SkeletonLine } from "./research";
 import {
   InternetResearchState,
@@ -157,6 +158,7 @@ export function MarketRadarView({
 
   return (
     <div className="grid gap-5">
+      <EarlyOpportunitiesPanel />
       <Panel
         title="AI Opportunity Builder"
         action={<StatusPill tone="green" label="Standing-start research" />}
@@ -207,7 +209,7 @@ export function MarketRadarView({
           </div>
           <div className="rounded-md border border-white/10 bg-[#111a20] p-4">
             <p className="text-sm font-semibold text-white">
-              What MiSi will do
+              What SalesIntel will do
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-400">
               Research public sources, infer missing context, estimate
@@ -285,7 +287,7 @@ export function MarketRadarView({
               Research boundary
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              MiSi uses backend-only OpenAI web search for public internet
+              SalesIntel uses backend-only OpenAI web search for public internet
               research. It does not scrape private systems, bypass site terms or
               expose API keys to the browser.
             </p>
@@ -320,7 +322,7 @@ export function MarketRadarView({
           ) : (
             <EmptyState
               title="Awaiting source-attributed signals"
-              message="MiSi has not researched this market area yet. Start with a buyer, sector or tender phrase and MiSi will build source-attributed signals with fit, disciplines, rationale and next action."
+              message="SalesIntel has not researched this market area yet. Start with a buyer, sector or tender phrase and SalesIntel will build source-attributed signals with fit, disciplines, rationale and next action."
             />
           )}
         </Panel>
@@ -389,7 +391,7 @@ export function InternetResearchResultPanel({
               Searching public internet sources...
             </div>
             <p className="mt-2 text-sm leading-6 text-cyan-100/75">
-              MiSi is gathering source-attributed findings, checking evidence
+              SalesIntel is gathering source-attributed findings, checking evidence
               strength and translating them into commercial next actions.
             </p>
           </div>
@@ -501,7 +503,7 @@ export function InternetResearchResultPanel({
       ) : (
         <EmptyState
           title="No strong public findings yet"
-          message="MiSi did not find enough source-backed evidence for a useful finding. Try a more specific buyer, sector, region, discipline or tender phrase so weak signals can be labelled rather than hidden."
+          message="SalesIntel did not find enough source-backed evidence for a useful finding. Try a more specific buyer, sector, region, discipline or tender phrase so weak signals can be labelled rather than hidden."
         />
       )}
 
@@ -538,7 +540,7 @@ export function OpportunityResearchResultPanel({
           AI-first opportunity creation
         </p>
         <p className="mt-2 text-sm leading-6 text-emerald-100/75">
-          Start from an imperfect phrase. MiSi will research, infer, estimate,
+          Start from an imperfect phrase. SalesIntel will research, infer, estimate,
           mark unknowns and create a reviewed commercial record with evidence.
         </p>
       </div>
@@ -555,7 +557,7 @@ export function OpportunityResearchResultPanel({
               Researching and enriching opportunity...
             </div>
             <p className="mt-2 text-sm leading-6 text-cyan-100/75">
-              MiSi is searching public sources, creating field-level confidence
+              SalesIntel is searching public sources, creating field-level confidence
               labels and preparing a dashboard-ready record.
             </p>
           </div>
@@ -782,7 +784,7 @@ export function MarketSignalCard({
         </p>
         <p className="mt-3 text-sm leading-6 text-cyan-100/80">
           {signal.ai_rationale ||
-            "MiSi has not yet attached rationale. Convert this signal to create field-level intelligence and an opportunity pack."}
+            "SalesIntel has not yet attached rationale. Convert this signal to create field-level intelligence and an opportunity pack."}
         </p>
       </div>
 

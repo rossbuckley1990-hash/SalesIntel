@@ -1,0 +1,190 @@
+/* Generated remap of the legacy dark stylesheet onto the light design system.
+   Pale text becomes ink or muted, the old green accent becomes brand, dark borders and
+   backgrounds become light. Loaded before design-system.css so hand-tuned rules still win. */
+:is(.m-workspace, .m-dialog) .m-breadcrumb strong { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-command-trigger { background-color: var(--ds-surface); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-command-trigger kbd { border-color: var(--ds-border); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-profile { border-color: var(--ds-border); color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-shell-footer { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-eyebrow { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-heading h1 { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-button { border-color: var(--ds-border); color: var(--ds-ink); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-button.secondary:hover { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-button.quiet { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-button.quiet:hover { color: var(--ds-ink); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-icon-button { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-icon-button:hover { border-color: var(--ds-border); background-color: var(--ds-surface); color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-badge { border-color: var(--ds-border); background-color: var(--ds-surface); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-badge.green, :is(.m-workspace, .m-dialog) .m-badge.known { color: var(--ds-brand); border-color: var(--ds-border); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-badge.amber { color: var(--ds-amber); border-color: var(--ds-border); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-badge.red { color: var(--ds-red); border-color: var(--ds-border); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-badge.cyan { color: var(--ds-blue); border-color: var(--ds-border); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-metric { border-left-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-metric > span { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-metric > small { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-focus-panel { background: var(--ds-surface); border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-focus-copy > p:not(.m-eyebrow) { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-focus-copy .m-button { background-color: var(--ds-surface); color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-focus-copy > small { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-focus-core { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-float-label { background-color: var(--ds-surface); border-color: var(--ds-border); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-forecast-preview { background: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-divider { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-amber { color: var(--ds-amber); }
+:is(.m-workspace, .m-dialog) .m-text-link { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-text-link:hover { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-move { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-kicker { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-move > p:not(.m-kicker) { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-move-value strong { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-move-value > span { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-owner { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-owner > span { background-color: var(--ds-surface); border-color: var(--ds-border); color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-ledger-row:hover { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-ledger-icon { background-color: var(--ds-surface); border-color: var(--ds-border); color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-ledger-row small { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-ledger-row > svg { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-strike { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-footnote { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-asset-empty { border-color: var(--ds-border); background-color: var(--ds-surface); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-asset-empty h3 { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-loading { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-empty { border-color: var(--ds-border); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-empty h3 { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-error { background-color: var(--ds-surface); border-color: var(--ds-border); color: var(--ds-red); }
+:is(.m-workspace, .m-dialog) .m-notice { background-color: var(--ds-surface); border-color: var(--ds-border); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-notice a { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-search { background-color: var(--ds-surface); border-color: var(--ds-border); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) input, :is(.m-workspace, .m-dialog) select, :is(.m-workspace, .m-dialog) textarea, .m-dialog input, .m-dialog select, .m-dialog textarea { color: var(--ds-ink); background-color: var(--ds-surface); border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) input::placeholder, :is(.m-workspace, .m-dialog) textarea::placeholder, .m-dialog input::placeholder, .m-dialog textarea::placeholder { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-table th { color: var(--ds-muted); background-color: var(--ds-surface); border-bottom-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-table td { border-bottom-color: var(--ds-border); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-table tbody tr:hover { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-table small { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-table-title { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-table-title:hover { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-surface { background-color: var(--ds-surface); border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-discovery { border-color: var(--ds-border); background: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-example-grid > button { background-color: var(--ds-surface); border-color: var(--ds-border); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-example-grid > button > span { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-example-grid > button:hover { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-source-boundary { border-top-color: var(--ds-border); color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-source-boundary strong { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-form label, :is(.m-workspace, .m-dialog) .m-mapping-grid label { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-tabs { border-bottom-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-tabs button { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-tabs button.active { color: var(--ds-brand); }
+.m-dialog { background-color: var(--ds-surface); border-color: var(--ds-border); color: var(--ds-ink); }
+.m-dialog::backdrop { background-color: var(--ds-surface); }
+.m-dialog-header { border-bottom-color: var(--ds-border); color: var(--ds-muted); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-inspector-title > p:not(.m-eyebrow) { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-inspector-content > p { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-inspector-footer { border-top-color: var(--ds-border); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-inspector-footer > span { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-mini-pulse { border-bottom-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-list { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-action-line { border-bottom-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-action-line small { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-evidence { border-color: var(--ds-border); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-evidence summary small { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-evidence-body { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-definition dt { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-definition dd { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-source-link { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-score { background-color: var(--ds-surface); border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-score > strong { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-score > strong > span { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-score p { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-check-grid small { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-check { border-color: var(--ds-border); color: var(--ds-amber); }
+:is(.m-workspace, .m-dialog) .m-check.passed { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-history-item { border-top-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-history-item small { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-requirement { border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-requirement p { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-requirement small { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-lab-controls { background-color: var(--ds-surface); border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-slider output { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-input-prefix { border-color: var(--ds-border); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-input-prefix > span { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-scenario-hero { border-bottom-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-scenario-hero > span { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-scenario-hero strong { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-scenario-hero p { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-financial-row .m-between { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-value-stack { background-color: var(--ds-surface); border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-legend { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-scenario-comparison { border-top-color: var(--ds-border); border-bottom-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-calculation { border-color: var(--ds-border); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-calculation summary { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-assumptions { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-assumptions .m-list { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-save-scenario { border-top-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-snapshot-pair { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-snapshot-playback { border-top-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-asset-kinds > button { border-color: var(--ds-border); background-color: var(--ds-surface); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-asset-kinds > button > strong { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-asset-kinds > button > span { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-asset-kinds > button:hover, :is(.m-workspace, .m-dialog) .m-asset-kinds > button.selected { background-color: var(--ds-surface); color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-asset-builder { background-color: var(--ds-surface); border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-asset-builder p:not(.m-eyebrow) { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-asset-preview > header { border-bottom-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-export-links a { color: var(--ds-ink); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-export-links a:hover { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-asset-preview article h3 { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-asset-preview article p { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-asset-edit { border-top-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-account { border-color: var(--ds-border); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-account > p { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-account footer { border-top-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-work-queue { border-top-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-work-item { border-bottom-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-work-priority > span:last-child { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-work-item p { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-outcome-stages { border-top-color: var(--ds-border); border-bottom-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-import-drop { background-color: var(--ds-surface); color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-import-drop p { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-validation-errors { background-color: var(--ds-surface); border-color: var(--ds-border); color: var(--ds-amber); }
+:is(.m-workspace, .m-dialog) .m-segmented { border-color: var(--ds-border); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-segmented button { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-segmented button[aria-pressed="true"] { background-color: var(--ds-surface); color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-field-toolbar > label { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-field-layout { border-color: var(--ds-border); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-field-stage { background: var(--ds-surface); border-right-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-field-canvas { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-field-node-label { color: var(--ds-muted); background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-field-loading { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-field-inspection { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-node-value { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-node-inspector > p:not(.m-eyebrow) { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-field-produce { border-top-color: var(--ds-border); background: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-field-produce > p:not(.m-eyebrow) { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-field-legend { border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-field-legend > p { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-data-node { color: var(--ds-ink); background-color: var(--ds-surface); border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-data-node small { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-data-node.selected, :is(.m-workspace, .m-dialog) .m-data-node:hover { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-field-record-list { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-command-menu form { border-bottom-color: var(--ds-border); color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-command-menu kbd { border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-command-result { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-command-result:hover { background-color: var(--ds-surface); }
+:is(.m-workspace, .m-dialog) .m-command-result small { color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-field-stage { border-bottom-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-field-produce { border-left-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-outcome-stages .m-metric:nth-child(even) { border-left-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-field-produce { border-top-color: var(--ds-border); }
+.m-workspace-name { border-top-color: var(--ds-border); border-bottom-color: var(--ds-border); }
+.m-workspace-name small { color: var(--ds-muted); }
+.m-workspace-name strong { color: var(--ds-ink); }
+.m-workspace-index { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-local-state { border-color: var(--ds-border); color: var(--ds-brand); }
+:is(.m-workspace, .m-dialog) .m-local-state small { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-description { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-shell-footer { border-color: var(--ds-border); color: var(--ds-muted); }
+.m-workspace-name { border-color: var(--ds-border); }
+:is(.m-workspace, .m-dialog) .m-local-state { border-color: var(--ds-border); color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-legacy-view { background-color: var(--ds-surface); color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-view-field .m-field-layout { color: var(--ds-ink); }
+:is(.m-workspace, .m-dialog) .m-view-field .m-field-layout .m-eyebrow { color: var(--ds-muted); }
+:is(.m-workspace, .m-dialog) .m-view-field .m-field-layout .m-loading { color: var(--ds-muted); }

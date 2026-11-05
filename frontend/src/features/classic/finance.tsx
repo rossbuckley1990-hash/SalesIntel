@@ -615,7 +615,7 @@ export function SecuredWorkTable({ items }: { items: SecuredWorkItem[] }) {
       ) : (
         <EmptyState
           title="No WON work"
-          message="No confirmed secured revenue is loaded for this financial year. Once WON work is imported, MiSi will separate committed revenue from open weighted forecast."
+          message="No confirmed secured revenue is loaded for this financial year. Once WON work is imported, SalesIntel will separate committed revenue from open weighted forecast."
         />
       )}
     </Panel>
@@ -713,7 +713,7 @@ export function OpenOpportunityForecastTable({
       ) : (
         <EmptyState
           title="No open opportunity forecast"
-          message="MiSi needs researched or uploaded opportunities before it can build weighted revenue, margin and risk-adjusted LE1 forecast lines."
+          message="SalesIntel needs researched or uploaded opportunities before it can build weighted revenue, margin and risk-adjusted LE1 forecast lines."
         />
       )}
     </Panel>
@@ -819,7 +819,7 @@ export function FinanceWarningsPanel({
       ) : (
         <EmptyState
           title="No finance review warnings"
-          message="No finance review items are currently flagged. MiSi will surface margin protection, risk adjustment and forecast confidence issues as opportunities are researched."
+          message="No finance review items are currently flagged. SalesIntel will surface margin protection, risk adjustment and forecast confidence issues as opportunities are researched."
         />
       )}
     </Panel>

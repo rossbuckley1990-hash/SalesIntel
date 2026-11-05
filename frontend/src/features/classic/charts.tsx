@@ -41,7 +41,7 @@ export function PipelineChart({
     return (
       <EmptyState
         title="No forecast curve yet"
-        message="MiSi has not built an April-to-March forecast for this view. Research or upload opportunities and MiSi will estimate weighted revenue, margin and forecast confidence."
+        message="SalesIntel has not built an April-to-March forecast for this view. Research or upload opportunities and SalesIntel will estimate weighted revenue, margin and forecast confidence."
       />
     );
   }
@@ -211,7 +211,7 @@ export function MarketSignalsPanel({
       ) : (
         <EmptyState
           title="Awaiting source-attributed signals"
-          message="MiSi has not researched this market area yet. Start with a buyer, sector or tender phrase and MiSi will build source-attributed signals with fit, disciplines, rationale and next action."
+          message="SalesIntel has not researched this market area yet. Start with a buyer, sector or tender phrase and SalesIntel will build source-attributed signals with fit, disciplines, rationale and next action."
         />
       )}
     </Panel>
@@ -273,7 +273,7 @@ export function ExecutiveActionsList({
       ) : (
         <EmptyState
           title="No executive actions yet"
-          message="MiSi will create leadership actions when an opportunity has material value, risk, deadline pressure or self-delivery capture potential."
+          message="SalesIntel will create leadership actions when an opportunity has material value, risk, deadline pressure or self-delivery capture potential."
         />
       )}
     </Panel>

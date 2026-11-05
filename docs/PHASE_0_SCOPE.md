@@ -1,10 +1,10 @@
 # Phase 0 Scope
 
-The Phase 0 repository setup proves that both halves of MiSi can run locally and that the project has clear boundaries for secure future development.
+The Phase 0 repository setup proves that both halves of SalesIntel can run locally and that the project has clear boundaries for secure future development.
 
 ## Included
 
-- Next.js dashboard shell for Mitie Sales Intelligence
+- Next.js dashboard shell for SalesIntel
 - FastAPI health endpoint
 - Local SQLite configuration path
 - Optional backend-only OpenAI structured analysis integration

@@ -1,0 +1,32 @@
+[
+  {
+    "company_number": "03304503", "company_name": "TRINITY FIRE AND SECURITY SYSTEMS LTD",
+    "source_url": "https://find-and-update.company-information.service.gov.uk/company/03304503/persons-with-significant-control",
+    "controllers": [
+      {"company_number": "02811979", "company_name": "PTSG ELECTRICAL SERVICES LIMITED", "notified_on": "2024-11-27", "nature_of_control": ["Ownership of shares – 75% or more", "Ownership of voting rights – 75% or more", "Right to appoint or remove directors"]},
+      {"company_number": "07261813", "company_name": "TRINITY TEN LIMITED", "notified_on": "2016-04-06", "ceased_on": "2024-11-27", "nature_of_control": ["Ownership of shares – 75% or more"]}
+    ]
+  },
+  {
+    "company_number": "00524469", "company_name": "CHUBB FIRE & SECURITY LIMITED",
+    "source_url": "https://find-and-update.company-information.service.gov.uk/company/00524469/persons-with-significant-control",
+    "controllers": [
+      {"company_number": "02985115", "company_name": "CHUBB GROUP SECURITY LIMITED", "notified_on": "2016-08-22", "nature_of_control": ["Ownership of shares – 75% or more", "Ownership of voting rights – 75% or more", "Right to appoint or remove directors"]}
+    ]
+  },
+  {
+    "company_number": "08737754", "company_name": "PTSG LIMITED",
+    "source_url": "https://find-and-update.company-information.service.gov.uk/company/08737754/persons-with-significant-control",
+    "controllers": [
+      {"company_number": "06005074", "company_name": "PREMIER TECHNICAL SERVICES GROUP LIMITED", "notified_on": "2024-11-27", "nature_of_control": ["Ownership of shares – 75% or more", "Ownership of voting rights – 75% or more", "Right to appoint or remove directors"]}
+    ]
+  },
+  {
+    "company_number": "03210833", "company_name": "ALERT FIRE AND SECURITY LIMITED",
+    "source_url": "https://find-and-update.company-information.service.gov.uk/company/03210833/persons-with-significant-control",
+    "controllers": [
+      {"company_number": "02703471", "company_name": "CHURCHES FIRE SECURITY LTD.", "notified_on": "2021-06-14", "nature_of_control": ["Ownership of shares – 75% or more", "Ownership of voting rights – 75% or more", "Right to appoint or remove directors"]},
+      {"company_number": "06913603", "company_name": "ALERT HOLDINGS LIMITED", "notified_on": "2016-04-06", "ceased_on": "2021-06-14", "nature_of_control": ["Ownership of shares – 75% or more"]}
+    ]
+  }
+]

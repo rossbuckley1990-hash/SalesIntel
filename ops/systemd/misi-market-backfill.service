@@ -1,0 +1,19 @@
+# Example only: adapt paths and environment before enabling.
+[Unit]
+Description=MiSi public market historical backfill
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=misi
+Group=misi
+WorkingDirectory=/opt/misi
+EnvironmentFile=/etc/misi/market.env
+ExecStart=/opt/misi/.venv/bin/python /opt/misi/backend/scripts/market_backfill_watch.py --from-year 2021 --to-year 2025 --interval 60 --daily-budget 96 --system-curl
+Restart=on-failure
+RestartSec=60
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

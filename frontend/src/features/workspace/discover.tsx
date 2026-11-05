@@ -1,10 +1,17 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowRight, ArrowUpRight, Database, Search } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ChevronDown, Database, Search } from "lucide-react";
+import type { ReactNode } from "react";
 import { mutate } from "./api";
 import { Badge, Button, Empty, Heading, Loading, SectionHeading } from "./ui";
 import { OpportunityTable } from "./opportunities";
 import type { SharedProps, View } from "./types";
+import { EarlyOpportunitiesPanel } from "../classic/early-opportunities";
+import { EvidenceInbox } from "./evidence-inbox";
+import { FalseAlarmSensor } from "./false-alarm-sensor";
+import { PublicResearch } from "./public-research";
+import { SourceExplorer } from "./source-explorer";
+import { MarketNetwork } from "./market-network";
 
 type Result = {
   matches: number[];
@@ -18,6 +25,23 @@ const examples = [
   "Show the five biggest opportunities at risk",
   "What self-delivery opportunities are leaking margin to subcontractors?",
 ];
+
+function ResearchTool({ title, description, children, defaultOpen = false }: {
+  title: string;
+  description: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details open={defaultOpen || undefined} className="group border-b border-[var(--misi-border)] last:border-b-0">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--misi-accent)] [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0"><span className="block text-sm font-semibold text-[var(--misi-ink)]">{title}</span><span className="mt-1 block text-sm leading-6 text-[var(--misi-muted)]">{description}</span></span>
+        <ChevronDown aria-hidden="true" size={18} className="shrink-0 text-[var(--misi-muted)] transition-transform motion-reduce:transition-none group-open:rotate-180" />
+      </summary>
+      <div className="pb-6">{children}</div>
+    </details>
+  );
+}
 export function Discover(props: SharedProps & { initialQuery?: string }) {
   const [query, setQuery] = useState(props.initialQuery || "");
   const [result, setResult] = useState<Result | null>(null);
@@ -73,11 +97,19 @@ export function Discover(props: SharedProps & { initialQuery?: string }) {
   return (
     <>
       <Heading
-        eyebrow="Discover / Begin with a question"
-        title="What opportunity are you looking for?"
-        description="Search your permitted records. Inspect what supports the answer. Decide what happens next."
+        eyebrow="AI Research · public and private sector"
+        title="AI Research"
+        description="Ask Claude to search the public web for undiscovered opportunities. It connects independent evidence, tests it against contrary signals and tells you who to approach and why."
       />
-      <section className="m-discovery">
+      <PublicResearch initialBrief={props.initialQuery} />
+      <section aria-labelledby="additional-research-title" className="mt-8 border-t border-[var(--misi-border)] pt-6">
+        <p className="m-eyebrow">Explore further</p>
+        <h2 id="additional-research-title" className="mt-2 text-[17px] font-semibold text-[var(--misi-ink)]">More ways to investigate</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--misi-muted)]">Use these focused tools when you need more context. Each has its own sources and limits.</p>
+      <MarketNetwork />
+      <SourceExplorer />
+      <ResearchTool title="Search internal records" description="Find opportunities already saved in your workspace." defaultOpen={Boolean(props.initialQuery)}>
+      <section className="m-discovery mt-8">
         <div className="m-between">
           <p className="m-eyebrow">
             <Database size={14} /> Internal intelligence
@@ -211,13 +243,26 @@ export function Discover(props: SharedProps & { initialQuery?: string }) {
           )}
         </section>
       )}
+      </ResearchTool>
+      <ResearchTool title="Explore London fire-alarm attendances" description="Review patterns in the imported London Fire Brigade snapshot.">
+      <FalseAlarmSensor />
+      </ResearchTool>
+      <ResearchTool title="Review your evidence inbox" description="Investigate observations you have added or imported.">
+      <EvidenceInbox />
+      </ResearchTool>
+      <ResearchTool title="Search early maintenance opportunities" description="Run the separate maintenance-focused public research workflow.">
+      <div className="mt-8">
+        <div className="classic-light"><EarlyOpportunitiesPanel showDemoNote /></div>
+      </div>
+      </ResearchTool>
+      </section>
       <div className="m-source-boundary">
         <Database size={19} />
         <div>
           <strong>Know what was searched.</strong>
           <p>
-            {props.data.connector_status} Existing authorised OpenAI research
-            and manual-assist workflows remain in{" "}
+            {props.data.connector_status} More OpenAI research and
+            manual-assist workflows remain in{" "}
             <a href="/classic">Classic workspace</a>.
           </p>
         </div>

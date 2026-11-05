@@ -129,7 +129,7 @@ def _extract_message_content(response: Any) -> str:
 def _system_prompt() -> str:
     return build_commercial_system_prompt(
         role=(
-            "You are MiSi, a senior commercial intelligence analyst for Mitie "
+            "You are SalesIntel, a senior commercial intelligence analyst for Mitie "
             "Fire & Security."
         ),
         task=(

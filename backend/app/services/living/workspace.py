@@ -371,7 +371,7 @@ def workspace(db: Session) -> dict:
             if latest_event
             else None
         ),
-        "connector_status": "Existing public-market connectors contain synthetic fixtures. Approved live sources are not configured for this workspace.",
+        "connector_status": "Market-data refresh uses placeholder connectors. The false-alarm sensor uses an imported public snapshot when available.",
     }
 
 

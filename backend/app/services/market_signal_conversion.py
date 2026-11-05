@@ -262,7 +262,7 @@ def _create_opportunity_enrichment(
         enrichment_run_id=run_id,
         buyer_summary=(
             f"{signal.buyer_name} is a {signal.sector} buyer in {signal.region}. "
-            "MiSi has a market signal, not a confirmed tender pack."
+            "SalesIntel has a market signal, not a confirmed tender pack."
         ),
         opportunity_summary=(
             f"{signal.title} is a source-attributed market signal with "

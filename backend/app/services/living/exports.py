@@ -21,7 +21,7 @@ def metadata(asset: Asset) -> str:
     generated = datetime.fromisoformat(asset.content["generated_at"]).strftime(
         "%d %b %Y, %H:%M UTC"
     )
-    return f"MiSi | Version {asset.version} | {asset.review_status.upper()} | {generated} | Local review only"
+    return f"SalesIntel | Version {asset.version} | {asset.review_status.upper()} | {generated} | Local review only"
 
 
 def export_docx(asset: Asset) -> bytes:
@@ -40,7 +40,7 @@ def export_docx(asset: Asset) -> bytes:
     doc.styles["Heading 1"].paragraph_format.keep_with_next = True
     doc.add_paragraph(asset.title.replace("&", "and"), "Title")
     doc.add_paragraph(metadata(asset), "Subtitle")
-    page.header.paragraphs[0].text = "MiSi   /   Commercial intelligence"
+    page.header.paragraphs[0].text = "SalesIntel   /   Commercial intelligence"
     page.footer.paragraphs[0].text = (
         f"Version {asset.version} · {asset.review_status} · Source-bound working document"
     )
@@ -78,7 +78,7 @@ def export_docx(asset: Asset) -> bytes:
         for run in entry.runs:
             run.font.size = Pt(9)
     doc.core_properties.title = asset.title
-    doc.core_properties.author = "MiSi"
+    doc.core_properties.author = "SalesIntel"
     stream = BytesIO()
     doc.save(stream)
     return stream.getvalue()
@@ -94,7 +94,7 @@ def export_pdf(asset: Asset) -> bytes:
         topMargin=22 * mm,
         bottomMargin=19 * mm,
         title=asset.title,
-        author="MiSi",
+        author="SalesIntel",
     )
     styles = getSampleStyleSheet()
     styles.add(
@@ -129,7 +129,7 @@ def export_pdf(asset: Asset) -> bytes:
         )
 
     story = [
-        p("COMMERCIAL INTELLIGENCE / MiSi", "Subtitle"),
+        p("COMMERCIAL INTELLIGENCE / SalesIntel", "Subtitle"),
         p(asset.title, "Title"),
         p(metadata(asset), small),
         Spacer(1, 8 * mm),
@@ -194,7 +194,7 @@ def export_pdf(asset: Asset) -> bytes:
         canvas.drawString(
             17 * mm,
             13 * mm,
-            f"MiSi  |  {asset.review_status.upper()}  |  Version {asset.version}",
+            f"SalesIntel  |  {asset.review_status.upper()}  |  Version {asset.version}",
         )
         canvas.drawRightString(193 * mm, 13 * mm, f"{document.page}")
         canvas.restoreState()

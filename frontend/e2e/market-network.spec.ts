@@ -1,0 +1,75 @@
+import { expect, test } from "@playwright/test";
+const headers = { "access-control-allow-origin": "http://127.0.0.1:3100" };
+const summary = { companies: 1, awards: 1, source_records: 1, source_revisions: 2, sources: [{ source_key: "find_a_tender", last_checked_at: "2026-10-28T12:00:00Z", last_success_at: "2026-10-28T12:00:00Z", last_new_at: "2026-10-27T12:00:00Z", last_error: null, failure_count: 0 }], limitations: ["Publication is not proof of current delivery."] };
+const company = { id: 1, name: "Example Fire Services", identifier_scheme: "GB-COH", identifier_value: "01234567", identity_status: "source_identifier", first_seen: "2026-10-27T12:00:00Z", last_seen: "2026-10-28T12:00:00Z", award_count: 1 };
+const award = { id: 1, ocid: "ocds-example-1", award_id: "award-1", title: "Fire alarm maintenance", buyer: "Example Council", supplier: "Example Fire Services", status: "active", award_date: "2026-03-01", amount: "100000", currency: "GBP", source_url: "https://example.org/notice", source_revision_id: 2 };
+
+test("market network presents source records, published awards and limits", async ({ page }) => {
+  const requests: string[] = [];
+  await page.route("**/api/market-network/**", async route => {
+    const requestUrl = new URL(route.request().url());
+    const path = requestUrl.pathname;
+    requests.push(requestUrl.pathname + requestUrl.search);
+    if (path.endsWith("/summary")) return route.fulfill({ headers, json: summary });
+    if (path.endsWith("/relationships")) return route.fulfill({ headers, json: { items: [{ id: 11, subject: "Example Fire Services", object: "Example Holdings", relation_type: "SIGNIFICANT_CONTROL_BY", effective_from: "2021-06-14", effective_to: null, observed_at: "2026-10-28", assertion_status: "reviewed_cached_registry_filing", evidence_excerpt: "Ownership of shares – 75% or more", source_url: "https://find-and-update.company-information.service.gov.uk/company/01234567/persons-with-significant-control", source_revision_id: 2 }], limitations: [] } });
+    if (path.endsWith("/award-context")) return route.fulfill({ headers, json: { items: [{ award_id: 1, title: "Fire alarm maintenance", buyer: "Example Council", supplier: "Example Fire Services", supplier_company_number: "01234567", award_date: "2023-02-21", notice: { source_url: "https://example.org/notice", source_revision_id: 2 }, control: { controller: "Example Holdings", controller_company_number: "12345678", notified_on: "2024-11-27", ceased_on: null, source_url: "https://find-and-update.company-information.service.gov.uk/company/01234567/persons-with-significant-control", source_revision_id: 3 }, timing: "The control notification is later than the award date; the filing does not establish control at the time of award.", unknowns: [] }] } });
+    if (path.endsWith("/companies/1/sources")) return route.fulfill({ headers, json: { source_revision_ids: [2] } });
+    if (path.endsWith("/sources/2")) return route.fulfill({ headers, json: { id: 2, source_key: "find_a_tender", record_key: "notice-123", source_url: "https://example.org/notice", content_hash: "abcdef", published_at: "2026-03-01", retrieved_at: "2026-10-27T12:00:00Z", last_seen: "2026-10-28T12:00:00Z", superseded_at: null } });
+    if (path.endsWith("/companies")) return route.fulfill({ headers, json: { items: [company], total: 1 } });
+    return route.fulfill({ headers, json: { items: [award], total: 1 } });
+  });
+  await page.goto("/?view=discover");
+  const network = page.getByRole("region", { name: "Fire and security market intelligence" });
+  await network.getByText("Explore the market network").click();
+  await expect(network.getByText("Example Fire Services", { exact: true })).toBeVisible();
+  await expect(network.getByText(/not proof that a contract remains active/)).toBeVisible();
+  await network.getByRole("button", { name: /Example Fire Services/ }).click();
+  await expect(network.getByText(/GB-COH · 01234567/)).toBeVisible();
+  await network.getByText("Review corporate relationships").click();
+  await expect(network.getByText("Example Fire Services · reported significant control by · Example Holdings")).toBeVisible();
+  await expect(network.getByText(/Cached filings may be out of date/)).toBeVisible();
+  await expect(network.getByText(/Reported from: 14 Jun 2021/)).toBeVisible();
+  await expect(network.getByRole("link", { name: "Review registry filing" })).toHaveAttribute("href", "https://find-and-update.company-information.service.gov.uk/company/01234567/persons-with-significant-control");
+  await network.getByText("Connect awards and corporate filings").click();
+  await expect(network.getByText(/control notification is later than the award date/)).toBeVisible();
+  await expect(network.getByText(/not independent corroboration, proof of current delivery or an award to its controller/)).toBeVisible();
+  await expect(network.getByRole("link", { name: "Review award source" })).toHaveAttribute("href", "https://example.org/notice");
+  await expect(network.getByRole("link", { name: "Review control filing" })).toHaveAttribute("href", "https://find-and-update.company-information.service.gov.uk/company/01234567/persons-with-significant-control");
+  await network.getByText("Review linked source versions").click();
+  await network.getByText("Source version 2").click();
+  await expect(network.getByText(/Content fingerprint: abcdef/)).toBeVisible();
+  await network.getByRole("button", { name: "See linked published awards" }).click();
+  await expect(network.getByText("Showing awards linked to Example Fire Services.")).toBeVisible();
+  await expect.poll(() => requests.some(url => url.includes("supplier_id=1"))).toBe(true);
+  await network.getByLabel("Search captured records").fill("maintenance");
+  await network.getByRole("button", { name: "Search", exact: true }).click();
+  await expect.poll(() => requests.some(url => url.includes("q=maintenance"))).toBe(true);
+  await network.getByRole("button", { name: /Fire alarm maintenance/ }).click();
+  await expect(network.getByText(/Published value is not necessarily realised revenue/)).toBeVisible();
+  await expect(network.getByText(/Published value: £100,000/)).toBeVisible();
+  await expect(network.getByRole("link", { name: "Review source" })).toHaveAttribute("href", "https://example.org/notice");
+  await network.getByText("Source version 2").click();
+  await expect(network.getByText(/Record notice-123/)).toBeVisible();
+  await network.getByText("Source health and coverage").click();
+  await expect(network.getByText("Publication is not proof of current delivery.")).toBeVisible();
+  await expect(network.getByText(/Last checked:/)).toBeVisible();
+});
+
+test("market network displays empty and unavailable data honestly", async ({ page }) => {
+  let available = false;
+  await page.route("**/api/market-network/**", async route => {
+    if (!available) return route.fulfill({ status: 503, headers, json: { detail: "unavailable" } });
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/summary")) return route.fulfill({ headers, json: { ...summary, companies: 0, awards: 0, source_records: 0, source_revisions: 0, sources: [] } });
+    return route.fulfill({ headers, json: { items: [], total: 0 } });
+  });
+  await page.goto("/?view=discover");
+  const network = page.getByRole("region", { name: "Fire and security market intelligence" });
+  await network.getByText("Explore the market network").click();
+  await expect(network.getByRole("alert")).toContainText("unavailable");
+  available = true;
+  await network.getByRole("button", { name: "Try again" }).click();
+  await expect(network.getByText(/No matching organisation records were found/)).toBeVisible();
+  await network.getByRole("button", { name: "Published awards" }).click();
+  await expect(network.getByText(/No matching awards were found/)).toBeVisible();
+});

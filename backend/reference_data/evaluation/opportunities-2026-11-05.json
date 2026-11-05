@@ -1,0 +1,1326 @@
+{
+ "set_key": "opportunities-2026-11-05",
+ "as_of": "2026-11-05",
+ "rubric": [
+  {
+   "key": "relevance",
+   "question": "Is there a genuine fire or security commercial opportunity here for a firm like yours?",
+   "options": [
+    [
+     "yes",
+     "Yes"
+    ],
+    [
+     "possibly",
+     "Possibly"
+    ],
+    [
+     "no",
+     "No"
+    ]
+   ]
+  },
+  {
+   "key": "identity",
+   "question": "Is the organisation (and site, if named) correctly identified from the evidence?",
+   "options": [
+    [
+     "yes",
+     "Yes"
+    ],
+    [
+     "unsure",
+     "Unsure"
+    ],
+    [
+     "no",
+     "No"
+    ]
+   ]
+  },
+  {
+   "key": "requirement",
+   "question": "Is a customer requirement confirmed, or only hypothesised?",
+   "options": [
+    [
+     "confirmed",
+     "Confirmed"
+    ],
+    [
+     "hypothesised",
+     "Hypothesised"
+    ],
+    [
+     "none",
+     "No requirement"
+    ]
+   ]
+  },
+  {
+   "key": "advertised",
+   "question": "Has it already been advertised (an open tender or published notice)?",
+   "options": [
+    [
+     "advertised",
+     "Advertised"
+    ],
+    [
+     "not_advertised",
+     "Not advertised"
+    ],
+    [
+     "unclear",
+     "Unclear"
+    ]
+   ]
+  },
+  {
+   "key": "reason",
+   "question": "Is there a legitimate reason to contact them now?",
+   "options": [
+    [
+     "yes",
+     "Yes"
+    ],
+    [
+     "no",
+     "No"
+    ]
+   ]
+  },
+  {
+   "key": "stakeholders",
+   "question": "Can you tell who to speak to?",
+   "options": [
+    [
+     "named",
+     "A named person"
+    ],
+    [
+     "role",
+     "A role only"
+    ],
+    [
+     "none",
+     "No"
+    ]
+   ]
+  },
+  {
+   "key": "route",
+   "question": "Is a reliable business contact route available?",
+   "options": [
+    [
+     "yes",
+     "Yes"
+    ],
+    [
+     "unsure",
+     "Unsure"
+    ],
+    [
+     "no",
+     "No"
+    ]
+   ]
+  },
+  {
+   "key": "evidence",
+   "question": "How strong and current is the evidence?",
+   "options": [
+    [
+     "strong",
+     "Strong"
+    ],
+    [
+     "adequate",
+     "Adequate"
+    ],
+    [
+     "weak",
+     "Weak"
+    ]
+   ]
+  },
+  {
+   "key": "pursue",
+   "question": "Would you pursue it?",
+   "options": [
+    [
+     "this_week",
+     "Yes, this week"
+    ],
+    [
+     "this_month",
+     "Yes, this month"
+    ],
+    [
+     "later",
+     "Later"
+    ],
+    [
+     "no",
+     "No"
+    ]
+   ]
+  }
+ ],
+ "items": [
+  {
+   "id": "R-001",
+   "organisation": "DPD UK",
+   "site": null,
+   "title": "DPD has four automated depots still to open under its £330m seven-depot programme targeted for early 2027, so their fit-outs are imminent.",
+   "source_kind": "Company research (news and company pages)",
+   "summary": "New site opening: fire and security for a new site is usually procured three to twelve months before it opens. Window open until April 2027.",
+   "evidence": [
+    {
+     "text": "£330m programme for seven new automated depots",
+     "date": "2025-06",
+     "url": "https://www.cep-research.com/2025/06/18/dpd-uk-to-invest-330m-in-seven-new-depots/",
+     "basis": "stated"
+    },
+    {
+     "text": "Crawley and Sittingbourne opened",
+     "date": "2026-03-10",
+     "url": "https://www.geopost.com/en/news/dpd-opens-two-new-purpose-built-distribution-centres-in-south-east/",
+     "basis": "stated"
+    },
+    {
+     "text": "Darlington Forrest Park opened",
+     "date": "2026-10-28",
+     "url": "https://www.retailgazette.co.uk/blog/2026/10/dpd-opens-63000-site/",
+     "basis": "stated"
+    },
+    {
+     "text": "Tritax Park Queens' Cambridge confirmed",
+     "date": "2026-07",
+     "url": "https://benews.co.uk/tritax-big-box-agrees-63000-sq-ft-distribution-hub-deal-with-dpd/",
+     "basis": "stated"
+    },
+    {
+     "text": "Bradford, Guildford and Milton Keynes still to come",
+     "date": "",
+     "url": "",
+     "basis": "inferred"
+    },
+    {
+     "text": "Programme dates have slipped before",
+     "date": "",
+     "url": "",
+     "basis": "inferred"
+    }
+   ],
+   "services_mentioned": [
+    "fire_alarm",
+    "sprinkler",
+    "cctv",
+    "access_control",
+    "intruder",
+    "general"
+   ]
+  },
+  {
+   "id": "R-002",
+   "organisation": "Stockport Homes Limited",
+   "site": null,
+   "title": "Fire Risk Assessments",
+   "source_kind": "Public procurement record",
+   "summary": "Published term ended 31 October 2026; current arrangement not confirmed.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:e1165b8a-8454-4e51-b54d-431a0a65dd7e",
+     "date": "2024-01-17",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/e1165b8a-8454-4e51-b54d-431a0a65dd7e",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Pennington Choices Limited (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2026-10-31",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "fire_risk_assessment"
+   ]
+  },
+  {
+   "id": "R-003",
+   "organisation": "Greystar UK (incl. Native Communities)",
+   "site": null,
+   "title": "Greystar is merging Native Communities' 37-asset portfolio into its own management business, a moment when supplier arrangements are often reviewed.",
+   "source_kind": "Company research (news and company pages)",
+   "summary": "New decision maker: new estates, facilities or security leaders commonly review suppliers in their first nine months. Window open until December 2026.",
+   "evidence": [
+    {
+     "text": "Greystar acquires Native Communities",
+     "date": "2026-03-19",
+     "url": "https://www.lettingagenttoday.co.uk/breaking-news/2026/03/global-investment-giant-snaps-up-uk-build-to-rent-operator/",
+     "basis": "stated"
+    },
+    {
+     "text": "Likely supplier consolidation after integration",
+     "date": "",
+     "url": "",
+     "basis": "inferred"
+    },
+    {
+     "text": "Acquisition of Native Communities and merger of its operations into Greystar's management business. This is a takeover, not a supplier appointment.",
+     "date": "2026-03-19",
+     "url": "https://www.lettingagenttoday.co.uk/breaking-news/2026/03/global-investment-giant-snaps-up-uk-build-to-rent-operator/",
+     "basis": "stated"
+    }
+   ],
+   "services_mentioned": [
+    "fire_alarm",
+    "emergency_lighting",
+    "access_control",
+    "cctv",
+    "sprinkler"
+   ]
+  },
+  {
+   "id": "R-004",
+   "organisation": "QE Facilities Ltd",
+   "site": null,
+   "title": "Maintenance Agreement of Intruder alarms, CCTV Systems",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with C.D.S. SECURITY LIMITED ends 31 January 2027; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Find a Tender notice radar:074473-2026",
+     "date": "2026-08-06",
+     "url": "https://www.find-tender.service.gov.uk/Notice/074473-2026",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: C.D.S. SECURITY LIMITED (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published contract end date: 2027-01-31",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "cctv",
+    "intruder"
+   ]
+  },
+  {
+   "id": "R-005",
+   "organisation": "London Borough of Hammersmith & Fulham",
+   "site": null,
+   "title": "Supplier transition: A disrupted contract creates a short window in which the buyer is open to a new supplier.",
+   "source_kind": "Building works record (indirect)",
+   "summary": "London Borough of Hammersmith & Fulham published \"Fire Risk Assessments\" 322 days before the published end of \"Fire Risk Assessment - call off Lot 8 Fire Consultancy Services\". A disrupted contract creates a short window in which the buyer is open to a new supplier.",
+   "evidence": [
+    {
+     "text": "Replacement before the published end: London Borough of Hammersmith & Fulham published \"Fire Risk Assessments\" 322 days before the published end of \"Fire Risk Assessment - call off Lot 8 Fire Consultancy Services\".",
+     "date": "2024-11-12",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/33b5fe5c-f880-4d70-b3b7-a7a5c8f97dfe",
+     "basis": "derived"
+    }
+   ],
+   "services_mentioned": [
+    "fire_alarm",
+    "cctv",
+    "access_control"
+   ]
+  },
+  {
+   "id": "R-006",
+   "organisation": "Gosport Borough Council",
+   "site": null,
+   "title": "CCTV (Public Open Space) Maintenance, Repair and Upgrade Contract",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Chroma Vision Limited ends 15 December 2026; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:42a3793c-14ba-450c-bdb4-d3b6b4e3c7f2",
+     "date": "2023-11-29",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/42a3793c-14ba-450c-bdb4-d3b6b4e3c7f2",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Chroma Vision Limited (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2026-12-15",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "cctv"
+   ]
+  },
+  {
+   "id": "R-007",
+   "organisation": "Frimley Health NHS Foundation Trust",
+   "site": null,
+   "title": "Replacement of the CCTV System and Maintenance for Frimley Health NHS Foundation Trust",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with OPENVIEW SECURITY SOLUTIONS LIMITED ends 30 November 2026; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:4d4344f2-6f5f-4d11-a185-65534bd10b3f",
+     "date": "2023-11-21",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/4d4344f2-6f5f-4d11-a185-65534bd10b3f",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: OPENVIEW SECURITY SOLUTIONS LIMITED (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2026-11-30",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "cctv"
+   ]
+  },
+  {
+   "id": "R-008",
+   "organisation": "Lancashire Constabulary",
+   "site": null,
+   "title": "Fire Safety Products (Fire Extinguishers) - Supply & Servicing",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Pennine Fire & Safety Ltd ends 31 January 2027; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:92f4af37-4047-4183-965d-34759718ade1",
+     "date": "2022-02-09",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/92f4af37-4047-4183-965d-34759718ade1",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Pennine Fire & Safety Ltd (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-01-31",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "extinguishers"
+   ]
+  },
+  {
+   "id": "R-009",
+   "organisation": "Birmingham City Council",
+   "site": null,
+   "title": "Fire Risk Assessments on Medium and High Rise Blocks",
+   "source_kind": "Public procurement record",
+   "summary": "Published term ends 21 January 2027; current arrangement not confirmed.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:b0730f0e-c559-42de-adcf-1f17d7387465",
+     "date": "2024-01-31",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/b0730f0e-c559-42de-adcf-1f17d7387465",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Pennington Choices Limited (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-01-21",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "fire_risk_assessment"
+   ]
+  },
+  {
+   "id": "R-010",
+   "organisation": "Royal Berkshire Fire & Rescue Service",
+   "site": null,
+   "title": "PROVISION OF Access Control and Automated Gates",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Corrigenda Ltd ends 10 November 2026; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:6ee00e3e-0147-459c-ad12-b673f0c3e956",
+     "date": "2024-11-19",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/6ee00e3e-0147-459c-ad12-b673f0c3e956",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Corrigenda Ltd (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2026-11-10",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "access_control"
+   ]
+  },
+  {
+   "id": "R-011",
+   "organisation": "York and North Yorkshire Combined Authority acting on behalf of itself and the Chief Constable of North Yorkshire Police",
+   "site": null,
+   "title": "Premises Fire Risk Assessments",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with FIRE COMPLIANCE MANAGEMENT SERVICES LIMITED T/A FCMS ends 16 February 2027; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:61522830-6f9d-42f4-b4cf-5b7d9ea53c28",
+     "date": "2025-04-02",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/61522830-6f9d-42f4-b4cf-5b7d9ea53c28",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: FIRE COMPLIANCE MANAGEMENT SERVICES LIMITED T/A FCMS (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-02-16",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "fire_risk_assessment"
+   ]
+  },
+  {
+   "id": "R-012",
+   "organisation": "Chp",
+   "site": null,
+   "title": "Award Notice - Fire Risk Assessments to non complex blocks in Essex",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Firntec Ltd ends 31 January 2027; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:b6c72a2d-a4d4-4066-8df7-bca2bce8c331",
+     "date": "2025-02-05",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/b6c72a2d-a4d4-4066-8df7-bca2bce8c331",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Firntec Ltd (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-01-31",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "fire_risk_assessment"
+   ]
+  },
+  {
+   "id": "R-013",
+   "organisation": "Merseytravel",
+   "site": null,
+   "title": "Provision of Planned Maintenance Services including Corrective Maintenance Call-Outs and Software Maintenance Services across the Merseytravel Estate for CCTV",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Openview Security Solutions Ltd ends 14 February 2027; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:d6f28140-9671-4bbc-b410-25c99bd04e95",
+     "date": "2025-03-05",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/d6f28140-9671-4bbc-b410-25c99bd04e95",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Openview Security Solutions Ltd (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-02-14",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "cctv"
+   ]
+  },
+  {
+   "id": "R-014",
+   "organisation": "Bespoke Property Management",
+   "site": null,
+   "title": "BPM appointed a new Head of Facilities Management in August 2026, and a new FM head often reviews suppliers in their first months.",
+   "source_kind": "Company research (news and company pages)",
+   "summary": "New decision maker: new estates, facilities or security leaders commonly review suppliers in their first nine months. Window open until May 2027.",
+   "evidence": [
+    {
+     "text": "New Head of Facilities Management",
+     "date": "2026-08-31",
+     "url": "https://www.newsontheblock.com/news-opinion/bespoke-property-management-strengthens-senior-team-with-appointment-of-head-of-facilities-management",
+     "basis": "stated"
+    },
+    {
+     "text": "Buying is probably fragmented by building",
+     "date": "",
+     "url": "",
+     "basis": "inferred"
+    },
+    {
+     "text": "Head of Facilities Management appointed.",
+     "date": "2026-08-31",
+     "url": "https://www.newsontheblock.com/news-opinion/bespoke-property-management-strengthens-senior-team-with-appointment-of-head-of-facilities-management",
+     "basis": "stated"
+    }
+   ],
+   "services_mentioned": [
+    "fire_alarm",
+    "emergency_lighting",
+    "access_control",
+    "cctv"
+   ]
+  },
+  {
+   "id": "R-015",
+   "organisation": "DHL Supply Chain UK",
+   "site": null,
+   "title": "DHL has three new UK and Northern Ireland buildings due to open between 2026 and mid-2027, so fire and security packages for Avonmouth and Ballyearl are likely being specified during construction and fit-out now.",
+   "source_kind": "Company research (news and company pages)",
+   "summary": "New site opening: fire and security for a new site is usually procured three to twelve months before it opens. Window open until April 2027.",
+   "evidence": [
+    {
+     "text": "Waitrose South West distribution centre at Avonmouth",
+     "date": "2026-01-07",
+     "url": "https://www.dhl.com/gb-en/home/press/press-archive/2026/dhl-supply-chain-to-operate-waitroses-first-south-west-distribution-centre.html",
+     "basis": "stated"
+    },
+    {
+     "text": "Automated multi-user healthcare hub at Infinity Park Derby",
+     "date": "2026-06-17",
+     "url": "https://www.dhl.com/gb-en/home/press/press-archive/2026/dhl-to-launch-state-of-the-art-automated-healthcare-hub-at-infinity-park-derby.html",
+     "basis": "stated"
+    },
+    {
+     "text": "£550m UK and Ireland automation and infrastructure commitment",
+     "date": "2026-06-17",
+     "url": "https://www.dhl.com/gb-en/home/press/press-archive/2026/dhl-to-launch-state-of-the-art-automated-healthcare-hub-at-infinity-park-derby.html",
+     "basis": "stated"
+    },
+    {
+     "text": "Ballyearl warehouse replaces Mallusk site",
+     "date": "2026",
+     "url": "https://www.irishnews.com/news/business/green-light-for-dhls-18m-bid-to-relocate-its-supermarket-supply-chain-hub-in-northern-ireland-CWW7JCQK5RASRKZHBHODV2IHXI/",
+     "basis": "stated"
+    },
+    {
+     "text": "Healthcare storage may need tighter security",
+     "date": "",
+     "url": "",
+     "basis": "inferred"
+    }
+   ],
+   "services_mentioned": [
+    "fire_alarm",
+    "sprinkler",
+    "cctv",
+    "access_control",
+    "intruder",
+    "general"
+   ]
+  },
+  {
+   "id": "R-016",
+   "organisation": "Durham County Council",
+   "site": null,
+   "title": "Care Connect CCTV Response & Scheduled Maintenance",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with BAYDALE CONTROL SYSTEMS LIMITED ends 31 December 2027; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:21be188a-d24b-4ffe-8b16-8999e5fa68b7",
+     "date": "2024-07-26",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/21be188a-d24b-4ffe-8b16-8999e5fa68b7",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: BAYDALE CONTROL SYSTEMS LIMITED (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-12-31",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "cctv"
+   ]
+  },
+  {
+   "id": "R-017",
+   "organisation": "Clarion Housing Group",
+   "site": null,
+   "title": "Fire Risk Assessments Services",
+   "source_kind": "Public procurement record",
+   "summary": "Published term ends on an unpublished date; current arrangement not confirmed.",
+   "evidence": [
+    {
+     "text": "Find a Tender notice radar:083037-2026",
+     "date": "2026-09-02",
+     "url": "https://www.find-tender.service.gov.uk/Notice/083037-2026",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "fire_risk_assessment"
+   ]
+  },
+  {
+   "id": "R-018",
+   "organisation": "Maidstone Borough Council",
+   "site": null,
+   "title": "Invitation to Tender For Maintenance of CCTV, door entry systems and internal magnetic lock doors",
+   "source_kind": "Public procurement record",
+   "summary": "Tender open now, deadline 11 November 2026.",
+   "evidence": [
+    {
+     "text": "Find a Tender notice radar:096863-2026",
+     "date": "2026-10-14",
+     "url": "https://www.find-tender.service.gov.uk/Notice/096863-2026",
+     "basis": "published"
+    },
+    {
+     "text": "published deadline: 2026-11-11",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "access_control",
+    "cctv"
+   ]
+  },
+  {
+   "id": "R-019",
+   "organisation": "Aspire Housing Limited",
+   "site": null,
+   "title": "ID550 Fire Equipment Servicing",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Security and Fire Experts (SAFE) ends 1 February 2027; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:da2ec85d-ba1c-411f-9885-2790d6e2647b",
+     "date": "2025-12-01",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/da2ec85d-ba1c-411f-9885-2790d6e2647b",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Security and Fire Experts (SAFE) (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-02-01",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "extinguishers"
+   ]
+  },
+  {
+   "id": "R-020",
+   "organisation": "The London Borough of Enfield",
+   "site": null,
+   "title": "EVAC and Communal Fire Alarm Consultancy and PD Services",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Harmony ends 1 March 2027; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:cbce6b08-b10e-44ed-9826-64f5fa8f691d",
+     "date": "2026-06-18",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/cbce6b08-b10e-44ed-9826-64f5fa8f691d",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Harmony (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-03-01",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "fire_alarm"
+   ]
+  },
+  {
+   "id": "R-021",
+   "organisation": "NHS South West - Acutes",
+   "site": null,
+   "title": "Community Planned and Reactive Building Maintenance and Cleaning Services",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Lorne Stewart PLC, Norse Commercial Services Ltd ends 30 November 2026; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice deb58e78-6f11-4828-a233-e9bc79efd568-491704",
+     "date": "2021-12-06",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/deb58e78-6f11-4828-a233-e9bc79efd568",
+     "basis": "published"
+    },
+    {
+     "text": "Contracts Finder notice radar:deb58e78-6f11-4828-a233-e9bc79efd568",
+     "date": "2021-12-06",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/deb58e78-6f11-4828-a233-e9bc79efd568",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Lorne Stewart PLC, Norse Commercial Services Ltd (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2026-11-30",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": []
+  },
+  {
+   "id": "R-022",
+   "organisation": "Ipswich Borough Council",
+   "site": null,
+   "title": "Fire Safety Systems - Service & Maintenance",
+   "source_kind": "Public procurement record",
+   "summary": "Tender open now, deadline 5 November 2026.",
+   "evidence": [
+    {
+     "text": "Find a Tender notice radar:095204-2026",
+     "date": "2026-10-08",
+     "url": "https://www.find-tender.service.gov.uk/Notice/095204-2026",
+     "basis": "published"
+    },
+    {
+     "text": "published deadline: 2026-11-05",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": []
+  },
+  {
+   "id": "R-023",
+   "organisation": "Campeys of Selby",
+   "site": null,
+   "title": "Campeys has just opened a 190,527 sq ft warehouse at Sherburn 42 that will become its head office and main site, due to be fully operational before the end of 2026, so tenant security and fire decisions are being made now.",
+   "source_kind": "Company research (news and company pages)",
+   "summary": "New site opening: fire and security for a new site is usually procured three to twelve months before it opens. Window open until April 2027.",
+   "evidence": [
+    {
+     "text": "190,527 sq ft warehouse opened at Sherburn 42",
+     "date": "2026-10",
+     "url": "https://www.logisticsmanager.com/campeys-takes-190527ft%C2%B2-at-sherburn-42/",
+     "basis": "stated"
+    },
+    {
+     "text": "Head office and main operations moving to Sherburn 42; leaving Konect62",
+     "date": "2026-10",
+     "url": "https://motortransport.co.uk/operator-news/campeys-opens-major-warehouse-as-food-logistics-drive-gathers-pace/91190.article",
+     "basis": "stated"
+    },
+    {
+     "text": "New food-manufacturer contracts, with half the site still to fill",
+     "date": "2026-10",
+     "url": "https://www.thebusinessdesk.com/yorkshire/news/2160697-major-investment-at-logistics-firm-more-than-triples-its-storage-capacity",
+     "basis": "stated"
+    },
+    {
+     "text": "Food-sector audits under BRCGS",
+     "date": "",
+     "url": "",
+     "basis": "inferred"
+    },
+    {
+     "text": "Electric HGV charging and rooftop solar on the new site",
+     "date": "2026",
+     "url": "https://www.logisticsmanager.com/campeys-takes-190527ft%C2%B2-at-sherburn-42/",
+     "basis": "inferred"
+    }
+   ],
+   "services_mentioned": [
+    "cctv",
+    "access_control",
+    "intruder",
+    "fire_alarm",
+    "sprinkler",
+    "general"
+   ]
+  },
+  {
+   "id": "R-024",
+   "organisation": "Driver and Vehicle Standards Agency",
+   "site": null,
+   "title": "Access control systems",
+   "source_kind": "Public procurement record",
+   "summary": "The buyer published an early notice; tender expected 10 November 2026.",
+   "evidence": [
+    {
+     "text": "Find a Tender notice 104114-2026",
+     "date": "2026-11-03",
+     "url": "https://www.find-tender.service.gov.uk/Notice/104114-2026",
+     "basis": "published"
+    },
+    {
+     "text": "Find a Tender notice radar:104114-2026",
+     "date": "2026-11-03",
+     "url": "https://www.find-tender.service.gov.uk/Notice/104114-2026",
+     "basis": "published"
+    },
+    {
+     "text": "published expected date: 2026-11-10",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "access_control"
+   ]
+  },
+  {
+   "id": "R-025",
+   "organisation": "South Tyneside Council",
+   "site": null,
+   "title": "Fire Door Repairs",
+   "source_kind": "Public procurement record",
+   "summary": "Published term ends 31 January 2027; current arrangement not confirmed.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:ffd18290-f15a-4e42-b31e-778e89437fad",
+     "date": "2025-02-03",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/ffd18290-f15a-4e42-b31e-778e89437fad",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: ABCA Systems Limited (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-01-31",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "passive_fire"
+   ]
+  },
+  {
+   "id": "R-026",
+   "organisation": "Sheffield City Council",
+   "site": null,
+   "title": "Fire Alarms & Emergency Lighting",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with DFP Services Ltd ends 11 December 2026; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:8c7d710d-0e8a-45dc-9440-1f61e97e43d3",
+     "date": "2023-01-09",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/8c7d710d-0e8a-45dc-9440-1f61e97e43d3",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: DFP Services Ltd (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2026-12-11",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "emergency_lighting",
+    "fire_alarm"
+   ]
+  },
+  {
+   "id": "R-027",
+   "organisation": "Cambridge Regional College",
+   "site": null,
+   "title": "Agreement for the Provision of Fire Alarm, CCTV, Access Control & Intruder Alarm Maintenance",
+   "source_kind": "Public procurement record",
+   "summary": "Published term ended 31 July 2026; current arrangement not confirmed.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:29cd071e-08c9-4344-881a-f07b57fd0a86",
+     "date": "2023-08-08",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/29cd071e-08c9-4344-881a-f07b57fd0a86",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Jackson Fire & Security (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2026-07-31",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "access_control",
+    "cctv",
+    "fire_alarm",
+    "intruder"
+   ]
+  },
+  {
+   "id": "R-028",
+   "organisation": "South Tyneside Council",
+   "site": null,
+   "title": "Supplier transition: A disrupted contract creates a short window in which the buyer is open to a new supplier.",
+   "source_kind": "Building works record (indirect)",
+   "summary": "South Tyneside Council published \"Fire Door Inspections\" 594 days before the published end of \"Fire Door Repairs\". A disrupted contract creates a short window in which the buyer is open to a new supplier.",
+   "evidence": [
+    {
+     "text": "Replacement before the published end: South Tyneside Council published \"Fire Door Inspections\" 594 days before the published end of \"Fire Door Repairs\".",
+     "date": "2025-06-16",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/dde4eb0c-fb0b-44a8-b4c7-3382530ef94e",
+     "basis": "derived"
+    }
+   ],
+   "services_mentioned": [
+    "fire_alarm",
+    "cctv",
+    "access_control"
+   ]
+  },
+  {
+   "id": "R-029",
+   "organisation": "Swindon Borough Council",
+   "site": null,
+   "title": "Passive Fire Protection Works",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Ian Williams Limited ends 2 March 2027; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:b1680523-5329-44f8-be7d-6aba7dc98704",
+     "date": "2025-02-06",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/b1680523-5329-44f8-be7d-6aba7dc98704",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Ian Williams Limited (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-03-02",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "passive_fire"
+   ]
+  },
+  {
+   "id": "R-030",
+   "organisation": "mhs homes group",
+   "site": null,
+   "title": "Fire Door Inspections",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Frankham Consultancy Group Ltd ends 4 January 2028; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:05f94c5b-3239-425b-94ea-f4bf2574f963",
+     "date": "2026-01-28",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/05f94c5b-3239-425b-94ea-f4bf2574f963",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Frankham Consultancy Group Ltd (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2028-01-04",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "passive_fire"
+   ]
+  },
+  {
+   "id": "R-031",
+   "organisation": "Folkestone and Hythe District Council",
+   "site": null,
+   "title": "Supplier transition: A disrupted contract creates a short window in which the buyer is open to a new supplier.",
+   "source_kind": "Building works record (indirect)",
+   "summary": "Folkestone and Hythe District Council published \"Fire Risk Assessment & Works\" 722 days before the published end of \"Fire Risk Assessments 2022-24\". A disrupted contract creates a short window in which the buyer is open to a new supplier.",
+   "evidence": [
+    {
+     "text": "Replacement before the published end: Folkestone and Hythe District Council published \"Fire Risk Assessment & Works\" 722 days before the published end of \"Fire Risk Assessments 2022-24\".",
+     "date": "2022-03-09",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/f1613610-5ab2-424e-9c8c-46e3af6a9c9f",
+     "basis": "derived"
+    }
+   ],
+   "services_mentioned": [
+    "fire_alarm",
+    "cctv",
+    "access_control"
+   ]
+  },
+  {
+   "id": "R-032",
+   "organisation": "Richmond Housing Partnership Limited",
+   "site": null,
+   "title": "Fire Risk assessment",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Tersus Consultancy Limited ends 31 October 2027; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:353b9bec-6a66-4146-bc70-6d45371aeb7f",
+     "date": "2025-01-22",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/353b9bec-6a66-4146-bc70-6d45371aeb7f",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Tersus Consultancy Limited (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-10-31",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "fire_risk_assessment"
+   ]
+  },
+  {
+   "id": "R-033",
+   "organisation": "St Helens College",
+   "site": null,
+   "title": "CA13012 - St Helens College - Tender for the provision of servicing and maintenance for the College fire alarm and fire suppression systems.",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with PROTEC FIRE DETECTION PLC ends 28 February 2027; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:bbc1b298-ba25-4811-9f98-97598374f4f2",
+     "date": "2024-02-06",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/bbc1b298-ba25-4811-9f98-97598374f4f2",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: PROTEC FIRE DETECTION PLC (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-02-28",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "fire_alarm",
+    "sprinkler"
+   ]
+  },
+  {
+   "id": "R-034",
+   "organisation": "Central Bedfordshire Council",
+   "site": null,
+   "title": "CBC-1211-T-CE Fire Risk Assessments for CBC Housing Properties - AWARD",
+   "source_kind": "Public procurement record",
+   "summary": "Published term ends 31 January 2027; current arrangement not confirmed.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:79cd5964-9697-4cfb-9a51-83b6ab7e4966",
+     "date": "2022-01-06",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/79cd5964-9697-4cfb-9a51-83b6ab7e4966",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Ventro Ltd (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2027-01-31",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "fire_risk_assessment"
+   ]
+  },
+  {
+   "id": "R-035",
+   "organisation": "English Heritage-Estates",
+   "site": null,
+   "title": "Alarm Monitoring for Fire, Intruder and CCTV systems for the West Estate - AWARD",
+   "source_kind": "Public procurement record",
+   "summary": "Published contract with Camera Security Services Limited ends 31 March 2028; the buyer is likely to plan its replacement before then.",
+   "evidence": [
+    {
+     "text": "Contracts Finder notice radar:c63be007-b3ef-45b4-9930-a0f2ccc78244",
+     "date": "2025-02-20",
+     "url": "https://www.contractsfinder.service.gov.uk/Notice/c63be007-b3ef-45b4-9930-a0f2ccc78244",
+     "basis": "published"
+    },
+    {
+     "text": "Supplier named on the published record: Camera Security Services Limited (reported, not necessarily today's incumbent)",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    },
+    {
+     "text": "published award contract period: 2028-03-31",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "cctv",
+    "intruder"
+   ]
+  },
+  {
+   "id": "R-036",
+   "organisation": "Northumbria Healthcare Facilities Management",
+   "site": null,
+   "title": "Preventative and Reactive Fire Alarm And Associated Systems Maintenance",
+   "source_kind": "Public procurement record",
+   "summary": "Tender open now, deadline 27 November 2026.",
+   "evidence": [
+    {
+     "text": "Find a Tender notice radar:099008-2026",
+     "date": "2026-10-20",
+     "url": "https://www.find-tender.service.gov.uk/Notice/099008-2026",
+     "basis": "published"
+    },
+    {
+     "text": "published deadline: 2026-11-27",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "fire_alarm"
+   ]
+  },
+  {
+   "id": "R-037",
+   "organisation": "Epsom and St Helier University Hospitals NHS Trust",
+   "site": null,
+   "title": "Emergency Lighting maintenance",
+   "source_kind": "Public procurement record",
+   "summary": "The buyer published an early notice; tender expected 13 November 2026.",
+   "evidence": [
+    {
+     "text": "Find a Tender notice radar:100315-2026",
+     "date": "2026-10-23",
+     "url": "https://www.find-tender.service.gov.uk/Notice/100315-2026",
+     "basis": "published"
+    },
+    {
+     "text": "published expected date: 2026-11-13",
+     "date": "",
+     "url": "",
+     "basis": "published"
+    }
+   ],
+   "services_mentioned": [
+    "emergency_lighting"
+   ]
+  }
+ ],
+ "instructions": "Judge each item only on the evidence shown, as a fire and security salesperson would. You are not told where it came from. Record your own view; do not discuss items with other reviewers until everyone has finished."
+}

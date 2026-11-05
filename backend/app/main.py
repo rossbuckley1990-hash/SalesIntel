@@ -86,6 +86,8 @@ def create_app() -> FastAPI:
     application.include_router(radar_router)
     from app.routers.intel import router as intel_router
     application.include_router(intel_router)
+    from app.routers.review import router as review_router
+    application.include_router(review_router)
     if settings.auth_mode == "dev":
         from app.routers.dev_auth import router as dev_auth_router
         application.include_router(dev_auth_router)

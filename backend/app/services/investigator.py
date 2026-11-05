@@ -36,9 +36,35 @@ SCHEMA = {"type": "object", "additionalProperties": False, "required": ["finding
                    "source_date": {"type": "string"}, "quote": {"type": "string"}}}}}}
 
 
-def plan(assessment: dict | None) -> list[dict]:
+def evidence_questions(db: Session, account: Account) -> list[tuple[str, str, str]]:
+    """Without a Shadow Radar hypothesis, test what the account's own evidence claims: the published contract, the tender,
+    or the private signal. Each claim gets a question that would confirm it and one that would undo it."""
+    from app.models.prospect import Prospect
+    from app.services.si_core import _mo
+    out: list[tuple[str, str, str]] = []
+    for link in db.scalars(select(AccountLink).where(AccountLink.account_id == account.id).order_by(AccountLink.id)):
+        if link.entity_type == 'market_opportunity':
+            found = _mo(db, link.entity_id)
+            s = found[1] if found else {}
+            if s.get('category') in ('live_procurement', 'official_early_signal'):
+                out += [(f"What exactly is being procured in \"{(s.get('title') or '')[:120]}\", and what are its mandatory requirements?", 'confirm', 'requirements'),
+                        ('Is any of the scope outside fire and security, or reserved for an existing framework or supplier?', 'challenge', 'buying')]
+            else:
+                supplier = s.get('supplier') or 'the current supplier'
+                out += [(f"When does the contract with {supplier} end, and are there extension options?", 'confirm', 'suppliers'),
+                        ('Has the contract already been extended, re-let or brought in house?', 'challenge', 'buying')]
+        elif link.entity_type == 'prospect':
+            row = db.get(Prospect, link.entity_id)
+            for sig in [x for x in ((row.data.get('signals') if row else None) or []) if x.get('source_url')][:2]:
+                out += [(f"Is this confirmed by the organisation, and when will it happen: {sig.get('title', '')[:120]}?", 'confirm', 'developments')]
+            if out:
+                out += [('Is fire and security for this already contracted, specified or covered by an existing supplier?', 'challenge', 'suppliers')]
+    return out[:4]
+
+
+def plan(assessment: dict | None, evidence: list[tuple[str, str, str]] | None = None) -> list[dict]:
     sensor = SENSORS.get((assessment or {}).get('sensor', ''))
-    questions = [(q, purpose, 'requirements' if purpose == 'confirm' else 'buying') for q, purpose in (sensor.plan if sensor else ())] + list(GENERIC)
+    questions = [(q, purpose, 'requirements' if purpose == 'confirm' else 'buying') for q, purpose in (sensor.plan if sensor else ())] + list(evidence or []) + list(GENERIC)
     return [{'id': f'q{i + 1}', 'question': q, 'purpose': purpose, 'section': section,
              'why': 'Tests the hypothesis' if purpose == 'challenge' else 'Establishes the facts the hypothesis needs'} for i, (q, purpose, section) in enumerate(questions)]
 
@@ -95,7 +121,7 @@ def run(db: Session, account_id: int, meter: Meter | None, *, hypothesis_key: st
         raise LookupError('Account not found')
     assessment = _hypothesis(db, account, hypothesis_key)
     org = navigator.identity(db, account)
-    questions = plan(assessment)
+    questions = plan(assessment, None if assessment else evidence_questions(db, account))
     step('Planning the investigation')
     kept, rejected, excerpts, diagnostics = [], [], {}, {}
     if meter is not None:

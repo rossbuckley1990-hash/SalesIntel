@@ -24,9 +24,12 @@ from app.services.prospect_research import view as prospect_view
 from app.tenancy import hosted
 
 LEGAL = re.compile(r"\b(limited|ltd|plc|llp|lp|cic|incorporated|inc|the)\b")
+# Keys are the Renewal Radar family names. Adjacent work (extinguishers, risk assessments, passive fire, smoke control) is its own
+# service, never counted as fire alarms, so a fire-alarm installer is not told a fire-risk-assessment tender "sells what you sell".
 FAMILY_SERVICE = {"fire_alarm": "fire_alarm", "cctv": "cctv", "access": "access_control", "access_control": "access_control", "intruder": "intruder",
-                  "emergency_lighting": "emergency_lighting", "sprinkler": "sprinkler", "suppression": "sprinkler", "extinguisher": "fire_alarm",
-                  "passive_fire": "fire_alarm", "door_entry": "access_control"}
+                  "emergency_lighting": "emergency_lighting", "sprinkler": "sprinkler", "sprinklers": "sprinkler", "suppression": "sprinkler",
+                  "extinguisher": "extinguishers", "extinguishers": "extinguishers", "passive_fire": "passive_fire", "smoke_control": "smoke_control",
+                  "fire_risk_assessment": "fire_risk_assessment", "door_entry": "access_control"}
 SERVICE_WORDS = {"fire alarm": "fire_alarm", "fire detection": "fire_alarm", "cctv": "cctv", "camera": "cctv", "access control": "access_control",
                  "door entry": "access_control", "intruder": "intruder", "burglar": "intruder", "emergency lighting": "emergency_lighting",
                  "sprinkler": "sprinkler", "suppression": "sprinkler", "monitoring": "monitoring"}
@@ -301,7 +304,7 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
                 "basis": "published" if any(s.get("basis") == "stated" for s in v.get("signals") or []) else "inferred",
                 "timing": (v["timing"].get("window") or {}).get("start"), "days": None, "timing_label": v["timing"]["label"], "light": v["timing"]["light"],
                 "nation": None, "region": v.get("location"), "tier": None, "services": v.get("services") or [], "supplier": (v.get("incumbent") or {}).get("name") or None,
-                "sector": v.get("sector"),
+                "sector": v.get("sector"), "signal_types": [x.get("type") for x in v.get("signals") or [] if x.get("source_url")],
                 "value": None, "status": {"new": "new", "watching": "watching", "pipeline": "investigating", "dismissed": "dismissed"}.get(row.status, "new"),
                 "account_id": link.account_id if link else None, "link_basis": link.basis if link else None,
                 "people": len(v.get("people") or []), "contact_routes": len(v.get("contact_routes") or []),
@@ -353,9 +356,14 @@ def _fit(item: dict, prefs: dict, sector: str) -> dict:
     else:
         unknown.append("Services not stated")
     place = f"{item.get('nation') or ''} {item.get('region') or ''}".lower()
+    # Free-text places ("Selby, North Yorkshire") rarely name a nation: an English region means England, another named
+    # nation means outside; anything else is not confirmed, never "outside".
+    if not item.get("nation") and any(r in place for r in REGIONS):
+        place += " england"
     territory = [t for t in prefs["territory"] if t.lower() in place]
-    (matched.append(f"In your territory: {territory[0]}") if territory else gaps.append("Outside your recorded territory") if prefs["territory"] and place.strip()
-     else unknown.append("Location not stated" if prefs["territory"] else "Your territory is not set"))
+    named_nation = any(n in place for n in NATIONS)
+    (matched.append(f"In your territory: {territory[0]}") if territory else gaps.append("Outside your recorded territory") if prefs["territory"] and named_nation
+     else unknown.append(("Location not confirmed against your territory" if place.strip() else "Location not stated") if prefs["territory"] else "Your territory is not set"))
     if prefs["sectors"]:
         hit = [s for s in prefs["sectors"] if s.lower() in (sector or "").lower() or s.lower() in item["title"].lower()]
         matched.append(f"Target sector: {hit[0]}") if hit else unknown.append("Sector not matched to your targets")

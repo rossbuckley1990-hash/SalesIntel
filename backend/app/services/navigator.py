@@ -19,7 +19,7 @@
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 import hashlib
 import json
@@ -426,6 +426,10 @@ def save(db: Session, account: Account, accepted: list[tuple[Candidate, str, lis
     added = updated = held_back = 0
     people = {c.value.lower(): c for c, _, _ in accepted if c.kind == 'person'}
     for c, quality, reasons in accepted:
+        if c.kind != 'person' and c.person and c.source != 'provider' and _norm(c.person) not in _norm(c.quote or ''):
+            # The research said this route was a person's; its own source does not name them. Keep it as a role route.
+            c = replace(c, person='', role='' if c.role and people.get(c.person.lower()) and c.role == people[c.person.lower()].role else c.role)
+            reasons = [*reasons, 'Its source does not name a person, so it is kept as a role or department route.']
         key = (('email', c.value.lower()) if c.kind == 'email' else ('phone', re.sub(r'\D', '', c.value)) if c.kind in ('phone', 'switchboard')
                else ('notice', c.value) if c.kind == 'procurement_notice' else ('person', c.value.lower()) if c.kind == 'person' else ('form', c.value))
         role_from = people.get((c.person or '').lower())

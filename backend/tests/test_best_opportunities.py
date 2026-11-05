@@ -55,8 +55,10 @@ def test_best_opportunities_are_ranked_by_explained_tiers_never_by_a_score(hoste
     assert h_item['cautions'][0].startswith('Inferred, not advertised')  # an inference is never presented as confirmed
     assert len({x['organisation'] for x in best['items']}) == len(best['items'])  # one row per organisation
     assert best['profile']['basis'] == 'stated' and best['profile']['minimum_won'] == 5  # too few wins to learn from
-    # Presented leads are recorded once a day, for later relevance measurement.
-    alice.get('/api/si/best')
+    # A lead counts as presented only when the interface reports it on screen, once a day (not when the API is read).
+    keys = [x['key'] for x in best['items']]
+    alice.post('/api/si/best/seen', json={'keys': keys})
+    alice.post('/api/si/best/seen', json={'keys': keys})
     from app.models.crm import FunnelEvent
     with h.system() as db:
         refs = [e.ref for e in db.scalars(select(FunnelEvent).where(FunnelEvent.event == 'lead_presented'))]
@@ -207,7 +209,7 @@ def test_an_account_without_evidence_is_never_assumed_to_be_a_new_site_or_a_tend
     alice, _ = workspace(h, 'alice', 'Alpha Fire Ltd')
     made = alice.post('/api/si/accounts', json={'name': 'Example Hand Added Ltd'}).json()
     play = alice.get(f"/api/si/accounts/{made['account_id']}/play").json()
-    assert play['play'] == 'develop' and 'no public signal' in play['hypothesis']
+    assert play['play'] == 'develop' and 'establish directly' in play['hypothesis'] and 'new site' not in play['label'].lower()
     steps = {s['key']: s['state'] for s in play['steps']}
     assert steps['evidence'] == 'todo' and steps['qualify'] == 'todo' and play['done'] == 0
 

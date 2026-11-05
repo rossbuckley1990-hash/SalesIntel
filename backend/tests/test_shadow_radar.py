@@ -40,12 +40,13 @@ def works(buyer, published, title='New community centre - main works', supplier=
 
 def test_real_capture_is_classified_conservatively():
     kept = {n['title']: aw.classify(n) for n in CAPTURE['notices']}
-    assert sum(1 for v in kept.values() if v) == 97 and len(CAPTURE['notices']) == 631
+    assert sum(1 for v in kept.values() if v) == 96 and len(CAPTURE['notices']) == 631  # 97 before the golf-course irrigation false positive was excluded (PR #9)
     anchor = next(v for t, v in kept.items() if t == 'Anchor Housing - New Build Development')
     assert anchor['signal_type'] == 'works_awarded' and anchor['supplier'] == 'Meldrum Group Limited' and anchor['detail']['building_type'] == 'residential'
     assert anchor['detail']['licence'].startswith('Contains public sector information licensed under the Open Government Licence')
     for noise in ('CCS PM and Design Ottawa Residence Refurbishment', 'Ascent Homes - Coulson Park - Groundworks', 'Two Play Park Upgrade Projects',
-                  'CA17674 - Lionheart Educational Trust - Kitchen Refurbishment', 'Weel Bridge Refurbishment', 'Sales Agent'):
+                  'CA17674 - Lionheart Educational Trust - Kitchen Refurbishment', 'Weel Bridge Refurbishment', 'Sales Agent',
+                  'Refurbishment of the Irrigation System at Mowsbury Golf Course, Bedford - Phase 1 - AWARD'):
         assert not kept.get(noise), noise  # overseas, groundworks, play parks, kitchens, bridges and non-works are not building leads
 
 

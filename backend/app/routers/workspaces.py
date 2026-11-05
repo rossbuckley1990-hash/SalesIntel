@@ -83,7 +83,7 @@ def workspace(ctx: Context = Depends(current_context), db: Session = Depends(get
 
 class MyProfile(Strict):
     territory: list[str] | None = Field(None, max_length=12)
-    services: list[str] | None = Field(None, max_length=12)
+    services: list[str] | None = Field(None, max_length=16)
     target_amount: StrictStr | StrictInt | StrictFloat | None = None
     target_basis: Literal['annual_contract_value', 'total_contract_value', 'gross_margin'] | None = None
     target_period: Literal['annual', 'quarterly', 'monthly'] | None = None

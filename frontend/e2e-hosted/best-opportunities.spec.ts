@@ -116,7 +116,7 @@ test("Scenario A: from the daily list to a qualified deal, with every claim sour
   await expect(page.getByText(/Follow up with Harbourside Community Health|Called the estates team/).first()).toBeVisible();
   mark("Return and continue");
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "Accounts", exact: true }).click();
-  await page.getByRole("button", { name: "Harbourside Community Health" }).click();
+  await page.getByRole("table").getByRole("button", { name: "Harbourside Community Health" }).click();
   await expect(page.getByRole("region", { name: "Missing information" }).getByRole("listitem").filter({ hasText: "Current fire and security supplier" })).toContainText("Coastline Fire Services");
   await expect(page.getByRole("region", { name: "Play" })).toContainText("Deal:");
   writeFileSync("../docs/saas/ux-timings.json", JSON.stringify({ scenario: "A: unadvertised new site, replayed research", recorded: new Date().toISOString().slice(0, 10), marks }, null, 2));

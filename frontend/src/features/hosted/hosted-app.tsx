@@ -19,24 +19,25 @@ const SiDiscover = dynamic(() => import("@/features/workspace/si-discover").then
 const SiAccounts = dynamic(() => import("@/features/workspace/si-accounts").then((m) => m.SiAccounts));
 const SiEngage = dynamic(() => import("@/features/workspace/si-engage").then((m) => m.SiEngage));
 const SiDeals = dynamic(() => import("@/features/workspace/si-deals").then((m) => m.SiDeals));
+const SiReview = dynamic(() => import("@/features/workspace/si-review").then((m) => m.SiReview));
 
 type Me = { mode: string; user: { id: number; name: string; email: string }; workspaces: { id: number; name: string; role: string; role_label: string }[] };
 type Target = { amount: string | null; basis: string | null; basis_label: string | null; period: string | null };
 type Current = { id: number; name: string; role: string; role_label: string; permissions: string[]; me: { territory: string[]; services: string[]; target: Target }; target_bases: Record<string, string> };
 type Member = { user_id: number; name: string; email: string; role: string; role_label: string; target: Target };
-type View = "today" | "find" | "clients" | "engage" | "deals" | "team" | "settings";
+type View = "today" | "find" | "clients" | "engage" | "deals" | "team" | "settings" | "review";
 
 const NAV: { id: View; label: string; icon: typeof CalendarCheck }[] = [
   { id: "today", label: "Today", icon: CalendarCheck }, { id: "find", label: "Discover", icon: Compass }, { id: "clients", label: "Accounts", icon: Building2 },
   { id: "engage", label: "Engage", icon: Mail }, { id: "deals", label: "Deals", icon: Briefcase },
 ];
 const LOWER: { id: View; label: string; icon: typeof CalendarCheck }[] = [{ id: "team", label: "Team", icon: Users }, { id: "settings", label: "My settings", icon: Settings }];
-const TITLE: Record<View, string> = { today: "Today", find: "Discover", clients: "Accounts", engage: "Engage", deals: "Deals", team: "Team", settings: "My settings" };
+const TITLE: Record<View, string> = { today: "Today", find: "Discover", clients: "Accounts", engage: "Engage", deals: "Deals", team: "Team", settings: "My settings", review: "Blind review" };
 const PERIODS: [string, string][] = [["annual", "a year"], ["quarterly", "a quarter"], ["monthly", "a month"]];
 
 function viewFromUrl(): View {
   const v = new URL(window.location.href).searchParams.get("view") as View | null;
-  return v && ["today", "find", "clients", "engage", "deals", "team", "settings"].includes(v) ? v : "today";
+  return v && ["today", "find", "clients", "engage", "deals", "team", "settings", "review"].includes(v) ? v : "today";
 }
 
 export function HostedApp() {
@@ -270,6 +271,7 @@ function Frame({ me, current, reload, loadCurrent }: { me: Me; current: Current;
             {view === "deals" && <SiDeals {...shared} />}
             {view === "team" && <Team current={current} notify={notify} />}
             {view === "settings" && <MySettings current={current} notify={notify} saved={() => { void loadCurrent(); reload(); }} />}
+            {view === "review" && <SiReview notify={notify} admin={current.permissions.includes("members.manage")} />}
           </div>
         </main>
       </div>
@@ -370,6 +372,11 @@ function Team({ current, notify }: { current: Current; notify: (m: string, e?: b
         {manage ? <select aria-label={`Role for ${m.name || m.email}`} className="ds-select" value={m.role} onChange={(e) => void change(m.user_id, e.target.value)}>{members?.roles.map((r) => <option key={r.role} value={r.role}>{r.label}</option>)}</select>
           : <span className="text-[13px] text-ds-ink-2">{m.role_label}</span>}
       </div>)}</div>
+      <section className="ds-card flex flex-wrap items-center justify-between gap-3 p-4" aria-label="Opportunity review">
+        <div><p className="text-[14px] font-semibold text-ds-ink">Blind opportunity review</p>
+          <p className="text-[12.5px] text-ds-muted">Judge a frozen sample of discovered opportunities without being told where each came from. Your answers measure whether SalesIntel finds better leads.</p></div>
+        <a className="ds-btn" href="/?view=review">Open the review</a></section>
+      <ResearchBudget manage={manage} notify={notify} />
       {manage && <form className="ds-card space-y-3 p-4" onSubmit={invite} aria-label="Invite a colleague">
         <p className="text-[14px] font-semibold text-ds-ink">Invite a colleague</p>
         <div className="flex flex-wrap gap-2"><input className="ds-input h-10 min-w-[220px] flex-1" type="email" aria-label="Colleague's email" placeholder="name@company.co.uk" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -379,5 +386,41 @@ function Team({ current, notify }: { current: Current; notify: (m: string, e?: b
           <input readOnly aria-label="Invitation link" className="ds-input mt-2 h-9 w-full font-mono text-[12px]" value={link} onFocus={(e) => e.target.select()} /></div>}
       </form>}
     </div>
+  );
+}
+
+type BudgetT = { approved_cents: number; reserved_cents: number; spent_cents: number; remaining_cents: number; approved: boolean; live_provider: boolean };
+
+/** Live paid research runs only against a budget an administrator approved. It is a hard ceiling, enforced on the server. */
+function ResearchBudget({ manage, notify }: { manage: boolean; notify: (m: string, e?: boolean) => void }) {
+  const [b, setB] = useState<BudgetT | null>(null);
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const load = useCallback(async () => { try { setB(await si<BudgetT>("/research-budget")); } catch { /* optional */ } }, []);
+  useEffect(() => { void load(); }, [load]);
+  const money = (c: number) => "$" + (c / 100).toFixed(2);
+  async function approve(e: FormEvent) {
+    e.preventDefault();
+    try {
+      await si("/research-budget", { method: "POST", json: { amount_cents: Math.round(Number(amount) * 100), note } });
+      notify("Research budget approved. Live research stops when it is used up."); setAmount(""); setNote(""); void load();
+    } catch (err) { notify((err as Error).message, true); }
+  }
+  if (!b) return null;
+  const figures: [string, number][] = [["Approved", b.approved_cents], ["Spent", b.spent_cents], ["Committed", b.reserved_cents], ["Remaining", b.remaining_cents]];
+  return (
+    <section className="ds-card p-4" aria-label="Research budget">
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="text-[14px] font-semibold text-ds-ink">Research budget</p>
+        <p className="text-[12px] text-ds-muted">{b.live_provider ? "Live, paid web research is configured." : "Live research is not configured here; nothing is charged."}</p></div>
+      <dl className="mt-3 grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-4">
+        {figures.map(([k, v]) => <div key={k}><dt className="text-[12px] text-ds-muted">{k}</dt><dd className="si-mono text-ds-ink">{money(v)}</dd></div>)}
+      </dl>
+      {!b.approved && <p className="mt-2 text-[12.5px] text-ds-ink-2">No budget approved: investigations and gap research that would call a paid provider are refused, and nothing is charged.</p>}
+      {manage && <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={approve} aria-label="Approve research budget">
+        <label className="block"><span className="ds-label">Add (US$)</span><input className="ds-input mt-1 !w-28 !pl-3" inputMode="decimal" aria-label="Budget to add" value={amount} onChange={(e) => setAmount(e.target.value)} required /></label>
+        <label className="block min-w-[200px] flex-1"><span className="ds-label">Purpose</span><input className="ds-input mt-1 !pl-3" aria-label="Budget purpose" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Pilot evaluation, 20 investigations" /></label>
+        <button className="ds-btn primary">Approve</button>
+      </form>}
+    </section>
   );
 }

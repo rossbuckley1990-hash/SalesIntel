@@ -30,7 +30,7 @@ PLAYS = {
     'expansion': {'label': 'Estate expansion', 'hypothesis': 'An existing customer\'s new site or contract event may extend your relationship.',
                   'qualify': ['The new site belongs to the same organisation (not a namesake)', 'Whether your current contract covers it',
                               'Who decides for the new site', 'Timing of fit-out or handover']},
-    'develop': {'label': 'Account development', 'hypothesis': 'Added by your team, with no public signal linked yet: establish directly whether there is a need.',
+    'develop': {'label': 'Account development', 'hypothesis': 'No new-site, tender or supplier-change evidence: establish directly whether there is a need. Any signal is a reason to call, not a requirement.',
                 'qualify': ['Who is responsible for fire and security, and who decides', 'What is in place today and who maintains it',
                             'Any contract end, change or pain the customer states', 'Timing and budget route for any change']},
     'supplier_review': {'label': 'Potential supplier review', 'hypothesis': 'A documented supplier change or performance event may open a conversation about alternatives.',
@@ -42,14 +42,16 @@ SENSOR_PLAY = {'estate_mobilisation': 'new_site', 'adjacent_package': 'new_site'
 GAPS = {  # (gap, subject, question) the play needs answered, beyond the committee
     'new_site': [('site_status', 'Site status', 'Has construction started, and when does the new site open?'),
                  ('site_operator', 'Who will run the site', 'Who will operate and maintain the new building after handover?'),
-                 ('incumbent', 'Current fire and security supplier', 'Which company currently maintains this organisation\'s fire or security systems?')],
+                 ('incumbent', 'Current fire and security supplier', 'Which company currently maintains this organisation\'s fire or security systems?'),
+                 ('contract_end', 'Contract end date', 'When does the current fire and security maintenance contract end, and could it absorb the new site?')],
     'renewal': [('contract_end', 'Contract end date', 'When does the current contract end, and are there extension options?'),
                 ('incumbent', 'Current supplier', 'Which company currently holds this contract?'),
                 ('award_document', 'Original award notice', 'Where is the original contract award notice published?')],
     'public_tender': [('evaluation_criteria', 'Evaluation criteria', 'What are the published evaluation criteria and weightings?'),
                       ('incumbent', 'Current supplier', 'Which company currently provides this service?')],
     'expansion': [('site_status', 'New site status', 'Has the new site opened, and who operates it?'),
-                  ('incumbent', 'Current supplier at the new site', 'Which company maintains fire or security systems at the new site?')],
+                  ('incumbent', 'Current supplier at the new site', 'Which company maintains fire or security systems at the new site?'),
+                  ('site_operator', 'Who will run the site', 'Who operates the new site day to day, and who decides on its fire and security?')],
     'develop': [('incumbent', 'Current fire and security supplier', 'Which company currently maintains this organisation\'s fire or security systems?'),
                 ('contract_end', 'Contract end date', 'When does the current fire or security maintenance contract end?')],
     'supplier_review': [('incumbent', 'Current supplier', 'Which company currently provides fire or security services here?'),
@@ -73,7 +75,16 @@ def play_for(db: Session, account: Account) -> str:
             category = (found[1].get('category') if found else '') or ''
             return 'public_tender' if category in ('live_procurement', 'official_early_signal') else 'renewal'
         if link.entity_type == 'prospect':
-            return 'new_site'
+            # Only sourced, stated evidence of a site makes this a new-site play; otherwise develop the account.
+            from app.models.prospect import Prospect
+            row = db.get(Prospect, link.entity_id)
+            sourced = {x.get('type') for x in ((row.data.get('signals') if row else None) or [])
+                       if x.get('source_url') and x.get('basis') in ('stated', 'published')}
+            if sourced & {'new_site', 'relocation', 'planning_application'}:
+                return 'new_site'
+            if 'incumbent_poor_performance' in sourced:
+                return 'supplier_review'
+            return 'develop'
     return 'develop'  # no linked evidence: never assume a new building or a tender
 
 

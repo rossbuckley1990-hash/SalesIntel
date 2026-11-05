@@ -36,7 +36,7 @@ WORKS = [('new_build', re.compile(r'\bnew[\s-]?build\b|\bconstruction of\b|\bnew
          ('fit_out', re.compile(r'\bfit[\s-]?out\b|\bcat(?:egory)?[\s-]?[ab]\b', re.I))]
 DIRECT = re.compile(r'\bfire\b|\bcctv\b|\bsecurity\b|\baccess control\b|\bintruder\b|\bsprinkler', re.I)  # already a fire/security procurement
 NOT_WORKS = re.compile(r'\b(?:sales agent|consultan\w*|surveyor|surveys?|quantity survey\w*|legal|valuation|insurance|feasibility|design team|design (?:and|&) project management|'
-                       r'project manage\w*|pm and design|architect\w*|riba [0-4]\b|cleaning|catering|grounds maintenance|roads?|sewers?|drainage|groundworks|'
+                       r'project manage\w*|pm and design|architect\w*|riba [0-4]\b|cleaning|catering|grounds maintenance|roads?|sewers?|drainage|irrigation|groundworks|'
                        r'landscap\w*|demolition only|highway\w*|pavement|footpath|footbridge|bridge|dam|reservoir|canal|flood|coastal|railway|rail|cycle\w*|'
                        r'play ?parks?|playground|play equipment|recreation ground|bus services?|kitchen|bathrooms?|voids?|responsive repairs|repairs (?:and|&) maintenance|'
                        r'painting|sealants?|lighting, sound|rigging|geotechnical|manager|change management|support services|maintenance services|'

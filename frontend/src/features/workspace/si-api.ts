@@ -64,7 +64,8 @@ export type DealT = {
 export type DealCard = { id: number; title: string; account: string | null; account_id: number; stage: string; services: string[]; value_total: number | null; value_annual: number | null; value_basis: string; next_step: string; quote_status: string | null; updated_at: string };
 export type Prefs = { territory: string[]; services: string[]; company_name: string; sender_name: string };
 
-export const SERVICES: [string, string][] = [["fire_alarm", "Fire alarm"], ["cctv", "CCTV"], ["access_control", "Access control"], ["intruder", "Intruder"], ["emergency_lighting", "Emergency lighting"], ["sprinkler", "Sprinklers"], ["monitoring", "Monitoring"]];
+export const SERVICES: [string, string][] = [["fire_alarm", "Fire alarm"], ["cctv", "CCTV"], ["access_control", "Access control"], ["intruder", "Intruder"], ["emergency_lighting", "Emergency lighting"], ["sprinkler", "Sprinklers"], ["monitoring", "Monitoring"],
+  ["extinguishers", "Fire extinguishers"], ["fire_risk_assessment", "Fire risk assessment"], ["passive_fire", "Passive fire protection"], ["smoke_control", "Smoke control"]];
 export const SERVICE_NAME: Record<string, string> = Object.fromEntries(SERVICES);
 export const STAGE_LABEL: Record<string, string> = { qualify: "Qualify", engage: "Engage", survey: "Survey", proposal: "Proposal", bid_review: "Bid review", negotiation: "Negotiation", approval: "Approval", won: "Won", lost: "Lost" };
 export const OUTCOMES: [string, string][] = [["", "No outcome"], ["connected", "Spoke to them"], ["no_answer", "No answer"], ["left_message", "Left a message"], ["interested", "Interested"], ["not_interested", "Not interested"], ["meeting_booked", "Meeting booked"], ["requirement_captured", "Requirement captured"], ["call_back", "Asked to call back"]];

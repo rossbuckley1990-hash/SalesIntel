@@ -21,7 +21,7 @@ export type BestItem = {
 };
 type ProfileT = { basis: "stated" | "learned"; stated: { services: string[]; territory: string[]; sectors: string[] }; complete: boolean; caveat: string; won: number; minimum_won: number;
   learned: { sectors: { name: string; won: number }[]; services: { name: string; won: number }[]; median_total_value: number | null; median_days_to_win: number | null } | null };
-type BestT = { as_of: string; items: BestItem[]; total: number; tiers: Record<string, number>; set_aside: { reason: string; count: number }[]; profile: ProfileT; method: string };
+type BestT = { as_of: string; items: BestItem[]; total: number; in_view: number; tiers: Record<string, number>; set_aside: { reason: string; count: number }[]; profile: ProfileT; method: string };
 type Finding = { answer: string; text: string; quote: string; source_url: string; source_date: string; official: boolean };
 export type GapReqT = { id: number; gap: string; subject: string; question: string; status: string; summary: string; findings: Finding[]; rejected: { text: string; source: string; reason: string }[];
   sources: number; job_id: number | null; cost_cents: number; created_at: string; resolved_at: string | null; job?: JobT | null; reused?: boolean };
@@ -45,6 +45,31 @@ export function BestOpportunities({ notify }: { notify: (m: string, e?: boolean)
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   useEffect(() => { si<BestT>("/best").then(setData).catch((e) => setError((e as Error).message)); }, []);
+  // A lead counts as presented only once its card has been at least half on screen for a second, never because the list loaded.
+  const list = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    const root = list.current;
+    if (!data || !root || typeof IntersectionObserver === "undefined") return;
+    const sent = new Set<string>();
+    const pending = new Map<string, ReturnType<typeof setTimeout>>();
+    let batch: string[] = [];
+    let flush: ReturnType<typeof setTimeout> | null = null;
+    const report = (key: string) => {
+      if (sent.has(key)) return;
+      sent.add(key); batch.push(key);
+      if (!flush) flush = setTimeout(() => { const keys = batch; batch = []; flush = null; void si("/best/seen", { method: "POST", json: { keys } }).catch(() => {}); }, 400);
+    };
+    const observer = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const key = (e.target as HTMLElement).dataset.lead;
+        if (!key) continue;
+        if (e.isIntersecting && !pending.has(key)) pending.set(key, setTimeout(() => report(key), 1000));
+        if (!e.isIntersecting && pending.has(key)) { clearTimeout(pending.get(key)); pending.delete(key); }
+      }
+    }, { threshold: 0.5 });
+    root.querySelectorAll<HTMLElement>("[data-lead]").forEach((el) => observer.observe(el));
+    return () => { observer.disconnect(); pending.forEach(clearTimeout); if (flush) clearTimeout(flush); };
+  }, [data]);
 
   async function investigate(x: BestItem) {
     if (x.account_id) return goto("clients", { account: x.account_id });
@@ -67,7 +92,8 @@ export function BestOpportunities({ notify }: { notify: (m: string, e?: boolean)
     <section aria-label="Your best opportunities" className="space-y-3">
       <div className="si-section-head">
         <div><h2 className="!text-[15px]">Your best opportunities</h2>
-          <p>{data ? `${data.items.length} of ${data.total} worth your time, ranked by the reasons shown. No score or probability is used.` : "Ranking today's leads against your profile…"}</p></div>
+          <p>{data ? <>{data.items.length} worth your time, ranked by the reasons shown; no score or probability is used.
+            {data.in_view > 0 && <> {data.in_view} more are kept in view in <button className="font-medium text-ds-ink underline decoration-ds-border-strong underline-offset-2" onClick={() => goto("find")}>Discover</button>.</>}</> : "Ranking today's leads against your profile…"}</p></div>
         {data && <details className="relative text-right"><summary className="cursor-pointer text-[12px] font-medium text-ds-ink-2 hover:text-ds-ink">How these are chosen <ChevronDown size={12} className="si-chevron inline" /></summary>
           <div className="absolute right-0 z-10 mt-2 w-[min(420px,85vw)] rounded-[10px] border border-ds-border bg-white p-4 text-left text-[12.5px] leading-[19px] text-ds-ink-2 shadow-ds-lg">
             <p className="font-semibold text-ds-ink">{data.profile.basis === "learned" ? "Your stated profile and patterns in your won deals" : "Your stated profile"}</p>
@@ -80,14 +106,14 @@ export function BestOpportunities({ notify }: { notify: (m: string, e?: boolean)
       {error && <p role="alert" className="text-[13px] text-ds-red">{error}</p>}
       {!data && !error && <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="ds-skeleton h-[118px] rounded-[10px]" />)}</div>}
       {data && !data.items.length && <p className="ds-card px-4 py-6 text-[13px] text-ds-muted">Nothing fits your profile today. Widen your services or territory, or run new research in Discover.</p>}
-      <ol className="si-stagger space-y-2">
+      <ol ref={list} className="si-stagger space-y-2">
         {data?.items.map((x) => {
           const head = x.tier_label !== last ? x.tier_label : null;
           last = x.tier_label;
           return (
             <li key={x.key}>
               {head && <p className={`si-eyebrow mb-2 mt-4 first:mt-0 ${x.tier === "act_now" ? "!text-[#c2410c]" : ""}`}>{head}</p>}
-              <article aria-label={x.organisation} className="ds-card si-best p-4">
+              <article aria-label={x.organisation} data-lead={x.key} className="ds-card si-best p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-x-2 gap-y-1">

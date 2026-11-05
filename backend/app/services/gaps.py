@@ -176,6 +176,15 @@ def _verify_contact(db: Session, row: GapRequest, account: Account, meter, step)
     hits = [u for u, text in excerpts.items() if navigator._norm(value) in navigator._norm(text) and not navigator.INJECTION.search(text)]
     official = [u for u in hits if _official(u, domain)]
     cost, sources = meter.cents, len(retrieved)
+    if official and contact.name:
+        page = navigator._norm(excerpts[official[0]])
+        role_words = [w for w in navigator._norm(contact.role or '').split() if len(w) > 3]
+        if navigator._norm(contact.name) not in page or (role_words and not any(w in page for w in role_words)):
+            missing = 'name them' if navigator._norm(contact.name) not in page else 'state their role'
+            return _finish(db, row, 'partial', f"{value} is published on an official page, but that page does not {missing}, so it is not confirmed as "
+                           f"{contact.name}'s current address. It may be a shared or departmental route; confirm with the organisation.",
+                           findings=[{'answer': value, 'text': f"{value} is published, without {contact.name}", 'quote': value, 'source_url': official[0],
+                                      'source_date': '', 'official': True}], sources=sources, cost=cost)
     if official:
         contact.verified_at, contact.verification_method = datetime.now(UTC), f"Published on {official[0]}, checked {datetime.now(UTC):%-d %B %Y}"
         if contact.quality not in ('provider_verified',):

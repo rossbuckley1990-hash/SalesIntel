@@ -35,7 +35,7 @@ export type SourceSummary = {
 export type ContactT = { id: number; name: string | null; role: string; email: string | null; phone: string | null; label: string; basis: "published" | "user_entered"; source_url: string | null; source_quote: string | null; status: "unverified" | "verified" | "do_not_contact"; influence: string };
 export type ActivityT = { id: number; kind: string; direction: string; summary: string; outcome: string; requirements: string; objections: string; commitments: string; occurred_at: string; contact_id: number | null; deal_id: number | null; draft_id: number | null };
 export type TaskT = { id: number; title: string; due_on: string; status: "open" | "done" | "cancelled"; account_id: number; deal_id: number | null; account?: string };
-export type DraftT = { id: number; account_id: number; contact_id: number | null; deal_id: number | null; channel: string; subject: string; body: string; evidence: Evidence[]; gaps: string[]; status: "draft" | "approved" | "logged"; updated_at: string; account?: string };
+export type DraftT = { id: number; account_id: number; contact_id: number | null; deal_id: number | null; channel: string; subject: string; body: string; evidence: Evidence[]; gaps: string[]; status: "draft" | "approved" | "logged" | "suppressed"; updated_at: string; account?: string };
 export type AccountT = {
   id: number; name: string; kind: string; company_number: string | null; website: string | null; sector: string | null; region: string | null; status: string; watched: boolean; notes: string;
   identities: { name_seen: string; entity_type: string; entity_id: number; basis: string; confirmed: boolean }[];
@@ -47,11 +47,12 @@ export type AccountRow = { id: number; name: string; kind: string; region: strin
 export type QueueItem = { kind: "follow_up" | "draft" | "deal" | "intelligence"; priority: number; title: string; why: string; account: string | null; account_id: number; deal_id?: number | null; task_id?: number; draft_id?: number; due_on?: string };
 export type TodayT = { queue: QueueItem[]; upcoming: TaskT[]; new_leads: Lead[]; as_of: string };
 export type ScopeItem = { service: string; field: string; question: string; unit: string; value: string | number | null; basis: string | null };
-export type QuoteLine = { key: string; description: string; quantity: number | null; quantity_basis: string | null; unit: string; rate: number | null; total: number | null; warning: string };
+export type QuoteLine = { key: string; description: string; quantity: number | null; quantity_basis: string | null; unit: string; rate: string | null; total: string | null; warning: string };
+export type Approval = { version: number; reviewer: string; approved_at: string; subtotal: string | null; superseded_at?: string; superseded_reason?: string };
 export type DealT = {
   id: number; title: string; stage: string; stages: string[]; account_id: number; account: string; opportunity_id: number; origin_type: string | null; origin: Partial<SourceSummary> & { captured_at?: string };
   services: string[]; work_type: string; work_types: Record<string, string>; qualification: Record<string, string>; value_annual: number | null; value_total: number | null; value_basis: string;
-  next_step: string; scope: ScopeItem[]; quote: { status?: string; lines?: QuoteLine[]; rates?: Record<string, number>; missing?: string[]; subtotal?: number | null; partial_total?: number | null; approved_by?: string | null; terms_note?: string };
+  next_step: string; scope: ScopeItem[]; quote: { status?: "draft" | "approved" | "superseded"; version?: number; lines?: QuoteLine[]; rates?: Record<string, string>; missing?: string[]; subtotal?: string | null; partial_total?: string | null; approved_by?: string | null; terms_note?: string; approvals?: Approval[]; superseded_reason?: string | null };
   handover: Record<string, unknown>; outcome_reason: string; activities: ActivityT[]; tasks: TaskT[]; service_labels: Record<string, string>;
 };
 export type DealCard = { id: number; title: string; account: string | null; account_id: number; stage: string; services: string[]; value_total: number | null; value_annual: number | null; value_basis: string; next_step: string; quote_status: string | null; updated_at: string };
@@ -90,3 +91,12 @@ export function dayLabel(iso: string | null | undefined) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 export const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+
+/** Show an exact amount (a decimal string from the API) without passing it through floating point. */
+export function pounds(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return "Unknown";
+  const [whole, fraction = ""] = String(value).split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const pence = fraction.length === 0 ? "" : `.${fraction.padEnd(2, "0")}`;
+  return `£${grouped}${pence}`;
+}

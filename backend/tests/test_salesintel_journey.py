@@ -181,7 +181,7 @@ def test_e_unknown_facts_stay_unknown(env):
                                                                   {"service": "fire_alarm", "field": "panel_make", "value": "Unknown model", "basis": "customer_stated"}]})
     rates = {"fire_alarm.panels": 150, "fire_alarm.devices": 4, "fire_alarm.visits_per_year": 300}
     quote = c.post(f"/api/si/deals/{deal['id']}/quote", json={"rates": rates}).json()["quote"]
-    assert quote["subtotal"] == 3 * 150 + 120 * 4 + 2 * 300 and any("Estimated quantity" in l["warning"] for l in quote["lines"])
+    assert quote["subtotal"] == "1530.00" and any("Estimated quantity" in l["warning"] for l in quote["lines"])
     assert c.post(f"/api/si/deals/{deal['id']}/quote/approve", json={"reviewer": "Pat Manager"}).status_code == 422  # estimate must be confirmed
     pr_account = c.post(f"/api/si/discover/pr:{pr}/account", json={}).json()["account_id"]
     assert c.get(f"/api/si/accounts/{pr_account}").json()["contacts"] == []
@@ -230,7 +230,7 @@ def test_h_qualified_opportunity_becomes_a_persistent_deal_through_to_handover(e
         assert c.patch(f"/api/si/deals/{deal['id']}", json={"stage": stage}).json()["stage"] == stage
     won = c.patch(f"/api/si/deals/{deal['id']}", json={"stage": "won", "reason": "Strong survey and local response"}).json()
     assert won["stage"] == "won" and won["handover"]["requirements"] == ["PPM for 2 sites"] and won["handover"]["commitments"] == ["Send scope by Friday"]
-    assert won["handover"]["quote"]["subtotal"] == 2 * 120 + 80 * 5 + 2 * 350 and won["handover"]["origin"]["key"] == key
+    assert won["handover"]["quote"]["subtotal"] == "1340.00" and won["handover"]["origin"]["key"] == key
     assert db.get(Opportunity, deal["opportunity_id"]).stage == "Won"
     reopened = c.get(f"/api/si/deals/{deal['id']}").json()
     assert reopened["origin"]["why_now"] and c.get(f"/api/si/accounts/{account_id}").json()["status"] == "customer"

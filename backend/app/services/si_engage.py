@@ -8,6 +8,9 @@ guesses, and quotes total only the quantities and rates a person has entered.
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+import hashlib
+import json
 from typing import Any
 
 from sqlalchemy import select
@@ -61,7 +64,17 @@ def update_contact(db: Session, contact_id: int, status: str) -> Contact:
     if not contact:
         raise LookupError("Contact not found")
     contact.status, contact.updated_at = status, now()
+    if status == "do_not_contact":
+        # Unsent drafts to this person can no longer be used. Sent history is left exactly as recorded.
+        for draft in db.scalars(select(Draft).where(Draft.contact_id == contact.id, Draft.status.in_(["draft", "approved"]))):
+            draft.status, draft.approved_at, draft.updated_at = "suppressed", None, now()
+            draft.gaps = [*draft.gaps, "The recipient asked not to be contacted. This draft cannot be sent."]
     return contact
+
+
+def _suppressed(db: Session, contact_id: int | None) -> bool:
+    contact = db.get(Contact, contact_id) if contact_id else None
+    return bool(contact and contact.status == "do_not_contact")
 
 
 # ---------------------------------------------------------------- introductions
@@ -144,6 +157,8 @@ def save_draft(db: Session, account_id: int, data: dict, draft_id: int | None = 
             raise LookupError("Draft not found")
         if draft.status == "logged":
             raise ValueError("This message was already logged as sent.")
+        if _suppressed(db, data.get("contact_id", draft.contact_id)):
+            raise PermissionError("This contact has asked not to be contacted.")
         for key in ("subject", "body", "contact_id"):
             if key in data:
                 setattr(draft, key, data[key])
@@ -162,6 +177,10 @@ def approve_draft(db: Session, draft_id: int) -> Draft:
     draft = db.get(Draft, draft_id)
     if not draft:
         raise LookupError("Draft not found")
+    if draft.status == "suppressed" or _suppressed(db, draft.contact_id):
+        raise PermissionError("This draft was suspended because its recipient asked not to be contacted. Check the opt-out, then save it again before approval.")
+    if draft.status == "logged":
+        raise ValueError("This message was already logged as sent.")
     if "[name]" in draft.body or "[your" in draft.body:
         raise ValueError("Fill in the placeholders before approving.")
     draft.status, draft.approved_at, draft.updated_at = "approved", now(), now()
@@ -173,6 +192,8 @@ def log_draft_sent(db: Session, draft_id: int, *, sent_externally: bool, follow_
     draft = db.get(Draft, draft_id)
     if not draft:
         raise LookupError("Draft not found")
+    if draft.status == "suppressed" or _suppressed(db, draft.contact_id):
+        raise PermissionError("This recipient asked not to be contacted, so this draft cannot be logged as sent. Record any earlier message as a note.")
     if not sent_externally:
         raise ValueError("Confirm you sent it yourself. SalesIntel does not send email.")
     if draft.status != "approved":
@@ -200,6 +221,8 @@ def log_activity(db: Session, account_id: int, data: dict, follow_up: dict | Non
         contact = db.get(Contact, data["contact_id"])
         if not contact or contact.account_id != account_id:
             raise LookupError("Contact not found on this account")
+        if contact.status == "do_not_contact" and (data.get("direction") or "outbound") == "outbound":
+            raise PermissionError("This contact asked not to be contacted. You can record inbound messages or notes.")
     moment = now()
     occurred = data.get("occurred_at")
     activity = Activity(account_id=account_id, deal_id=data.get("deal_id"), contact_id=data.get("contact_id"), draft_id=data.get("draft_id"), kind=data["kind"],
@@ -296,7 +319,7 @@ def create_deal(db: Session, account_id: int, data: dict) -> DealRecord:
         db.flush()
         opportunity_id = opp.id
     if data.get("value_total") is not None:
-        value_total, value_basis = float(data["value_total"]), "user_estimate"
+        value_total, value_basis = float(money(data["value_total"], "Deal value")), "user_estimate"
     moment = now()
     deal = DealRecord(opportunity_id=opportunity_id, account_id=account_id, title=title, stage="qualify", origin_type=(parse_key(source_key)[0] if source_key else None),
                       origin_id=(parse_key(source_key)[1] if source_key else None), origin=origin, services=[s for s in data.get("services") or [] if s in SERVICE_LABEL],
@@ -335,39 +358,140 @@ def scope_requirements(deal: DealRecord) -> list[dict]:
     return out
 
 
+# ---------------------------------------------------------------- money and quotations
+
+PENNY = Decimal("0.01")
+MAX_RATE_PLACES = 4            # unit rates may carry fractions of a penny; totals never do
+MAX_AMOUNT = Decimal("10000000")
+MAX_QUANTITY = 1_000_000
+
+
+def money(value: Any, field: str, *, places: int = 2, maximum: Decimal = MAX_AMOUNT) -> Decimal:
+    """An exact, validated amount. Rejects floats' artefacts, negatives, NaN, infinity and excess precision."""
+    if isinstance(value, bool) or value is None or (isinstance(value, str) and not value.strip()):
+        raise ValueError(f"{field}: enter an amount.")
+    try:
+        amount = Decimal(str(value).strip().replace(",", "").removeprefix("£"))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(f"{field}: '{value}' is not an amount.") from exc
+    if not amount.is_finite():
+        raise ValueError(f"{field}: '{value}' is not an amount.")
+    if amount < 0:
+        raise ValueError(f"{field}: amounts cannot be negative.")
+    if amount > maximum:
+        raise ValueError(f"{field}: {amount} is above the {maximum} limit.")
+    exponent = amount.as_tuple().exponent
+    if isinstance(exponent, int) and exponent < -places and amount != amount.quantize(Decimal(1).scaleb(-places)):
+        raise ValueError(f"{field}: use at most {places} decimal places.")
+    return amount
+
+
+def quantity(value: Any, field: str) -> int:
+    """A priced quantity: a whole number of panels, devices, visits and so on."""
+    if isinstance(value, bool):
+        raise ValueError(f"{field}: enter a whole number.")
+    try:
+        number = Decimal(str(value).strip().replace(",", ""))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(f"{field}: '{value}' is not a number.") from exc
+    if not number.is_finite() or number != number.to_integral_value() or number < 0 or number > MAX_QUANTITY:
+        raise ValueError(f"{field}: enter a whole number between 0 and {MAX_QUANTITY:,}.")
+    return int(number)
+
+
+def text(value: Decimal | None) -> str | None:
+    return None if value is None else format(value, "f")
+
+
+def _units(deal: DealRecord) -> dict[tuple[str, str], str]:
+    fields = [("common", f, u) for f, _, u in COMMON_FIELDS] + [(s, f, u) for s in deal.services for f, _, u in SCOPE_FIELDS.get(s, [])]
+    return {(s, f): u for s, f, u in fields}
+
+
+def inputs_fingerprint(deal: DealRecord, rates: dict | None = None) -> str:
+    """Everything a quotation depends on. If this changes, an approval no longer describes the deal."""
+    rates = rates if rates is not None else (deal.quote or {}).get("rates", {})
+    material = {"services": sorted(deal.services), "work_type": deal.work_type, "scope": deal.scope or {}, "rates": dict(sorted((rates or {}).items()))}
+    return hashlib.sha256(json.dumps(material, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def supersede(deal: DealRecord, reason: str) -> None:
+    """Record that the approved quotation no longer matches the deal, keeping the approval history."""
+    quote = dict(deal.quote or {})
+    if quote.get("status") != "approved":
+        return
+    approvals = [dict(a) for a in quote.get("approvals", [])]
+    if approvals:
+        approvals[-1].update({"superseded_at": now().isoformat(), "superseded_reason": reason})
+    deal.quote = {**quote, "status": "superseded", "approvals": approvals, "approved_by": None, "approved_at": None,
+                  "superseded_reason": reason}
+
+
 def update_scope(db: Session, deal_id: int, entries: list[dict]) -> DealRecord:
     deal = db.get(DealRecord, deal_id)
     if not deal:
         raise LookupError("Deal not found")
-    valid = {(s, f) for s, f, _, _ in [("common", f, q, u) for f, q, u in COMMON_FIELDS] + [(s, f, q, u) for s in deal.services for f, q, u in SCOPE_FIELDS.get(s, [])]}
+    units = _units(deal)
     scope = {k: dict(v) for k, v in (deal.scope or {}).items()}
     for e in entries:
         key = (e.get("service"), e.get("field"))
-        if key not in valid:
+        if key not in units:
             raise ValueError(f"Unknown scope item {key[1]} for {key[0]}.")
         if e.get("value") in (None, ""):
             scope.get(key[0], {}).pop(key[1], None)
             continue
         if e.get("basis") not in BASES:
             raise ValueError("Say whether each value was surveyed, stated by the customer, or estimated.")
-        scope.setdefault(key[0], {})[key[1]] = {"value": e["value"], "basis": e["basis"]}
-    deal.scope, deal.updated_at = scope, now()
+        value = e["value"]
+        if units[key]:
+            value = quantity(value, key[1].replace("_", " "))
+        else:
+            value = str(value).strip()[:200]
+        scope.setdefault(key[0], {})[key[1]] = {"value": value, "basis": e["basis"]}
+    if scope != (deal.scope or {}):
+        deal.scope = scope
+        supersede(deal, "Scope changed after approval.")
+    deal.updated_at = now()
     return deal
 
 
-def _number(value: Any) -> float | None:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def build_quote(db: Session, deal_id: int, rates: dict | None = None) -> DealRecord:
-    """A quotation draft: lines from the scope, priced only where a person gave a quantity and a rate."""
+def update_terms(db: Session, deal_id: int, *, services: list[str] | None = None, work_type: str | None = None) -> DealRecord:
     deal = db.get(DealRecord, deal_id)
     if not deal:
         raise LookupError("Deal not found")
-    rates = rates if rates is not None else (deal.quote or {}).get("rates", {})
+    if services is not None:
+        chosen = [s for s in dict.fromkeys(services) if s in SERVICE_LABEL]
+        if chosen != deal.services:
+            deal.services = chosen
+            supersede(deal, "Services changed after approval.")
+    if work_type is not None:
+        chosen_type = work_type if work_type in WORK_TYPES else ""
+        if chosen_type != deal.work_type:
+            deal.work_type = chosen_type
+            supersede(deal, "Type of work changed after approval.")
+    deal.updated_at = now()
+    return deal
+
+
+def build_quote(db: Session, deal_id: int, rates: dict | None = None) -> DealRecord:
+    """A quotation draft: lines from the scope, priced only where a person gave a quantity and a rate.
+
+    Amounts are exact decimals held as strings. Line totals round half up to the penny;
+    the total is given only when every line is priced.
+    """
+    deal = db.get(DealRecord, deal_id)
+    if not deal:
+        raise LookupError("Deal not found")
+    previous = dict(deal.quote or {})
+    raw = rates if rates is not None else previous.get("rates", {})
+    clean_rates: dict[str, str] = {}
+    priced_keys = {f"{s}.{f}" for (s, f), u in _units(deal).items() if u and s != "common"}
+    for key, value in (raw or {}).items():
+        if key not in priced_keys:
+            continue  # rates for services no longer in scope are dropped, not priced
+        if value in (None, ""):
+            continue
+        clean_rates[key] = text(money(value, f"Rate for {key}", places=MAX_RATE_PLACES))
     lines, missing = [], []
     for item in scope_requirements(deal):
         if item["service"] == "common":
@@ -377,22 +501,33 @@ def build_quote(db: Session, deal_id: int, rates: dict | None = None) -> DealRec
             if item["value"] is None:
                 missing.append(f"{label}: {item['question']}")
             continue
-        quantity = _number(item["value"])
-        rate = _number(rates.get(f"{item['service']}.{item['field']}"))
-        if quantity is None:
+        key = f"{item['service']}.{item['field']}"
+        qty = None if item["value"] is None else quantity(item["value"], item["question"])
+        rate = Decimal(clean_rates[key]) if key in clean_rates else None
+        if qty is None:
             missing.append(f"{label}: {item['question']}")
         if rate is None:
             missing.append(f"Rate per {item['unit']} for {label}")
-        lines.append({"key": f"{item['service']}.{item['field']}", "description": f"{label.capitalize()}: {item['question'].lower()}",
-                      "quantity": quantity, "quantity_basis": item["basis"], "unit": item["unit"], "rate": rate,
-                      "total": round(quantity * rate, 2) if quantity is not None and rate is not None else None,
+        total = (Decimal(qty) * rate).quantize(PENNY, rounding=ROUND_HALF_UP) if qty is not None and rate is not None else None
+        lines.append({"key": key, "description": f"{label.capitalize()}: {item['question'].lower()}",
+                      "quantity": qty, "quantity_basis": item["basis"], "unit": item["unit"], "rate": text(rate), "total": text(total),
                       "warning": "Estimated quantity: confirm by survey." if item["basis"] == "estimate" else ""})
     if not deal.services:
         missing.append("Choose the services in scope")
-    priced = [l["total"] for l in lines if l["total"] is not None]
-    deal.quote = {"status": "draft", "lines": lines, "rates": rates, "missing": missing, "subtotal": round(sum(priced), 2) if priced and len(priced) == len(lines) else None,
-                  "partial_total": round(sum(priced), 2) if priced else None, "built_at": now().isoformat(), "approved_by": None,
-                  "terms_note": "Draft for internal review. Not an offer. Quantities and rates must be confirmed before issue."}
+    priced = [Decimal(l["total"]) for l in lines if l["total"] is not None]
+    fingerprint = inputs_fingerprint(deal, clean_rates)
+    approvals = [dict(a) for a in previous.get("approvals", [])]
+    still_approved = previous.get("status") == "approved" and previous.get("approved_fingerprint") == fingerprint
+    if previous.get("status") == "approved" and not still_approved:
+        supersede(deal, "Rates or inputs changed after approval.")
+        approvals = [dict(a) for a in deal.quote.get("approvals", [])]
+    deal.quote = {"status": "approved" if still_approved else "draft", "currency": "GBP", "lines": lines, "rates": clean_rates, "missing": missing,
+                  "subtotal": text(sum(priced, Decimal("0")).quantize(PENNY)) if priced and len(priced) == len(lines) else None,
+                  "partial_total": text(sum(priced, Decimal("0")).quantize(PENNY)) if priced else None,
+                  "inputs_fingerprint": fingerprint, "version": previous.get("version", 0), "approvals": approvals,
+                  "approved_fingerprint": previous.get("approved_fingerprint") if still_approved else None,
+                  "approved_by": previous.get("approved_by") if still_approved else None, "approved_at": previous.get("approved_at") if still_approved else None,
+                  "built_at": now().isoformat(), "terms_note": "Draft for internal review. Not an offer. Quantities and rates must be confirmed before issue."}
     deal.updated_at = now()
     track(db, "quote_drafted")
     return deal
@@ -400,17 +535,33 @@ def build_quote(db: Session, deal_id: int, rates: dict | None = None) -> DealRec
 
 def approve_quote(db: Session, deal_id: int, reviewer: str) -> DealRecord:
     deal = db.get(DealRecord, deal_id)
-    if not deal or not deal.quote:
+    if not deal or not deal.quote or not deal.quote.get("lines") and not deal.quote.get("missing"):
         raise LookupError("Build a quotation draft first.")
-    if deal.quote.get("missing"):
+    quote = deal.quote
+    if quote.get("inputs_fingerprint") != inputs_fingerprint(deal, quote.get("rates", {})):
+        raise ValueError("The scope or rates changed since this draft was built. Rebuild the quotation before approval.")
+    if quote.get("missing"):
         raise ValueError("Resolve the missing inputs before approval.")
-    if any(l.get("quantity_basis") == "estimate" for l in deal.quote.get("lines", [])):
+    if any(l.get("quantity_basis") == "estimate" for l in quote.get("lines", [])):
         raise ValueError("Confirm estimated quantities by survey or customer before approval.")
     if not reviewer.strip():
         raise ValueError("Name the person approving.")
-    deal.quote = {**deal.quote, "status": "approved", "approved_by": reviewer.strip(), "approved_at": now().isoformat()}
+    if quote.get("status") == "approved":
+        return deal
+    version = len(quote.get("approvals", [])) + 1
+    stamp = now().isoformat()
+    approvals = [dict(a) for a in quote.get("approvals", [])] + [{"version": version, "reviewer": reviewer.strip(), "approved_at": stamp,
+                                                                  "subtotal": quote.get("subtotal"), "fingerprint": quote["inputs_fingerprint"]}]
+    deal.quote = {**quote, "status": "approved", "version": version, "approvals": approvals, "approved_by": reviewer.strip(), "approved_at": stamp,
+                  "approved_fingerprint": quote["inputs_fingerprint"], "superseded_reason": None}
     deal.updated_at = now()
+    track(db, "quote_approved")
     return deal
+
+
+def quote_is_current(deal: DealRecord) -> bool:
+    quote = deal.quote or {}
+    return quote.get("status") == "approved" and quote.get("approved_fingerprint") == inputs_fingerprint(deal, quote.get("rates", {}))
 
 
 def move_stage(db: Session, deal_id: int, stage: str, reason: str = "") -> DealRecord:
@@ -423,8 +574,9 @@ def move_stage(db: Session, deal_id: int, stage: str, reason: str = "") -> DealR
         raise ValueError("Record why it was won or lost.")
     if stage == "approval" and not deal.quote:
         raise ValueError("Build a quotation draft before commercial approval.")
-    if stage == "won" and (deal.quote or {}).get("status") != "approved":
-        raise ValueError("Approve the quotation before marking the deal won.")
+    if stage == "won" and not quote_is_current(deal):
+        raise ValueError("Approve the current quotation before marking the deal won. The approved version no longer matches the scope, services or rates."
+                         if (deal.quote or {}).get("approvals") else "Approve the quotation before marking the deal won.")
     deal.stage, deal.updated_at = stage, now()
     if stage in ("won", "lost"):
         deal.outcome_reason = reason.strip()

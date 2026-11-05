@@ -1,8 +1,8 @@
 # Hardening the sales loop: risk report
 
-Branch `fix/harden-sales-loop` (from `main` at `17bf166`). Not merged or deployed.
+Branch `fix/harden-sales-loop` (from `main` at `17bf166`). Not merged or deployed. Updated on 5 November 2026 for the final acceptance and release gate (section 8).
 
-**Exit criterion:** the discovery-to-won workflow is independently verified, commercially consistent and safe for continued local development. It is **met for local, single-user development**. It is **not met for an external or multi-user pilot**; the blockers are listed in section 6.
+**Exit criterion:** the discovery-to-won workflow is independently verified, commercially consistent and safe for continued local development. It is **met for local, single-user development**. It is **not met for an external or multi-user pilot**; the blockers are listed in section 6, and the risks are separated by category in section 9.
 
 ## 1. Defects reproduced and fixed
 
@@ -42,26 +42,37 @@ Stamping is left as a recorded decision for you. A verified backup is at `.runti
 
 ## 4. Background collectors after the folder move: resolved with authorisation
 
-Read-only checks found:
-- Four collectors are still running processes started on 4 November from `/Users/ross/Documents/MiSi - Mitie Sales Intelligence`. The fifth, contracts finder, cannot start (exit 78).
-- No collector has recorded a success in the live database since **07:07 on 5 November**.
-- The running processes hold the moved database open by file handle but resolve other paths against the old folder. They write lock, retry and report files there.
-- SQLite places its rollback journal next to the path it was *opened* with. A crash during a write would leave the recovery journal in a different directory from the database, which **risks corruption**.
-- Any new connection they make would create an empty database at the old path. None exists yet, and the live database passed its integrity check at 09:23.
+**What happened.**
+- After the project folder was renamed, four collectors were still running from `/Users/ross/Documents/MiSi - Mitie Sales Intelligence`.
+- The fifth, Contracts Finder, could not start (exit 78).
+- No collector had recorded a success since 07:07 on 5 November.
+- The running processes held the moved database open by file handle but wrote lock, retry and journal files against the old folder. A crash mid-write could have left SQLite's recovery journal in a different directory from the database.
 
-**Resolved at 09:51 on 5 November, with your authorisation.**
+**What was done, at 09:51 on 5 November, with your authorisation.**
 - A verified backup was taken first (`false-alarm-pilot-v2-20261105T095122Z.db`).
 - All five launch agents were reinstalled from `/Users/ross/Documents/SalesIntel`. Their files differ from the previous ones only in the folder path.
-- All five processes now run from the new folder and hold the database and its journal in the same directory.
-- Find a Tender, Contracts Finder, Public Contracts Scotland and the renewal radar each recorded a successful run within a minute, and the integrity check still passes.
-
-The old folder now holds only stale logs, lock and report files, and a build cache. It can be deleted once you no longer want them.
 
 The command used:
 
 ```bash
 cd /Users/ross/Documents/SalesIntel && for f in .runtime/launch-agents/com.misi.market.*.plist; do n=$(basename "$f" .plist); launchctl bootout gui/$(id -u)/$n 2>/dev/null; cp "$f" ~/Library/LaunchAgents/; launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/$n.plist; done
 ```
+
+**Evidence, separated by how it was obtained.**
+
+| Evidence | Kind | Result |
+|---|---|---|
+| Collector runs within a minute of the reinstall (09:51–09:52) | Recorded by the collectors in `market_source_states` | Find a Tender, Contracts Finder, Public Contracts Scotland and the renewal radar each recorded a success |
+| `launchctl list` at 12:04 UTC | Personally verified, read-only | All five `com.misi.market.*` agents loaded with last exit status 0 |
+| Installed plists | Personally verified, read-only | `WorkingDirectory` and every program path point to `/Users/ross/Documents/SalesIntel` and its `.venv` |
+| Running processes | Personally verified, read-only | Five Python processes, each with working directory `/Users/ross/Documents/SalesIntel`, each holding only `/Users/ross/Documents/SalesIntel/.runtime/false-alarm-pilot-v2.db` |
+| Latest successes at 12:04 UTC | Read-only query of the live database | Find a Tender 11:54, Contracts Finder 11:54, renewal radar 11:23 (hourly), Public Contracts Scotland 09:52 (daily). The backfill had used its daily budget (96 requests) at 01:37, as designed |
+| Database at 12:04 UTC | `db_preflight.py inspect` (read-only) | Integrity `ok`; 60 tables; 86,788 rows; `alembic_version` present but empty |
+| Old folder | Personally verified | No database file. Only `.runtime` logs and lock files, and a `frontend` build cache, remain |
+
+Nothing was restarted for this verification. One historical failure is unrelated to the move: the Public Contracts Scotland back-window `pcs_2024_09_103` failed three times on 30 October and has not been retried.
+
+The old folder can be deleted once you no longer want its logs. That is your decision; it has not been touched.
 
 ## 5. Adversarial acceptance challenge
 
@@ -76,12 +87,7 @@ cd /Users/ross/Documents/SalesIntel && for f in .runtime/launch-agents/com.misi.
 | Procurement collectors and classification | 180 collector and classification tests; relevance acceptance test D | Pass; irrelevant alarm, CCTV and security contexts stay excluded |
 | No unauthorised sends or paid calls | `test_adversarial.py` blocks every non-loopback connection and DNS lookup for the whole loop to won; demo mode refuses AI research; CI blanks keys | No external connection attempted; there is no send endpoint |
 
-**Full results:**
-- Backend: 498 passed.
-- Frontend unit tests: 33 passed. TypeScript: passed.
-- Playwright: 59 passed, 1 skipped (visual QA that needs an explicitly configured demo API), 0 failed.
-- Rehearsed in a clean checkout without `.env`.
-- **The GitHub Actions workflow itself has not run yet.** It first runs when the PR is opened, and its result is the independent verification.
+The results after the release gate are in section 8.
 
 ## 6. What a five-salesperson pilot still needs
 
@@ -96,8 +102,73 @@ None of these can be securely built and tested without an identity provider and 
 7. **Cost control.** Per-user limits and logging for paid AI research.
 8. **Operations.** The live database under Alembic (section 3), and durable research jobs (AI Research progress is still held in memory).
 
-## 7. Remaining risks for local development
+## 7. Decision for you: public repository, Mitie naming and IP
 
-- No sign-in, so the app must stay local; the guard enforces this.
-- The legacy pipeline and finance tools still use floating-point money.
-- Draft and quotation approval have no second-person control.
+- **The repository `rossbuckley1990-hash/SalesIntel` is public.** This was verified on 5 November with `gh repo view`. An earlier statement in this work said it was private; that was wrong.
+- Names and data specific to Mitie Fire & Security remain in the code, documents, launch-agent labels (`com.misi.*`), the database file names and fixtures.
+- Whether you, Mitie or both own this work, and whether any of it is confidential to your employer, is **unresolved**. Renaming the product to SalesIntel does not settle ownership.
+- Nothing here changes visibility, history or employer-specific material. Those need your decision, and possibly your employer's or a lawyer's. Options include making the repository private, removing Mitie-specific material, or confirming ownership in writing.
+
+## 8. Final acceptance and release gate
+
+**Verification of the implementations, not only the tests.**
+
+| Area | What was checked in the code | Finding |
+|---|---|---|
+| A. Quotation integrity | `inputs_fingerprint`, `supersede`, `build_quote`, `approve_quote`, `quote_is_current`, `move_stage` | Sound for open deals. Defect found: a **won** deal could still have its scope, services, work type or rates edited, or be moved back to an open stage or to lost. That superseded the approval behind an issued handover and left the account marked as a customer. Fixed: a won deal is closed. Stage changes and commercial edits are refused with 409, and the page shows the scope and quotation as locked. A lost deal can still be reopened, which clears the loss reason. |
+| B. Contact suppression | `update_contact`, `_suppressed`, `save_draft`, `approve_draft`, `log_draft_sent`, `log_activity`, the Today queue | Sound. Every path that approves, logs or records outbound contact checks the opt-out. |
+| C. Host, origin and loopback | `app/security.py` | Sound for local use: `localhost` and `127.0.0.1` on port 3000 both work. `testserver` remains in the default allowed hosts; it is only reachable by name on a machine whose DNS resolves it. It should be removed before any hosted pilot. |
+| D. Backup, verify, restore and reset | `db_preflight.py`, `reset_db` | Sound. Backups are online, checksummed and integrity-checked, and restore never overwrites. Residual: `reset_db` trusts `APP_ENV`, so `APP_ENV=demo` combined with the live `DATABASE_URL` would allow an erase. That needs deliberate misconfiguration. |
+| E. Continuity across a restart | `test_adversarial.py` starts the real API process on an isolated file, writes over HTTP, kills it and starts a new process | Account, history, follow-up, evidence and deal intact. The loop to won makes no external connection. |
+
+**Adversarial pass: defects reproduced, then fixed narrowly.** Each test in `backend/tests/test_release_gate.py` and `frontend/tests/si-dates.test.ts` failed against the previous code.
+
+| Defect | Severity | Reproduction (before the fix) | Fix |
+|---|---|---|---|
+| Logging an interaction on one account with `complete_task_ids` could mark **another account's** follow-ups as done | High (cross-account modification) | 200; the other account's task was closed | Every follow-up named is checked against the account before anything is written; otherwise 404 and no write |
+| Drafts and tasks could point at **another account's deal** | High (cross-account linkage) | 200 for both | The deal must belong to the account; otherwise 404 |
+| A won deal could be edited or re-staged after handover | High (quotation inconsistency, incorrect stage transition) | 200 for scope, services, rates and stage changes | As in A above |
+| Just after midnight in British Summer Time, the "Tomorrow" button scheduled follow-ups for **today**, and Today hid tasks due that day | High (follow-up date errors for six months of the year) | `inDays(1)` returned today's date at 00:30 BST; a task due 11 June was missing from Today at 00:30 BST | The browser formats the local date, not UTC. The server uses the UK calendar (`uk_today()`, Europe/London) for due, overdue and Today |
+
+**Challenged and found sound:**
+- **Duplicate activities and double-submit.** The logging and approval buttons disable while a request is in flight. A second "log as sent" is refused because the draft is already logged. Re-approval is idempotent. There is no idempotency key for a retried network request, which matters only once the app is hosted (section 9).
+- **Approval bypass.** Approval needs a current fingerprint, no missing inputs and no estimated quantities; winning re-checks the approved fingerprint.
+- **Partial writes.** Every write endpoint runs in one transaction that rolls back on any refusal. This is now proven for the cross-account follow-up case.
+- **Destructive operations.** Only saved-view deletion exists in the SalesIntel API. Reset and restore are guarded as in D.
+- **Unsafe frontend assumptions.** Money is shown from exact strings, not floats. Suspended and won states are mirrored from the server, which remains the authority.
+
+**Test isolation.** `test_config.py::test_cors_defaults_to_local_frontend_only` read the developer's `.env`. It failed on this machine because the local `.env` lists the same two origins in another order. It now constructs settings without `.env`, which is what its name says it tests. The assertion is unchanged.
+
+**CI.** The Playwright GPU lifecycle test timed out on one run (`42005948089`) at its final step with the canvas present. A passing run took 35 s of the 60 s budget at about 10 frames a second under software WebGL; the failing runner was about 33% slower overall. The test now has a tripled time budget for itself only (`test.slow()`). No assertion changed. It passes locally and in CI.
+
+**Intentional skip.** `e2e/populated-visual-qa.spec.ts` captures screenshots against a demo API named in `MISI_QA_DEMO_URL`. CI sets no such API, so it skips. It asserts no behaviour that the other 60 browser tests do not.
+
+**Results** (local, on the final commit; CI results for the exact head are linked from the PR):
+- Backend: 502 passed, including migrations from scratch in CI.
+- Frontend unit tests: 35 passed. TypeScript: passed.
+- Playwright: 60 passed, 1 skipped (above), 0 failed.
+
+## 9. Risks by category
+
+**Merge blockers:** none open once CI passes on the final commit.
+
+**Local-development limitations** (acceptable for one person on this Mac):
+- There is no sign-in, so the app must stay local. The request guard enforces this.
+- One user only. Draft and quotation approval have no second-person control.
+- The legacy pipeline, finance tools and the deal's own estimated value still store floating-point money. Quotation arithmetic is exact.
+- The live database is not yet under Alembic. Stamping is safe and awaits your decision (section 3).
+- `reset_db` trusts `APP_ENV` (section 8, D).
+- AI Research job progress is held in memory and is lost on restart.
+- The classic workspace's seven-day default dates still use UTC. They are outside the SalesIntel loop.
+
+**External-pilot blockers** (detail in section 6):
+1. Authentication, such as single sign-on with Microsoft Entra ID.
+2. Record ownership: owner and creator on every record.
+3. Role-based approval, so a salesperson cannot approve their own quotation or draft.
+4. Data isolation per organisation.
+5. Hosting: a private network, TLS, managed secrets and backups, and PostgreSQL. Remove `testserver` from the allowed hosts.
+6. Privacy: a UK GDPR data protection impact assessment, retention, and a shared suppression list.
+7. An audit trail of who changed what.
+8. Paid-API cost controls: per-user limits and logging.
+9. Durable research jobs, and idempotency keys for retried writes.
+10. The ownership and confidentiality decision in section 7.

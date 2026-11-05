@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.security import LocalOnlyGuard
+
 from app.config import get_settings
 from app.routers.buyers import router as buyers_router
 from app.routers.competitors import router as competitors_router
@@ -43,6 +45,12 @@ def create_app() -> FastAPI:
         version=settings.app_version,
     )
 
+    application.add_middleware(
+        LocalOnlyGuard,
+        allowed_hosts={h.strip() for h in settings.allowed_hosts.split(",") if h.strip()},
+        allowed_origins=set(settings.cors_origin_list),
+        allow_remote_clients=settings.allow_remote_clients,
+    )
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,

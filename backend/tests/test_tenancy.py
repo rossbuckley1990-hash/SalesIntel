@@ -304,3 +304,43 @@ def test_a_target_always_states_what_it_measures(hosted):
                                                 "territory": ["Yorkshire"], "services": ["fire_alarm", "cctv"]}).json()
     assert me["target"] == {"amount": "750000.00", "basis": "total_contract_value", "basis_label": "Total contract value", "period": "annual"}
     assert alice.patch("/api/workspace/me", json={"target_amount": "12.345"}).status_code == 422
+
+
+def test_oidc_mode_verifies_the_providers_keys_issuer_and_audience(tmp_path, monkeypatch):
+    """The production path: keys from the provider's JWKS, issuer and audience from settings."""
+    from fastapi.testclient import TestClient
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from app.config import get_settings
+    from app.db import Base, get_db
+    from app.main import create_app
+    provider_key, impostor = rsa.generate_private_key(public_exponent=65537, key_size=2048), rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    monkeypatch.setenv("AUTH_MODE", "oidc")
+    monkeypatch.setenv("OIDC_ISSUER", "https://login.provider.example/tenant/v2.0")
+    monkeypatch.setenv("OIDC_AUDIENCE", "api://salesintel")
+    monkeypatch.setenv("OIDC_JWKS_URL", "https://login.provider.example/keys")
+    get_settings.cache_clear()
+
+    class FakeJwks:  # stands in for the provider's published keys; no network
+        def get_signing_key_from_jwt(self, token):
+            return type("Key", (), {"key": provider_key.public_key()})()
+    monkeypatch.setattr(auth, "_jwks_client", lambda url: FakeJwks())
+    engine = create_engine(f"sqlite:///{tmp_path / 'oidc.db'}")
+    Base.metadata.create_all(engine)
+    app = create_app()
+    app.dependency_overrides[get_db] = lambda: Session(engine)
+    assert "/api/dev/session" not in app.openapi()["paths"]  # no development sign-in in oidc mode
+    moment = datetime.now(UTC)
+    claims = {"iss": "https://login.provider.example/tenant/v2.0", "aud": "api://salesintel", "sub": "abc", "email": "pat@company.example",
+              "email_verified": True, "name": "Pat", "iat": moment, "exp": moment + timedelta(minutes=5)}
+    client = TestClient(app)
+    ok = client.get("/api/me", headers={"Authorization": f"Bearer {jwt.encode(claims, provider_key, algorithm='RS256')}"})
+    assert ok.status_code == 200 and ok.json()["user"]["email"] == "pat@company.example"
+    for label, token in {"impostor key": jwt.encode(claims, impostor, algorithm="RS256"),
+                         "other issuer": jwt.encode(claims | {"iss": "https://evil.example"}, provider_key, algorithm="RS256"),
+                         "other audience": jwt.encode(claims | {"aud": "api://other"}, provider_key, algorithm="RS256"),
+                         "HS256 confusion": jwt.encode(claims, "x" * 40, algorithm="HS256")}.items():
+        assert client.get("/api/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401, label
+    with pytest.raises(RuntimeError, match="Development tokens exist only"):
+        auth.dev_token("x", "x@x.example")
+    get_settings.cache_clear()

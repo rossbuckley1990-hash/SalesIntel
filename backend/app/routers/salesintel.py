@@ -3,19 +3,31 @@ from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.db import get_db
+from app.auth import Context, current_context, tenant_db
+from app.models.prospect import ProspectSearch
+from app.tenancy import hosted
 from app.models.crm import Account, Contact, Draft, FunnelEvent, SavedView, Site
 from app.services import si_core as core
 from app.services import si_engage as engage
 from app.services.prospect_research import search_dict, start_search
 
-router = APIRouter(prefix='/api/si', tags=['salesintel'])
+
+
+def permitted(request: Request, ctx: Context = Depends(current_context)) -> Context:
+    """Enforced on every SalesIntel endpoint: reading needs crm.read, any change needs crm.write."""
+    ctx.require('crm.read')
+    if request.method not in ('GET', 'HEAD', 'OPTIONS'):
+        ctx.require('crm.write')
+    return ctx
+
+
+router = APIRouter(prefix='/api/si', tags=['salesintel'], dependencies=[Depends(permitted)])
 
 
 class Strict(BaseModel):
@@ -45,14 +57,14 @@ def run(db: Session, fn: Callable[[], Any]) -> Any:
 # ---------------------------------------------------------------- today and discover
 
 @router.get('/today')
-def today(db: Session = Depends(get_db)):
+def today(db: Session = Depends(tenant_db)):
     return core.today_queue(db)
 
 
 @router.get('/discover')
 def discover(q: str = Query('', max_length=300), source: Literal['all', 'public', 'private'] = 'all', nation: str = Query('', max_length=40),
              service: str = Query('', max_length=40), status: Literal['active', 'all', 'new', 'watching', 'investigating', 'dismissed'] = 'active',
-             category: str = Query('', max_length=40), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), db: Session = Depends(get_db)):
+             category: str = Query('', max_length=40), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), db: Session = Depends(tenant_db)):
     return core.discover(db, q=q, source=source, nation=nation, service=service, status=status, category=category, limit=limit, offset=offset)
 
 
@@ -61,7 +73,7 @@ class LeadStatus(Strict):
 
 
 @router.post('/discover/{key}/status')
-def lead_status(key: str, payload: LeadStatus, db: Session = Depends(get_db)):
+def lead_status(key: str, payload: LeadStatus, db: Session = Depends(tenant_db)):
     return run(db, lambda: core.set_status(db, key, payload.status) or {'key': key, 'status': payload.status})
 
 
@@ -70,7 +82,7 @@ class LinkRequest(Strict):
 
 
 @router.post('/discover/{key}/account')
-def lead_account(key: str, payload: LinkRequest, db: Session = Depends(get_db)):
+def lead_account(key: str, payload: LinkRequest, db: Session = Depends(tenant_db)):
     def work():
         entity_type, entity_id = core.parse_key(key)
         account, link, created = core.link_source(db, entity_type, entity_id, payload.account_id)
@@ -84,16 +96,24 @@ class WebResearch(Strict):
 
 
 @router.post('/discover/research')
-def web_research(payload: WebResearch, db: Session = Depends(get_db)):
+def web_research(payload: WebResearch, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
     if get_settings().app_env == 'demo':
         raise HTTPException(status_code=403, detail='Web research is switched off in demo mode, so no API credit is used.')
+    ctx.require('research.run')
+    if hosted():
+        allowance = get_settings().research_daily_limit_per_workspace
+        since = datetime.combine(core.uk_today(), datetime.min.time(), tzinfo=UTC) - timedelta(hours=1)
+        used = db.scalar(select(func.count()).select_from(ProspectSearch).where(ProspectSearch.created_at >= since)) or 0
+        if used >= allowance:
+            raise HTTPException(status_code=429, detail=(f"This workspace has used today's {allowance} paid research runs." if allowance
+                                                         else 'Paid research is switched off for this workspace until an allowance is set.'))
     return search_dict(start_search(db, payload.query, 'discover'))
 
 
 # ---------------------------------------------------------------- accounts
 
 @router.get('/accounts')
-def accounts(q: str = Query('', max_length=120), db: Session = Depends(get_db)):
+def accounts(q: str = Query('', max_length=120), db: Session = Depends(tenant_db)):
     return {'items': core.accounts_list(db, q)}
 
 
@@ -105,7 +125,7 @@ class NewAccount(Strict):
 
 
 @router.post('/accounts')
-def create_account(payload: NewAccount, db: Session = Depends(get_db)):
+def create_account(payload: NewAccount, db: Session = Depends(tenant_db)):
     def work():
         found, basis = core.resolve_account(db, payload.name, None)
         if found:
@@ -121,7 +141,7 @@ def create_account(payload: NewAccount, db: Session = Depends(get_db)):
 
 
 @router.get('/accounts/{account_id}')
-def account(account_id: int, db: Session = Depends(get_db)):
+def account(account_id: int, db: Session = Depends(tenant_db)):
     return run(db, lambda: core.account_view(db, account_id))
 
 
@@ -134,7 +154,7 @@ class AccountUpdate(Strict):
 
 
 @router.patch('/accounts/{account_id}')
-def update_account(account_id: int, payload: AccountUpdate, db: Session = Depends(get_db)):
+def update_account(account_id: int, payload: AccountUpdate, db: Session = Depends(tenant_db)):
     def work():
         row = db.get(Account, account_id)
         if not row:
@@ -149,7 +169,7 @@ def update_account(account_id: int, payload: AccountUpdate, db: Session = Depend
 
 
 @router.post('/accounts/{account_id}/seen')
-def mark_seen(account_id: int, db: Session = Depends(get_db)):
+def mark_seen(account_id: int, db: Session = Depends(tenant_db)):
     def work():
         row = db.get(Account, account_id)
         if not row:
@@ -160,7 +180,7 @@ def mark_seen(account_id: int, db: Session = Depends(get_db)):
 
 
 @router.get('/accounts/{account_id}/suggestions')
-def account_suggestions(account_id: int, db: Session = Depends(get_db)):
+def account_suggestions(account_id: int, db: Session = Depends(tenant_db)):
     def work():
         row = db.get(Account, account_id)
         if not row:
@@ -174,7 +194,7 @@ class ConfirmLink(Strict):
 
 
 @router.post('/accounts/{account_id}/links')
-def confirm_link(account_id: int, payload: ConfirmLink, db: Session = Depends(get_db)):
+def confirm_link(account_id: int, payload: ConfirmLink, db: Session = Depends(tenant_db)):
     def work():
         entity_type, entity_id = core.parse_key(payload.source_key)
         account, link, _ = core.link_source(db, entity_type, entity_id, account_id)
@@ -196,7 +216,7 @@ class NewContact(Strict):
 
 
 @router.post('/accounts/{account_id}/contacts')
-def add_contact(account_id: int, payload: NewContact, db: Session = Depends(get_db)):
+def add_contact(account_id: int, payload: NewContact, db: Session = Depends(tenant_db)):
     return run(db, lambda: core.contact_dict(engage.add_contact(db, account_id, payload.model_dump())))
 
 
@@ -205,7 +225,7 @@ class ContactStatus(Strict):
 
 
 @router.patch('/contacts/{contact_id}')
-def contact_status(contact_id: int, payload: ContactStatus, db: Session = Depends(get_db)):
+def contact_status(contact_id: int, payload: ContactStatus, db: Session = Depends(tenant_db)):
     return run(db, lambda: core.contact_dict(engage.update_contact(db, contact_id, payload.status)))
 
 
@@ -219,7 +239,7 @@ class NewSite(Strict):
 
 
 @router.post('/accounts/{account_id}/sites')
-def add_site(account_id: int, payload: NewSite, db: Session = Depends(get_db)):
+def add_site(account_id: int, payload: NewSite, db: Session = Depends(tenant_db)):
     def work():
         if not db.get(Account, account_id):
             raise LookupError('Account not found')
@@ -239,7 +259,7 @@ class IntroRequest(Strict):
 
 
 @router.post('/accounts/{account_id}/introduction')
-def introduction(account_id: int, payload: IntroRequest, db: Session = Depends(get_db)):
+def introduction(account_id: int, payload: IntroRequest, db: Session = Depends(tenant_db)):
     return run(db, lambda: engage.prepare_introduction(db, account_id, contact_id=payload.contact_id, source_key=payload.source_key))
 
 
@@ -254,7 +274,7 @@ class DraftIn(Strict):
 
 
 @router.post('/accounts/{account_id}/drafts')
-def create_draft(account_id: int, payload: DraftIn, db: Session = Depends(get_db)):
+def create_draft(account_id: int, payload: DraftIn, db: Session = Depends(tenant_db)):
     return run(db, lambda: core.draft_dict(engage.save_draft(db, account_id, payload.model_dump())))
 
 
@@ -265,7 +285,7 @@ class DraftEdit(Strict):
 
 
 @router.patch('/drafts/{draft_id}')
-def edit_draft(draft_id: int, payload: DraftEdit, db: Session = Depends(get_db)):
+def edit_draft(draft_id: int, payload: DraftEdit, db: Session = Depends(tenant_db)):
     def work():
         draft = db.get(Draft, draft_id)
         if not draft:
@@ -275,7 +295,7 @@ def edit_draft(draft_id: int, payload: DraftEdit, db: Session = Depends(get_db))
 
 
 @router.post('/drafts/{draft_id}/approve')
-def approve(draft_id: int, db: Session = Depends(get_db)):
+def approve(draft_id: int, db: Session = Depends(tenant_db)):
     return run(db, lambda: core.draft_dict(engage.approve_draft(db, draft_id)))
 
 
@@ -291,7 +311,7 @@ class LogSent(Strict):
 
 
 @router.post('/drafts/{draft_id}/log')
-def log_sent(draft_id: int, payload: LogSent, db: Session = Depends(get_db)):
+def log_sent(draft_id: int, payload: LogSent, db: Session = Depends(tenant_db)):
     def work():
         activity, task = engage.log_draft_sent(db, draft_id, sent_externally=payload.sent_externally,
                                                follow_up=payload.follow_up.model_dump(mode='json') if payload.follow_up else None)
@@ -300,7 +320,7 @@ def log_sent(draft_id: int, payload: LogSent, db: Session = Depends(get_db)):
 
 
 @router.get('/drafts')
-def drafts(status: Literal['open', 'all'] = 'open', db: Session = Depends(get_db)):
+def drafts(status: Literal['open', 'all'] = 'open', db: Session = Depends(tenant_db)):
     query = select(Draft).order_by(Draft.updated_at.desc())
     if status == 'open':
         query = query.where(Draft.status.in_(['draft', 'approved']))
@@ -323,7 +343,7 @@ class ActivityIn(Strict):
 
 
 @router.post('/accounts/{account_id}/activities')
-def log_activity(account_id: int, payload: ActivityIn, db: Session = Depends(get_db)):
+def log_activity(account_id: int, payload: ActivityIn, db: Session = Depends(tenant_db)):
     def work():
         data = payload.model_dump(mode='json', exclude={'follow_up'})
         activity, task = engage.log_activity(db, account_id, data, payload.follow_up.model_dump(mode='json') if payload.follow_up else None)
@@ -338,12 +358,12 @@ class TaskIn(Strict):
 
 
 @router.post('/accounts/{account_id}/tasks')
-def add_task(account_id: int, payload: TaskIn, db: Session = Depends(get_db)):
+def add_task(account_id: int, payload: TaskIn, db: Session = Depends(tenant_db)):
     return run(db, lambda: core.task_dict(engage.add_task(db, account_id, payload.model_dump())))
 
 
 @router.post('/tasks/{task_id}/complete')
-def complete(task_id: int, db: Session = Depends(get_db)):
+def complete(task_id: int, db: Session = Depends(tenant_db)):
     return run(db, lambda: core.task_dict(engage.complete_task(db, task_id)))
 
 
@@ -352,7 +372,7 @@ class Reschedule(Strict):
 
 
 @router.patch('/tasks/{task_id}')
-def reschedule(task_id: int, payload: Reschedule, db: Session = Depends(get_db)):
+def reschedule(task_id: int, payload: Reschedule, db: Session = Depends(tenant_db)):
     return run(db, lambda: core.task_dict(engage.reschedule_task(db, task_id, payload.due_on.isoformat())))
 
 
@@ -378,17 +398,17 @@ class NewDeal(Strict):
 
 
 @router.post('/accounts/{account_id}/deals')
-def create_deal(account_id: int, payload: NewDeal, db: Session = Depends(get_db)):
+def create_deal(account_id: int, payload: NewDeal, db: Session = Depends(tenant_db)):
     return run(db, lambda: engage.deal_view(db, engage.create_deal(db, account_id, payload.model_dump()).id))
 
 
 @router.get('/deals')
-def deals(db: Session = Depends(get_db)):
+def deals(db: Session = Depends(tenant_db)):
     return engage.deals_board(db)
 
 
 @router.get('/deals/{deal_id}')
-def deal(deal_id: int, db: Session = Depends(get_db)):
+def deal(deal_id: int, db: Session = Depends(tenant_db)):
     return run(db, lambda: engage.deal_view(db, deal_id))
 
 
@@ -402,7 +422,7 @@ class DealUpdate(Strict):
 
 
 @router.patch('/deals/{deal_id}')
-def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(get_db)):
+def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(tenant_db)):
     def work():
         from app.models.crm import DealRecord
         row = db.get(DealRecord, deal_id)
@@ -432,7 +452,7 @@ class ScopeIn(Strict):
 
 
 @router.put('/deals/{deal_id}/scope')
-def scope(deal_id: int, payload: ScopeIn, db: Session = Depends(get_db)):
+def scope(deal_id: int, payload: ScopeIn, db: Session = Depends(tenant_db)):
     return run(db, lambda: engage.update_scope(db, deal_id, [e.model_dump() for e in payload.entries]) and engage.deal_view(db, deal_id))
 
 
@@ -441,7 +461,7 @@ class QuoteIn(Strict):
 
 
 @router.post('/deals/{deal_id}/quote')
-def quote(deal_id: int, payload: QuoteIn, db: Session = Depends(get_db)):
+def quote(deal_id: int, payload: QuoteIn, db: Session = Depends(tenant_db)):
     return run(db, lambda: engage.build_quote(db, deal_id, payload.rates) and engage.deal_view(db, deal_id))
 
 
@@ -450,14 +470,56 @@ class Approval(Strict):
 
 
 @router.post('/deals/{deal_id}/quote/approve')
-def approve_quote(deal_id: int, payload: Approval, db: Session = Depends(get_db)):
-    return run(db, lambda: engage.approve_quote(db, deal_id, payload.reviewer) and engage.deal_view(db, deal_id))
+def approve_quote(deal_id: int, payload: Approval, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+    if not hosted():
+        return run(db, lambda: engage.approve_quote(db, deal_id, payload.reviewer) and engage.deal_view(db, deal_id))
+    # Hosted: the approver is the signed-in person, never a typed name, and never the deal's owner.
+    ctx.require('quote.approve')
+
+    def work():
+        from app.models.crm import DealRecord
+        from app.tenancy import record
+        deal = db.get(DealRecord, deal_id)
+        if deal is None:
+            raise LookupError('Deal not found')
+        if deal.owner_user_id == ctx.user_id:
+            raise HTTPException(status_code=403, detail='Someone other than the deal owner must approve its quotation.')
+        engage.approve_quote(db, deal_id, ctx.name)
+        record(db, 'approve', 'si_deals', deal_id, {'version': deal.quote.get('version')})
+        return engage.deal_view(db, deal_id)
+    return run(db, work)
+
+
+class OwnerChange(Strict):
+    user_id: int
+
+
+@router.patch('/accounts/{account_id}/owner')
+def reassign_account(account_id: int, payload: OwnerChange, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+    """Give an account, its open deals and its open follow-ups to another member of this workspace."""
+    ctx.require('crm.assign')
+
+    def work():
+        from app.models.crm import DealRecord, Task
+        from app.models.tenancy import Membership
+        if hosted() and db.scalar(select(Membership).where(Membership.organisation_id == ctx.organisation_id, Membership.user_id == payload.user_id)) is None:
+            raise LookupError('Member not found in this workspace')
+        account = db.get(Account, account_id)
+        if account is None:
+            raise LookupError('Account not found')
+        account.owner_user_id = payload.user_id
+        for deal in db.scalars(select(DealRecord).where(DealRecord.account_id == account_id, DealRecord.stage.not_in(['won', 'lost']))):
+            deal.owner_user_id = payload.user_id
+        for task in db.scalars(select(Task).where(Task.account_id == account_id, Task.status == 'open')):
+            task.assignee_user_id = payload.user_id
+        return {'account_id': account_id, 'owner_user_id': payload.user_id}
+    return run(db, work)
 
 
 # ---------------------------------------------------------------- settings, views and measurement
 
 @router.get('/preferences')
-def get_preferences(db: Session = Depends(get_db)):
+def get_preferences(db: Session = Depends(tenant_db)):
     return core.preferences(db)
 
 
@@ -469,12 +531,12 @@ class PreferencesIn(Strict):
 
 
 @router.put('/preferences')
-def put_preferences(payload: PreferencesIn, db: Session = Depends(get_db)):
+def put_preferences(payload: PreferencesIn, db: Session = Depends(tenant_db)):
     return run(db, lambda: core.set_preferences(db, payload.model_dump(exclude_none=True)))
 
 
 @router.get('/saved-views')
-def saved_views(db: Session = Depends(get_db)):
+def saved_views(db: Session = Depends(tenant_db)):
     return {'items': [{'id': v.id, 'name': v.name, 'filters': v.filters} for v in db.scalars(select(SavedView).order_by(SavedView.name))]}
 
 
@@ -484,7 +546,7 @@ class ViewIn(Strict):
 
 
 @router.post('/saved-views')
-def save_view(payload: ViewIn, db: Session = Depends(get_db)):
+def save_view(payload: ViewIn, db: Session = Depends(tenant_db)):
     def work():
         allowed = {'q', 'source', 'nation', 'service', 'status', 'category'}
         view = SavedView(name=payload.name, filters={k: v for k, v in payload.filters.items() if k in allowed}, created_at=core.now())
@@ -495,7 +557,7 @@ def save_view(payload: ViewIn, db: Session = Depends(get_db)):
 
 
 @router.delete('/saved-views/{view_id}')
-def delete_view(view_id: int, db: Session = Depends(get_db)):
+def delete_view(view_id: int, db: Session = Depends(tenant_db)):
     def work():
         view = db.get(SavedView, view_id)
         if not view:
@@ -506,7 +568,7 @@ def delete_view(view_id: int, db: Session = Depends(get_db)):
 
 
 @router.get('/metrics')
-def metrics(days: int = Query(30, ge=1, le=365), db: Session = Depends(get_db)):
+def metrics(days: int = Query(30, ge=1, le=365), db: Session = Depends(tenant_db)):
     since = datetime.now(UTC).date() - timedelta(days=days)
     rows = db.execute(select(FunnelEvent.event, func.count()).where(FunnelEvent.day >= since).group_by(FunnelEvent.event)).all()
     return {'since': since.isoformat(), 'counts': {event: count for event, count in rows},

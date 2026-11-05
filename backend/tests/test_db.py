@@ -15,6 +15,12 @@ def test_models_create_against_sqlite() -> None:
     inspector = inspect(engine)
     assert set(inspector.get_table_names()) == {
         "buyer_profiles",
+        "organisations",
+        "users",
+        "memberships",
+        "invitations",
+        "si_audit_events",
+        "si_lead_states",
         "competitor_profiles",
         "enrichment_runs",
         "evidence_observations",

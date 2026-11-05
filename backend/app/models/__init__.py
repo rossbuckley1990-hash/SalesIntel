@@ -17,6 +17,7 @@ from app.models.market_graph import MarketRelationship
 from app.models.market_opportunity import MarketOpportunity, MarketOpportunityDossier, MarketOpportunityRevision
 from app.models.market_contract import MarketContract, MarketContractLink
 from app.models.market_inference import MarketObservation, MarketHypothesis, MarketHypothesisRevision
+from app.models.tenancy import Invitation, LeadState, Membership, Organisation, User, WorkspaceAuditEvent
 from app.models.prospect import Prospect, ProspectSearch
 from app.models.crm import Account, AccountLink, Activity, Contact, DealRecord, Draft, FunnelEvent, Preference, SavedView, Site, Task
 
@@ -45,3 +46,5 @@ __all__ = [
 ]
 
 from app.models.living import Asset, AuditEvent, Decision, EvidenceReview, ImportPreview, Outcome, Requirement, Scenario, Snapshot
+
+import app.tenancy  # noqa: E402,F401  registers tenant isolation on every Session

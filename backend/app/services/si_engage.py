@@ -299,6 +299,7 @@ def create_deal(db: Session, account_id: int, data: dict) -> DealRecord:
     origin: dict[str, Any] = {}
     opportunity_id = None
     value_total, value_annual, value_basis = None, None, "unknown"
+    from app.tenancy import hosted
     if source_key:
         entity_type, entity_id = parse_key(source_key)
         linked, _, _ = link_source(db, entity_type, entity_id)
@@ -308,21 +309,27 @@ def create_deal(db: Session, account_id: int, data: dict) -> DealRecord:
         origin = linked_summary(db, link) or {}
         origin["captured_at"] = now().isoformat()
         if entity_type == "market_opportunity":
-            from app.routers.market_opportunities import promote
-            opportunity_id = promote(entity_id, db)["opportunity_id"]
+            if not hosted():  # the single-user classic pipeline keeps its own record
+                from app.routers.market_opportunities import promote
+                opportunity_id = promote(entity_id, db)["opportunity_id"]
             value = origin.get("value") or {}
             if value.get("type") == "published_total" and value.get("published_total"):
                 value_total, value_basis = float(value["published_total"]), "published"
             elif value.get("type") == "estimated_annualised" and value.get("estimated_annualised"):
                 value_annual, value_basis = float(value["estimated_annualised"]), "published_derived"
-        else:
+        elif not hosted():
             from app.routers.prospects import promote
             opportunity_id = promote(entity_id, db)["opportunity_id"]
-    existing = db.scalar(select(DealRecord).where(DealRecord.opportunity_id == opportunity_id)) if opportunity_id else None
+    if opportunity_id:
+        existing = db.scalar(select(DealRecord).where(DealRecord.opportunity_id == opportunity_id))
+    elif source_key:  # one deal per source record in this workspace
+        existing = db.scalar(select(DealRecord).where(DealRecord.origin_type == parse_key(source_key)[0], DealRecord.origin_id == parse_key(source_key)[1]))
+    else:
+        existing = None
     if existing:
         return existing
     title = (data.get("title") or origin.get("title") or f"{account.name} fire and security").strip()[:255]
-    if opportunity_id is None:
+    if opportunity_id is None and not hosted():
         opp = Opportunity(name=title, buyer_name=account.name[:255], sector=(account.sector or "Unknown")[:120], region=(account.region or "United Kingdom")[:120],
                           source_type="SalesIntel", stage=LEGACY_STAGE["qualify"], owner="Unassigned", recommended_action=qualification.get("requirement", "")[:500])
         db.add(opp)
@@ -347,6 +354,8 @@ def create_deal(db: Session, account_id: int, data: dict) -> DealRecord:
 
 
 def _sync_legacy(db: Session, deal: DealRecord) -> None:
+    if deal.opportunity_id is None:
+        return  # hosted workspaces have no single-user pipeline record
     opp = db.get(Opportunity, deal.opportunity_id)
     if opp is not None:
         opp.stage = LEGACY_STAGE[deal.stage]

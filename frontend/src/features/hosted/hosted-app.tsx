@@ -4,13 +4,15 @@
  * only to the tenant-scoped API. Single-user tools are not offered here: the API does not serve
  * them to hosted workspaces.
  */
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
-import { Briefcase, Building2, CalendarCheck, Compass, LogOut, Mail, Menu, Settings, Users } from "lucide-react";
+import { AlertCircle, ArrowRight, Bookmark, Briefcase, Building2, CalendarCheck, Check, CheckCircle2, Circle, Compass, LogOut, Mail, Menu, Search, Settings, Users, X } from "lucide-react";
 
 import { ApiError, api, authMode, getWorkspace, setToken, setWorkspace, signOut } from "@/lib/session";
-import { SERVICES, si } from "@/features/workspace/si-api";
+import { SERVICES, si, type AccountRow, type TodayT } from "@/features/workspace/si-api";
 import type { SharedProps, Workspace } from "@/features/workspace/types";
+import { Avatar, ViewerContext, initials, isMac, useFluidTabs, useNavIndicator } from "@/features/workspace/fluid";
+import { CommandPalette, VIEW_KEYS } from "./command-palette";
 
 const SiToday = dynamic(() => import("@/features/workspace/si-today").then((m) => m.SiToday));
 const SiDiscover = dynamic(() => import("@/features/workspace/si-discover").then((m) => m.SiDiscover));
@@ -28,6 +30,8 @@ const NAV: { id: View; label: string; icon: typeof CalendarCheck }[] = [
   { id: "today", label: "Today", icon: CalendarCheck }, { id: "find", label: "Discover", icon: Compass }, { id: "clients", label: "Accounts", icon: Building2 },
   { id: "engage", label: "Engage", icon: Mail }, { id: "deals", label: "Deals", icon: Briefcase },
 ];
+const LOWER: { id: View; label: string; icon: typeof CalendarCheck }[] = [{ id: "team", label: "Team", icon: Users }, { id: "settings", label: "My settings", icon: Settings }];
+const TITLE: Record<View, string> = { today: "Today", find: "Discover", clients: "Accounts", engage: "Engage", deals: "Deals", team: "Team", settings: "My settings" };
 const PERIODS: [string, string][] = [["annual", "a year"], ["quarterly", "a quarter"], ["monthly", "a month"]];
 
 function viewFromUrl(): View {
@@ -73,11 +77,11 @@ export function HostedApp() {
 }
 
 function Centre({ children }: { children: React.ReactNode }) {
-  return <div className="ds-root flex min-h-screen items-center justify-center bg-ds-canvas p-4">{children}</div>;
+  return <div className="ds-root si-auth flex min-h-screen items-center justify-center p-4"><div className="si-view w-full max-w-md">{children}</div></div>;
 }
 
 function Brand() {
-  return <div className="mb-5 flex items-center gap-2"><span className="m-brand-mark" aria-hidden="true">S<span>i</span></span><span className="text-[18px] font-semibold text-ds-ink">SalesIntel</span></div>;
+  return <div className="mb-8 flex items-center gap-2.5"><span className="si-logo" aria-hidden="true" /><span className="si-wordmark">SalesIntel</span></div>;
 }
 
 function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
@@ -94,16 +98,17 @@ function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
   }
   return (
     <Centre>
-      <div className="ds-card w-full max-w-sm p-6">
+      <div className="ds-card si-auth-card w-full p-7">
         <Brand />
-        <h1 className="text-[20px] font-semibold text-ds-ink">Sign in</h1>
+        <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-ds-ink">Sign in</h1>
+        <p className="mt-1 text-[14px] text-ds-muted">Find the work others miss, and win it.</p>
         {authMode === "dev" ? <>
-          <p className="mt-1 rounded-lg border border-ds-amber-line bg-ds-amber-soft px-3 py-2 text-[12px] text-ds-amber">Development sign-in for testing. A hosted SalesIntel signs you in through your company&apos;s identity provider.</p>
+          <p className="mt-4 rounded-lg border border-ds-amber-line bg-ds-amber-soft px-3 py-2 text-[12px] text-ds-amber">Development sign-in for testing. A hosted SalesIntel signs you in through your company&apos;s identity provider.</p>
           <form className="mt-4 space-y-3" onSubmit={submit}>
-            <label className="block"><span className="ds-label">Work email</span><input className="ds-input mt-1 h-10 w-full" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-            <label className="block"><span className="ds-label">Your name</span><input className="ds-input mt-1 h-10 w-full" value={name} onChange={(e) => setName(e.target.value)} required /></label>
+            <label className="block"><span className="ds-label">Work email</span><input className="ds-input mt-1 h-10 w-full !pl-3" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+            <label className="block"><span className="ds-label">Your name</span><input className="ds-input mt-1 h-10 w-full !pl-3" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required /></label>
             {error && <p role="alert" className="text-[13px] text-ds-red">{error}</p>}
-            <button className="ds-btn primary w-full" disabled={busy}>Continue</button>
+            <button className="ds-btn primary !h-10 w-full" disabled={busy}>Continue <ArrowRight size={15} /></button>
           </form>
         </> : <p className="mt-2 text-[13px] text-ds-muted">Sign-in through your identity provider is not configured for this deployment yet.</p>}
       </div>
@@ -120,14 +125,14 @@ function CreateWorkspace({ onCreated, notice }: { onCreated: (id: number) => voi
   }
   return (
     <Centre>
-      <form className="ds-card w-full max-w-md p-6" onSubmit={submit} aria-label="Create your workspace">
+      <form className="ds-card si-auth-card w-full p-7" onSubmit={submit} aria-label="Create your workspace">
         <Brand />
         {notice && <p role="alert" className="mb-3 rounded-lg border border-ds-amber-line bg-ds-amber-soft px-3 py-2 text-[13px] text-ds-amber">{notice}</p>}
-        <h1 className="text-[20px] font-semibold text-ds-ink">Create your company workspace</h1>
+        <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-ds-ink">Create your company workspace</h1>
         <p className="mt-1 text-[13px] text-ds-muted">Your accounts, contacts, deals and research stay inside it. You can invite your team next.</p>
-        <label className="mt-4 block"><span className="ds-label">Company name</span><input className="ds-input mt-1 h-10 w-full" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} /></label>
+        <label className="mt-4 block"><span className="ds-label">Company name</span><input className="ds-input mt-1 h-10 w-full !pl-3" autoComplete="organization" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} /></label>
         {error && <p role="alert" className="mt-2 text-[13px] text-ds-red">{error}</p>}
-        <button className="ds-btn primary mt-4 w-full">Create workspace</button>
+        <button className="ds-btn primary mt-5 !h-10 w-full">Create workspace <ArrowRight size={15} /></button>
         <p className="mt-3 text-[12px] text-ds-muted">Joining a colleague&apos;s workspace? Open the invitation link they sent you.</p>
       </form>
     </Centre>
@@ -135,62 +140,148 @@ function CreateWorkspace({ onCreated, notice }: { onCreated: (id: number) => voi
 }
 
 function Shell({ me, reload }: { me: Me; reload: () => void }) {
-  const [view, setView] = useState<View>("today");
-  const [mobile, setMobile] = useState(false);
   const [current, setCurrent] = useState<Current | null>(null);
-  const [toast, setToast] = useState<{ message: string; error: boolean } | null>(null);
-  const notify = useCallback((message: string, isError = false) => setToast({ message, error: isError }), []);
   const loadCurrent = useCallback(async () => setCurrent(await api<Current>("/api/workspace")), []);
-  useEffect(() => { setView(viewFromUrl()); void loadCurrent(); const sync = () => setView(viewFromUrl()); window.addEventListener("popstate", sync); return () => window.removeEventListener("popstate", sync); }, [loadCurrent]);
+  useEffect(() => { void loadCurrent(); }, [loadCurrent]);
+  if (!current) return <Centre><div className="ds-skeleton h-24 w-full rounded-xl" aria-label="Loading" /></Centre>;
+  return <Frame me={me} current={current} reload={reload} loadCurrent={loadCurrent} />;
+}
+
+function Frame({ me, current, reload, loadCurrent }: { me: Me; current: Current; reload: () => void; loadCurrent: () => Promise<void> }) {
+  const [view, setView] = useState<View>(() => (typeof window === "undefined" ? "today" : viewFromUrl()));
+  const [visit, setVisit] = useState(0);
+  const [mobile, setMobile] = useState(false);
+  const [palette, setPalette] = useState(0); // 0 is closed; each opening gets its own id, so it always starts fresh
+  const [queue, setQueue] = useState<number | null>(null);
+  const [recent, setRecent] = useState<AccountRow[]>([]);
+  const [saved, setSaved] = useState<{ id: number; name: string }[]>([]);
+  const [toast, setToast] = useState<{ id: number; message: string; error: boolean } | null>(null);
+  const [main, setMain] = useState<HTMLElement | null>(null);
+  const nav = useRef<HTMLElement>(null);
+  const lower = useRef<HTMLDivElement>(null);
+  const indicator = useNavIndicator(nav, view);
+  const lowerIndicator = useNavIndicator(lower, view);
+  useFluidTabs(main);
+  const notify = useCallback((message: string, isError = false) => setToast({ id: Date.now(), message, error: isError }), []);
+  useEffect(() => { const sync = () => setView(viewFromUrl()); window.addEventListener("popstate", sync); return () => window.removeEventListener("popstate", sync); }, []);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), toast.error ? 15000 : 7000); return () => clearTimeout(t); }, [toast]);
-  const go = (next: View) => { const url = new URL(window.location.href); url.search = ""; url.searchParams.set("view", next); window.history.pushState({}, "", url); setView(next); setMobile(false); };
-  if (!current) return <Centre><div className="ds-skeleton h-24 w-80 rounded-xl" aria-label="Loading" /></Centre>;
-  const needsSetup = !current.me.services.length || !current.me.target.amount;
+  useEffect(() => {
+    si<TodayT>("/today").then((t) => setQueue(t.queue.length)).catch(() => setQueue(null));
+    // Recently active accounts and saved Discover views, for one-click return from anywhere.
+    si<{ items: AccountRow[] }>("/accounts").then((d) => setRecent([...d.items].filter((a) => a.last_activity).sort((a, b) => (b.last_activity || "").localeCompare(a.last_activity || "")).slice(0, 4))).catch(() => setRecent([]));
+    si<{ items: { id: number; name: string }[] }>("/saved-views").then((d) => setSaved(d.items.slice(0, 5))).catch(() => setSaved([]));
+  }, [view]);
+  const go = useCallback((next: View, params: Record<string, string | number> = {}) => {
+    const url = new URL(window.location.href); url.search = ""; url.searchParams.set("view", next);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
+    window.history.pushState({}, "", url); setView(next); setMobile(false);
+    if (Object.keys(params).length) setVisit((n) => n + 1); // a jump with a target reopens the view on it
+    window.scrollTo({ top: 0 });
+  }, []);
+  // ⌘K or Ctrl+K opens the command menu; G then a letter jumps between workspaces.
+  useEffect(() => {
+    let armed = 0;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPalette((v) => (v ? 0 : Date.now())); return; }
+      const t = e.target as HTMLElement;
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.isContentEditable || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "g") { armed = Date.now(); return; }
+      if (armed && Date.now() - armed < 1200 && VIEW_KEYS[e.key]) { e.preventDefault(); go(VIEW_KEYS[e.key]); }
+      armed = 0;
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [go]);
+
+  const done = { services: current.me.services.length > 0, territory: current.me.territory.length > 0, target: !!current.me.target.amount };
+  const needsSetup = !done.services || !done.target;
   const shared = { data: { changes: [] } as unknown as Workspace, notify, inspect: () => {}, navigate: () => {}, refresh: async () => {}, selectedId: null, selectOpportunity: () => {} } as SharedProps;
   const ws = me.workspaces.find((w) => w.id === current.id);
+  const viewer = { name: me.user.name || me.user.email, email: me.user.email, target: current.me.target.amount ? current.me.target : null };
+  const item = (x: { id: View; label: string; icon: typeof CalendarCheck }) => (
+    <button key={x.id} aria-current={view === x.id ? "page" : undefined} onClick={() => go(x.id)} className={`m-nav-item ${view === x.id ? "active" : ""}`}>
+      <x.icon size={16} strokeWidth={1.6} /><span>{x.label}</span>
+      {x.id === "today" && !!queue && <span className="si-nav-count hot" aria-hidden="true">{queue}</span>}
+    </button>
+  );
   return (
-    <div className="m-workspace">
+    <ViewerContext.Provider value={viewer}>
+    <div className="m-workspace si-shell">
       <a className="m-skip" href="#m-main">Skip to workspace</a>
       {mobile && <button className="m-mobile-backdrop" aria-label="Close navigation" onClick={() => setMobile(false)} />}
       <aside id="m-navigation" className={`m-sidebar ${mobile ? "open" : ""}`}>
-        <a className="m-brand" href="/?view=today" aria-label="SalesIntel home"><span className="m-brand-mark" aria-hidden="true">S<span>i</span></span><span className="m-brand-wordmark">SalesIntel<small>Find · Research · Win</small></span></a>
-        <div className="m-workspace-name"><div><small>YOUR WORKSPACE</small>
-          {me.workspaces.length > 1 ? <select aria-label="Workspace" className="ds-select mt-1 w-full" value={current.id} onChange={(e) => { setWorkspace(Number(e.target.value)); window.location.assign("/?view=today"); }}>
-            {me.workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select> : <strong>{current.name}</strong>}
-        </div></div>
-        <nav aria-label="Main navigation">
-          {NAV.map((item) => <button key={item.id} aria-current={view === item.id ? "page" : undefined} onClick={() => go(item.id)} className={`m-nav-item ${view === item.id ? "active" : ""}`}><item.icon size={18} strokeWidth={1.75} /><span>{item.label}</span></button>)}
+        <a className="m-brand" href="/?view=today" aria-label="SalesIntel home"><span className="si-logo" aria-hidden="true" /><span className="m-brand-wordmark">SalesIntel</span></a>
+        <div className="si-switcher">
+          <Avatar name={current.name} seed={`ws-${current.id}`} />
+          <div className="min-w-0 flex-1"><small>Workspace</small>
+            {me.workspaces.length > 1 ? <select aria-label="Workspace" className="ds-select w-full" value={current.id} onChange={(e) => { setWorkspace(Number(e.target.value)); window.location.assign("/?view=today"); }}>
+              {me.workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select> : <strong>{current.name}</strong>}
+          </div>
+        </div>
+        <nav aria-label="Main navigation" ref={nav} className={`si-nav ${indicator.ready ? "ready" : ""}`}>
+          <span className="si-nav-indicator" style={indicator.style} aria-hidden="true" />
+          {NAV.map(item)}
         </nav>
+        {!!saved.length && <><p className="si-side-label">Saved views</p>
+          {saved.map((v) => <a key={v.id} className="si-recent" href={`/?view=find&saved=${v.id}`} onClick={(e) => { e.preventDefault(); go("find", { saved: v.id }); }}>
+            <Bookmark size={13} className="flex-none text-ds-muted" aria-hidden="true" /><span>{v.name}</span></a>)}</>}
+        {!!recent.length && <><p className="si-side-label">Recently active</p>
+          {recent.map((a) => <a key={a.id} className="si-recent" href={`/?view=clients&account=${a.id}`} onClick={(e) => { e.preventDefault(); go("clients", { account: a.id }); }}>
+            <span className="si-mono-mark" aria-hidden="true">{initials(a.name)}</span><span>{a.name}</span></a>)}</>}
         <div className="m-sidebar-bottom">
-          <button className={`m-nav-item ${view === "team" ? "active" : ""}`} onClick={() => go("team")} aria-current={view === "team" ? "page" : undefined}><Users size={18} strokeWidth={1.75} /><span>Team</span></button>
-          <button className={`m-nav-item ${view === "settings" ? "active" : ""}`} onClick={() => go("settings")} aria-current={view === "settings" ? "page" : undefined}><Settings size={18} strokeWidth={1.75} /><span>My settings</span></button>
+          <div ref={lower} className={`si-nav ${lowerIndicator.ready ? "ready" : ""}`}>
+            <span className="si-nav-indicator" style={lowerIndicator.style} aria-hidden="true" />
+            {LOWER.map(item)}
+          </div>
+          <div className="si-profile">
+            <Avatar name={viewer.name} seed={me.user.email} round small />
+            <p><strong>{viewer.name}</strong><span>{ws?.role_label || current.role_label}</span></p>
+            <button className="m-icon-button" aria-label="Sign out" title="Sign out" onClick={() => signOut()}><LogOut size={16} /></button>
+          </div>
         </div>
       </aside>
       <div className="m-shell-main">
         <header className="m-topbar">
-          <div className="m-breadcrumb">
-            <button className="m-icon-button m-menu" onClick={() => setMobile((v) => !v)} aria-label="Toggle navigation" aria-expanded={mobile} aria-controls="m-navigation"><Menu size={20} /></button>
-            <span>{current.name}</span></div>
+          <div className="si-crumb">
+            <button className="m-icon-button m-menu" onClick={() => setMobile((v) => !v)} aria-label="Toggle navigation" aria-expanded={mobile} aria-controls="m-navigation"><Menu size={18} /></button>
+            <span className="ws">{current.name}</span><span className="sep" aria-hidden="true">/</span><b>{TITLE[view]}</b>
+          </div>
           <div className="m-topbar-right">
-            <span className="text-[13px] text-ds-ink-2">{me.user.name} · <span className="font-semibold">{ws?.role_label || current.role_label}</span></span>
-            <button className="m-icon-button" aria-label="Sign out" title="Sign out" onClick={() => signOut()}><LogOut size={17} /></button>
+            <button className="si-cmdk" onClick={() => setPalette(Date.now())} aria-label="Open command menu" aria-keyshortcuts="Meta+K Control+K">
+              <Search size={14} aria-hidden="true" /><span>Search or jump to…</span><span className="si-kbd" aria-hidden="true">{isMac() ? "⌘" : "Ctrl"} K</span>
+            </button>
           </div>
         </header>
-        <main id="m-main" className={`m-main m-view-${view} m-modern-view`} tabIndex={-1}>
-          {needsSetup && view !== "settings" && <div className="ds-root mb-4"><div className="ds-card flex flex-wrap items-center justify-between gap-3 border-ds-brand-line bg-ds-brand-soft p-4">
-            <p className="text-[14px] text-ds-ink"><strong>Tell SalesIntel what you sell, where, and your target.</strong> It uses this to judge fit and to show your progress.</p>
-            <button className="ds-btn primary" onClick={() => go("settings")}>Set up</button></div></div>}
-          {view === "today" && <SiToday {...shared} />}
-          {view === "find" && <SiDiscover {...shared} />}
-          {view === "clients" && <SiAccounts {...shared} />}
-          {view === "engage" && <SiEngage {...shared} />}
-          {view === "deals" && <SiDeals {...shared} />}
-          {view === "team" && <Team current={current} notify={notify} />}
-          {view === "settings" && <MySettings current={current} notify={notify} saved={() => { void loadCurrent(); reload(); }} />}
+        <main id="m-main" ref={setMain} className={`m-main m-view-${view} m-modern-view`} tabIndex={-1}>
+          {needsSetup && view !== "settings" && <div className="ds-root si-view mb-7"><section className="si-setup" aria-label="Getting started">
+            <div className="flex min-w-0 items-center gap-3"><span className="si-setup-dot" aria-hidden="true" />
+              <p className="text-[13px] text-ds-ink-2"><strong className="font-semibold text-ds-ink">Tell SalesIntel what you sell, where, and your target.</strong>{" "}
+                <span className="text-ds-muted">Discovery ranks what fits you first.</span></p></div>
+            <div className="flex flex-wrap items-center gap-4">
+              {([["services", "What you sell"], ["territory", "Where"], ["target", "Target"]] as const).map(([k, l]) => <span key={k} className={`si-check ${done[k] ? "done" : ""}`}>
+                {done[k] ? <Check strokeWidth={2.5} aria-hidden="true" /> : <Circle aria-hidden="true" />}{l}<span className="sr-only">{done[k] ? " (done)" : " (to do)"}</span></span>)}
+              <button className="ds-btn primary sm" onClick={() => go("settings")}>Set up <ArrowRight size={14} /></button>
+            </div></section></div>}
+          <div key={`${view}-${visit}`} className="si-view">
+            {view === "today" && <SiToday {...shared} />}
+            {view === "find" && <SiDiscover {...shared} />}
+            {view === "clients" && <SiAccounts {...shared} />}
+            {view === "engage" && <SiEngage {...shared} />}
+            {view === "deals" && <SiDeals {...shared} />}
+            {view === "team" && <Team current={current} notify={notify} />}
+            {view === "settings" && <MySettings current={current} notify={notify} saved={() => { void loadCurrent(); reload(); }} />}
+          </div>
         </main>
       </div>
-      {toast && <div className={`m-toast ${toast.error ? "error" : ""}`} role={toast.error ? "alert" : "status"}>{toast.message}</div>}
+      <CommandPalette key={palette} open={palette > 0} close={() => setPalette(0)} go={go} signOut={() => signOut()} canInvite={current.permissions.includes("members.manage")} />
+      {toast && <div key={toast.id} className={`m-toast ${toast.error ? "error" : ""}`} role={toast.error ? "alert" : "status"}>
+        <span className="si-toast-icon" aria-hidden="true">{toast.error ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}</span>
+        <span className="si-toast-text">{toast.message}</span>
+        <button aria-label="Close notification" onClick={() => setToast(null)}><X size={15} /></button>
+        <i className="si-toast-timer" style={{ animationDuration: `${toast.error ? 15000 : 7000}ms` }} aria-hidden="true" />
+      </div>}
     </div>
+    </ViewerContext.Provider>
   );
 }
 
@@ -206,8 +297,9 @@ function MySettings({ current, notify, saved }: { current: Current; notify: (m: 
   const [capabilities, setCapabilities] = useState("");
   const writer = current.permissions.includes("crm.write");
   useEffect(() => {
+    // Fill only what is still blank: a late response must never overwrite something already typed.
     si<{ sectors: string[]; deal_size_min: string | null; deal_size_max: string | null; capabilities: string[] }>("/preferences").then((p) => {
-      setSectors(p.sectors.join(", ")); setDealMin(p.deal_size_min || ""); setDealMax(p.deal_size_max || ""); setCapabilities(p.capabilities.join(", "));
+      setSectors((v) => v || p.sectors.join(", ")); setDealMin((v) => v || p.deal_size_min || ""); setDealMax((v) => v || p.deal_size_max || ""); setCapabilities((v) => v || p.capabilities.join(", "));
     }).catch(() => {});
   }, []);
   const list = (text: string) => text.split(",").map((t) => t.trim()).filter(Boolean);
@@ -223,11 +315,13 @@ function MySettings({ current, notify, saved }: { current: Current; notify: (m: 
     } catch (err) { notify((err as Error).message, true); }
   }
   return (
-    <form className="ds-root max-w-2xl space-y-5" onSubmit={submit} aria-label="My settings">
-      <h1 className="text-[22px] font-semibold text-ds-ink">My settings</h1>
+    <form className="ds-root si-stagger max-w-2xl space-y-5" onSubmit={submit} aria-label="My settings">
+      <header><h1 className="text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ds-ink">My settings</h1>
+        <p className="mt-1 text-[14px] text-ds-muted">What you sell, where, and your target. Discovery and fit use these straight away.</p></header>
       <fieldset className="ds-card p-4"><legend className="ds-label px-1">What you sell</legend>
         <div className="flex flex-wrap gap-1.5">{SERVICES.map(([v, l]) => <button type="button" key={v} aria-pressed={services.includes(v)} onClick={() => setServices(services.includes(v) ? services.filter((s) => s !== v) : [...services, v])}
-          className={`rounded-full border px-3 py-1 text-[13px] font-medium ${services.includes(v) ? "border-ds-brand bg-ds-brand-soft text-ds-brand" : "border-ds-border bg-white text-ds-ink-2"}`}>{l}</button>)}</div></fieldset>
+          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition duration-150 active:scale-[.97] ${services.includes(v) ? "border-ds-brand bg-ds-brand-soft text-ds-brand shadow-ds-xs" : "border-ds-border bg-white text-ds-ink-2 hover:border-ds-border-strong"}`}>
+          {services.includes(v) && <Check size={13} strokeWidth={2.5} aria-hidden="true" />}{l}</button>)}</div></fieldset>
       <label className="ds-card block p-4"><span className="ds-label">Territory</span><input className="ds-input mt-1 h-10 w-full" aria-label="Territory" placeholder="e.g. England, Yorkshire" value={territory} onChange={(e) => setTerritory(e.target.value)} /></label>
       <fieldset className="ds-card grid gap-3 p-4 sm:grid-cols-2"><legend className="ds-label px-1">Customers you want</legend>
         <label className="block sm:col-span-2"><span className="ds-label">Customer sectors</span><input className="ds-input mt-1 h-10 w-full" aria-label="Customer sectors" placeholder="e.g. Logistics, Housing, Healthcare" value={sectors} onChange={(e) => setSectors(e.target.value)} /></label>
@@ -268,10 +362,11 @@ function Team({ current, notify }: { current: Current; notify: (m: string, e?: b
     try { await api(`/api/workspace/members/${userId}`, { method: "PATCH", json: { role: next } }); notify("Role changed."); void load(); } catch (err) { notify((err as Error).message, true); }
   }
   return (
-    <div className="ds-root max-w-3xl space-y-5">
-      <h1 className="text-[22px] font-semibold text-ds-ink">Team</h1>
+    <div className="ds-root si-stagger max-w-3xl space-y-5">
+      <header><h1 className="text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ds-ink">Team</h1>
+        <p className="mt-1 text-[14px] text-ds-muted">Everyone in this workspace and what their role allows.</p></header>
       <div className="ds-card divide-y divide-ds-border">{(members?.items || []).map((m) => <div key={m.user_id} className="flex flex-wrap items-center justify-between gap-2 p-3">
-        <div><p className="text-[14px] font-semibold text-ds-ink">{m.name || m.email}</p><p className="text-[12px] text-ds-muted">{m.email}{m.target.amount ? ` · target £${Number(m.target.amount).toLocaleString("en-GB")} ${m.target.basis_label?.toLowerCase()}` : ""}</p></div>
+        <div className="flex min-w-0 items-center gap-3"><Avatar name={m.name || m.email} seed={m.email} round small /><div className="min-w-0"><p className="text-[14px] font-semibold text-ds-ink">{m.name || m.email}</p><p className="text-[12px] text-ds-muted">{m.email}{m.target.amount ? ` · target £${Number(m.target.amount).toLocaleString("en-GB")} ${m.target.basis_label?.toLowerCase()}` : ""}</p></div></div>
         {manage ? <select aria-label={`Role for ${m.name || m.email}`} className="ds-select" value={m.role} onChange={(e) => void change(m.user_id, e.target.value)}>{members?.roles.map((r) => <option key={r.role} value={r.role}>{r.label}</option>)}</select>
           : <span className="text-[13px] text-ds-ink-2">{m.role_label}</span>}
       </div>)}</div>

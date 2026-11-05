@@ -17,31 +17,102 @@ export function SiDeals(props: SharedProps) {
   return id > 0 ? <DealRecordView key={id} id={id} {...props} /> : <Board {...props} />;
 }
 
+const DAY_MS = 86400000;
+const ageOf = (iso: string) => Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / DAY_MS));
+const QUIET_AFTER = 14;
+
+/** A pipeline you can drag. Stage rules stay on the server: a move it refuses is undone and its reason shown. */
 function Board({ notify }: SharedProps) {
   const [items, setItems] = useState<DealCard[] | null>(null);
-  useEffect(() => { si<{ items: DealCard[] }>("/deals").then((d) => setItems(d.items)).catch((e) => notify(e.message, true)); }, [notify]);
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [over, setOver] = useState<string | null>(null);
+  const [moved, setMoved] = useState<number | null>(null);
+  const [closing, setClosing] = useState<{ deal: DealCard; stage: "won" | "lost" } | null>(null);
+  const [reason, setReason] = useState("");
+  const load = useCallback(async () => {
+    try { setItems((await si<{ items: DealCard[] }>("/deals")).items); } catch (e) { notify((e as Error).message, true); }
+  }, [notify]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function move(deal: DealCard, stage: string, why = "") {
+    if (deal.stage === stage) return;
+    if ((stage === "won" || stage === "lost") && !why.trim()) { setClosing({ deal, stage }); setReason(""); return; }
+    const before = items;
+    setItems((xs) => xs && xs.map((x) => (x.id === deal.id ? { ...x, stage, updated_at: new Date().toISOString() } : x)));
+    setMoved(deal.id);
+    try {
+      await si(`/deals/${deal.id}`, { method: "PATCH", json: { stage, ...(why ? { reason: why } : {}) } });
+      notify(stage === "won" ? `${deal.title} marked won. Handover recorded.` : stage === "lost" ? `${deal.title} marked lost.` : `${deal.title} moved to ${STAGE_LABEL[stage]}.`);
+      setClosing(null);
+      void load();
+    } catch (e) { setItems(before); notify((e as Error).message, true); }
+  }
+  const drop = (stage: string) => (e: React.DragEvent) => {
+    e.preventDefault(); setOver(null);
+    const deal = items?.find((d) => d.id === Number(e.dataTransfer.getData("text/plain")));
+    if (deal) void move(deal, stage);
+  };
+  const target = (stage: string) => ({
+    onDragOver: (e: React.DragEvent) => { if (dragging !== null) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (over !== stage) setOver(stage); } },
+    onDragLeave: (e: React.DragEvent) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setOver((o) => (o === stage ? null : o)); },
+    onDrop: drop(stage),
+  });
+
+  const open = (items || []).filter((d) => OPEN.includes(d.stage));
   const closed = (items || []).filter((d) => !OPEN.includes(d.stage));
+  const priced = open.filter((d) => d.value_total !== null);
+  const total = priced.reduce((sum, d) => sum + Number(d.value_total), 0);
   return (
     <div className="ds-root space-y-5">
-      <PageHeader title="Deals">Qualified opportunities from first conversation to signed contract and handover.</PageHeader>
+      <PageHeader eyebrow="Pipeline" title="Deals" actions={items && !!open.length ? <div className="text-right">
+        <p className="si-mono text-[22px] leading-none text-ds-ink">{priced.length ? money(total) : "—"}</p>
+        <p className="mt-1 text-[12px] text-ds-muted">Total contract value of {priced.length} priced of {open.length} open deal{open.length === 1 ? "" : "s"}</p></div> : undefined}>
+        Drag a deal to move it on. Stage rules still apply: approval needs a quotation, and won needs an approved one.
+      </PageHeader>
       {!items && <div className="ds-skeleton h-72 rounded-xl" />}
       {items && !items.length && <div className="ds-card"><EmptyState icon={<Briefcase size={20} />} title="No deals yet" action={<button className="ds-btn primary" onClick={() => goto("clients")}>Open Accounts</button>}>Qualify an account into a deal once you have confirmed what the customer needs.</EmptyState></div>}
       {items && !!items.length && <>
-        <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2" role="list" aria-label="Pipeline by stage">
+        <div className="si-board" role="list" aria-label="Pipeline by stage">
           {OPEN.map((stage) => {
             const cards = items.filter((d) => d.stage === stage);
+            const stagePriced = cards.filter((d) => d.value_total !== null);
             return (
-              <section key={stage} role="listitem" aria-label={STAGE_LABEL[stage]} className="w-[260px] flex-none rounded-xl bg-ds-subtle p-2">
-                <h2 className="flex items-center justify-between px-1.5 py-1 text-[12px] font-semibold text-ds-muted"><span>{STAGE_LABEL[stage]}</span><span>{cards.length}</span></h2>
-                <ul className="mt-1 space-y-2">{cards.map((d) => <li key={d.id}><button className="w-full rounded-lg border border-ds-border bg-white p-3 text-left shadow-ds-xs hover:border-ds-brand-line" onClick={() => goto("deals", { deal: d.id })}>
-                  <span className="block text-[13px] font-semibold leading-5 text-ds-ink">{d.title}</span><span className="block text-[12px] text-ds-muted">{d.account}</span>
-                  <span className="mt-1.5 flex flex-wrap items-center gap-1">{d.services.slice(0, 2).map((s) => <Pill key={s}>{SERVICE_NAME[s] || s}</Pill>)}{d.quote_status && <Pill tone={d.quote_status === "approved" ? "green" : "amber"}>Quote {d.quote_status}</Pill>}</span>
-                  <span className="mt-1.5 block text-[12px] font-semibold text-ds-ink-2">{d.value_total !== null ? money(d.value_total) : d.value_annual !== null ? `${money(d.value_annual)}/yr` : "Value unknown"}</span>
-                </button></li>)}</ul>
+              <section key={stage} role="listitem" aria-label={STAGE_LABEL[stage]} className={`si-col ${over === stage ? "over" : ""}`} {...target(stage)}>
+                <div className="si-col-head"><h2>{STAGE_LABEL[stage]}</h2><span className="n">{cards.length}</span></div>
+                <p className="si-col-sum">{stagePriced.length ? <>{money(stagePriced.reduce((s, d) => s + Number(d.value_total), 0))} <small>TCV{stagePriced.length < cards.length ? `, ${cards.length - stagePriced.length} unpriced` : ""}</small></> : cards.length ? <small>Not priced yet</small> : ""}</p>
+                <ul>{cards.map((d) => {
+                  const age = ageOf(d.updated_at);
+                  return (
+                    <li key={d.id} className={`si-deal ${dragging === d.id ? "dragging" : ""} ${moved === d.id ? "moved" : ""}`} draggable
+                      onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(d.id)); e.dataTransfer.effectAllowed = "move"; setDragging(d.id); }}
+                      onDragEnd={() => { setDragging(null); setOver(null); }}>
+                      <button className="block w-full text-left" onClick={() => goto("deals", { deal: d.id })}>
+                        <span className="t">{d.title}</span><span className="a">{d.account}</span>
+                        {d.next_step && <span className="mt-1.5 line-clamp-2 block text-[12px] leading-[17px] text-ds-ink-2">Next: {d.next_step}</span>}
+                      </button>
+                      <span className="f">
+                        <span>{d.value_total !== null ? money(d.value_total) : d.value_annual !== null ? `${money(d.value_annual)}/yr` : "Unpriced"}</span>
+                        <span className={age >= QUIET_AFTER ? "quiet" : ""} title={`Last updated ${age} day${age === 1 ? "" : "s"} ago`}>{age >= QUIET_AFTER ? `quiet ${age}d` : `${age}d`}</span>
+                      </span>
+                      <label className="mt-2 flex items-center gap-1.5 text-[11.5px] text-ds-muted"><span className="sr-only">Move {d.title} to</span>
+                        <select className="!h-7 flex-1 cursor-pointer rounded-[6px] border border-transparent bg-[#f7f6f3] !py-0 !pl-2 !pr-6 text-[12px] text-ds-ink-2 hover:border-ds-border" value={d.stage} onChange={(e) => void move(d, e.target.value)}>
+                          {[...OPEN, "won", "lost"].map((st) => <option key={st} value={st}>{st === d.stage ? `In ${STAGE_LABEL[st]}` : `Move to ${STAGE_LABEL[st]}`}</option>)}</select></label>
+                    </li>
+                  );
+                })}</ul>
               </section>
             );
           })}
         </div>
+        {dragging !== null && <div className="si-drop-close" aria-hidden="true">
+          <div className={over === "won" ? "over" : ""} {...target("won")}><Trophy size={15} /> Drop to mark won</div>
+          <div className={over === "lost" ? "over" : ""} {...target("lost")}><XCircle size={15} /> Drop to mark lost</div>
+        </div>}
+        {closing && <form className="ds-card space-y-3 p-4" aria-label={`Mark ${closing.deal.title} ${closing.stage}`} onSubmit={(e) => { e.preventDefault(); void move(closing.deal, closing.stage, reason); }}>
+          <p className="text-[14px] font-semibold text-ds-ink">{closing.stage === "won" ? "Why did we win" : "Why did we lose"} {closing.deal.title}?</p>
+          <textarea className="w-full rounded-lg border border-ds-border-strong p-2.5 text-[14px]" rows={2} aria-label={closing.stage === "won" ? "Why did we win?" : "Why did we lose?"} value={reason} onChange={(e) => setReason(e.target.value)} required autoFocus />
+          <div className="flex gap-2"><button className="ds-btn primary" disabled={!reason.trim()}>{closing.stage === "won" ? "Mark won" : "Mark lost"}</button><button type="button" className="ds-btn ghost" onClick={() => setClosing(null)}>Cancel</button></div>
+        </form>}
         {!!closed.length && <Panel title="Closed"><ul className="divide-y divide-ds-border">{closed.map((d) => <li key={d.id}><button className="flex w-full items-center justify-between gap-2 py-2 text-left" onClick={() => goto("deals", { deal: d.id })}>
           <span className="text-[13px] font-semibold text-ds-ink">{d.title} <span className="font-normal text-ds-muted">· {d.account}</span></span><Pill tone={d.stage === "won" ? "green" : "neutral"}>{STAGE_LABEL[d.stage]}</Pill></button></li>)}</ul></Panel>}
       </>}

@@ -54,7 +54,7 @@ test("public tender: notice, account, official procurement route, grounded intro
   await expect(detail.getByText("Existing contract approaching a reported end date")).toBeVisible();
   await expect(detail.getByText(/a contract ending is not a confirmed tender/)).toBeVisible();
   await expect(detail.getByRole("region", { name: "Why this customer?" })).toContainText("In your territory: England");
-  await page.screenshot({ path: `${SHOTS}/1-discover-brief-desktop.png`, fullPage: false });
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/1-discover-brief-desktop.png`, fullPage: false });
 
   // Investigate the company and find the people. The research is durable: refresh while it runs.
   await detail.getByRole("button", { name: "Find the right people" }).click();
@@ -72,7 +72,7 @@ test("public tender: notice, account, official procurement route, grounded intro
   await expect(routes.getByRole("listitem").first()).toContainText("Best");
   await expect(page.getByText(/@gmail\.com/)).toHaveCount(0);
   await expect(people.getByText(/\$0\.19 \(simulated\)/)).toBeVisible();
-  await people.screenshot({ path: `${SHOTS}/2-people-public-desktop.png` });
+  await people.screenshot({ animations: "disabled", path: `${SHOTS}/2-people-public-desktop.png` });
 
   // Prepare a grounded first approach to the official route; it is never sent by SalesIntel.
   await official.getByRole("button", { name: "Prepare introduction" }).click();
@@ -106,7 +106,7 @@ test("public tender: notice, account, official procurement route, grounded intro
   await page.getByRole("button", { name: "Create deal" }).click();
   await expect(page).toHaveURL(/view=deals&deal=\d+/);
   await expect(page.getByText("Insufficient historical data for a reliable win probability.")).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/3-deal-desktop.png` });
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/3-deal-desktop.png` });
 });
 
 test("private prospect on a phone: brief, durable research, people, partial result, follow-up; another company sees none of it", async ({ browser }) => {
@@ -131,7 +131,7 @@ test("private prospect on a phone: brief, durable research, people, partial resu
   await expect(sheet.getByRole("region", { name: "Why now?" })).toContainText("Inferred timing:");
   await expect(sheet.getByRole("region", { name: "What do we know?" })).toContainText("2026-09-14");
   await expect(sheet.getByRole("region", { name: "What remains unknown?" })).toContainText("not proof of buying intent");
-  await page.screenshot({ path: `${SHOTS}/4-discover-private-mobile.png` });
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/4-discover-private-mobile.png` });
   await expect(results.getByRole("button", { name: /Calder Freight Services/ })).toContainText("Unverified");
 
   // Find the people: a named lead and permitted routes, but no direct details, said plainly.
@@ -145,7 +145,7 @@ test("private prospect on a phone: brief, durable research, people, partial resu
   for (const fabricated of ["sam.patel@northgate-distribution.example", "md.northgate@gmail.com", "Alex Northgate"]) await expect(page.getByText(fabricated)).toHaveCount(0);
   await people.getByText(/finding\(s\) rejected/).click();
   await expect(people.getByText(/tried to give instructions to the AI/).first()).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/5-people-private-mobile.png`, fullPage: true });
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/5-people-private-mobile.png`, fullPage: true });
 
   // Record the call to the switchboard and schedule the follow-up.
   await page.getByLabel("What happened").fill("Called the switchboard; asked for Sam Patel about the Wakefield site");

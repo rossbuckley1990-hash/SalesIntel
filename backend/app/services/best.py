@@ -1,10 +1,19 @@
-"""My best opportunities: the day's short list of organisations worth a salesperson's time, and why.
+"""My best opportunities: the day's short list of organisations worth a salesperson's time, and why. Two pathways.
 
-Ranking is by plain tiers, each with the reasons that put a lead there, never by an invented score:
+Qualified: an evidenced requirement for something you sell, or a relationship you already have. Ranked by plain tiers,
+each with the reasons that put a lead there, never by an invented score:
   act_now      a published deadline close at hand, a requirement a customer has stated, or a promise you made that is overdue
-  this_week    a reported contract end within four months, corroborated indirect evidence whose window is open, an existing
-               customer's new signal, or a tender a few weeks out
+  this_week    a reported contract end within four months, a requirement or finding a company's own sources state for a
+               service you sell, an existing customer's new signal, or a tender a few weeks out
   watch        everything else that fits what you sell
+The evidence must say what is needed: a notice's own title, or a sourced, stated signal. The research model's guessed
+services and its "engage now" timing qualify nothing, and indirect (Shadow Radar) evidence is never a requirement.
+
+Exploratory: a credible, sourced change at an organisation or site that may justify investigation (a new site, a move,
+a new facilities leader, a supplier problem), shown separately with its uncertainty labelled, and with an investigation as
+the next step, never a pitch. It needs a stated, sourced signal (or published indirect records not contradicted), dated
+within a year, inside your territory. It never pads or reorders the qualified list.
+
 Leads for services you do not sell are set aside and counted, not hidden silently. Signal count is not treated as
 buying probability, and a long AI report earns nothing. Within a tier: published before inferred, better fit, sooner.
 
@@ -14,8 +23,9 @@ are never learned from another workspace.
 """
 from __future__ import annotations
 
+import re
 from collections import Counter
-from datetime import date
+from datetime import date, timedelta
 from statistics import median
 
 from sqlalchemy import func, select
@@ -23,10 +33,20 @@ from sqlalchemy.orm import Session
 
 from app.models.crm import Account, Activity, DealRecord, FunnelEvent, Task
 from app.services import si_core as core
+from app.services.prospect_research import SIGNALS
 
 MIN_WON = 5  # below this, patterns in won deals are too few to show
-TIERS = {'act_now': 'Act now', 'this_week': 'Worth your time this week', 'watch': 'Keep in view'}
+TIERS = {'act_now': 'Act now', 'this_week': 'Worth your time this week', 'watch': 'Keep in view', 'explore': 'Worth investigating'}
 OPEN_STAGES = ('qualify', 'engage', 'survey', 'proposal', 'bid_review', 'negotiation', 'approval')
+EXPLORE_LIMIT = 5  # exploratory leads shown each day, separately from the qualified list
+RECENT_DAYS = 365  # an exploratory signal older than this is not current
+# Private signals that evidence a requirement, once their own words name a service you sell.
+REQUIREMENT_LABEL = {'stated_requirement': 'Stated requirement', 'customer_complaints': 'Stated requirement', 'enforcement_action': 'Published finding',
+                     'regulatory_deadline': 'Published finding', 'insurance_or_audit_pressure': 'Published finding', 'fire_incident': 'Reported incident',
+                     'security_incident': 'Reported incident', 'incumbent_poor_performance': 'Reported supplier problem'}
+# Organisation, site or commercial changes credible enough to investigate. Strategy statements, funding rounds and
+# competitor news are too weak to put in front of a salesperson.
+TRIGGERS = set(SIGNALS) - {'investment', 'competitor_activity', 'cost_consolidation', 'technology_strategy', 'esg_strategy', 'peak_risk_event'}
 
 
 def profile(db: Session) -> dict:
@@ -75,7 +95,7 @@ def _relationships(db: Session, today: date) -> dict[int, dict]:
     return out
 
 
-def _tier(x: dict, rel: dict | None) -> tuple[str, list[str]]:
+def _tier(x: dict, rel: dict | None, strict: bool = False, requirement: dict | None = None) -> tuple[str, list[str]]:
     days, kind, why = x.get('days'), x['kind'], []
     if rel and rel['requirement'] and not rel['open_deals']:
         why.append(f"The customer stated a requirement on {date.fromisoformat(rel['requirement']['on']):%-d %b}, and there is no deal yet")
@@ -98,9 +118,13 @@ def _tier(x: dict, rel: dict | None) -> tuple[str, list[str]]:
     window_open = x['type'] == 'shadow' and days is not None and days <= 0 and bool(shadow.get('window')) and shadow['window'][1] >= date.today().isoformat()
     if window_open and shadow.get('state') in ('corroborated', 'surfaced'):
         why.append('Its investigation window is open now')
-    if x['type'] == 'private' and x.get('category') == 'private_engage_now':
-        why.append('Research says engage now')
+    if x['type'] == 'private' and x.get('category') == 'private_engage_now' and not strict:
+        why.append('Research says engage now')  # PR #8: the research model's own timing. Under the strict rules it qualifies nothing.
+    if requirement:
+        why.append(f"{REQUIREMENT_LABEL[requirement['type']]}: {requirement['title']}")
     if why:
+        if strict and x['type'] == 'shadow' and kind != 'customer_expansion':
+            return 'watch', why  # indirect evidence is explored, never qualified as a requirement
         return 'this_week', why
     if kind == 'contract_ending' and days is not None and 120 < days <= 730:
         why.append(f"Reported contract end in {days // 30} months: early enough to build the relationship")
@@ -152,11 +176,94 @@ def next_action(lead: dict, rel: dict | None, stated: dict) -> str:
     return lead['brief']['next']
 
 
-def opportunities(db: Session, *, limit: int = 10, strict_service: bool = True) -> dict:
-    """strict_service: the daily list needs a positive match to a service you sell (or an existing relationship).
-    PR #8 did not require it; the evaluation keeps that behaviour as its own arm (strict_service=False)."""
+def _latest(day: str | None) -> date | None:
+    """The last day a partial date (YYYY, YYYY-MM or YYYY-MM-DD) can mean."""
+    s = (day or '').strip()
+    try:
+        if re.match(r'\d{4}-\d{2}-\d{2}', s):
+            return date.fromisoformat(s[:10])
+        if re.fullmatch(r'\d{4}-\d{2}', s):
+            y, m = int(s[:4]), int(s[5:7])
+            return date(y + m // 12, m % 12 + 1, 1) - timedelta(days=1)
+        if re.fullmatch(r'\d{4}', s):
+            return date(int(s), 12, 31)
+    except ValueError:
+        return None
+    return None
+
+
+def _evidenced(x: dict) -> list[str]:
+    """Services the evidence itself names: a notice's own title, or a company's sourced, stated signals. Never a guess."""
+    return x.get('evidenced_services', x['services'] if x['type'] == 'public' else [])
+
+
+def _evidenced_requirement(lead: dict, ours: set[str], today: date) -> dict | None:
+    """A current, sourced, stated requirement, finding or incident whose own words name a service you sell."""
+    for s in lead.get('sourced_signals') or []:
+        named = set(core._services_from_title(f"{s['title']} {s['detail']}"))
+        when = _latest(s['date'])
+        current = when is not None and (today - when).days <= RECENT_DAYS
+        if s['type'] in REQUIREMENT_LABEL and named and (not ours or named & ours) and current:
+            return s
+    return None
+
+
+def _exploration(lead: dict, fit: dict, today: date) -> dict | None:
+    """Whether a lead with no evidenced requirement is credible enough to investigate, and its uncertainty. None if not."""
+    if 'Outside your recorded territory' in fit['gaps']:
+        return None
+    if lead['type'] == 'private':
+        sourced = [s for s in lead.get('sourced_signals') or [] if s['type'] in TRIGGERS]
+        evidence = [{'text': s['title'], 'source_url': s['source_url'], 'date': s['date'], 'basis': 'stated'} for s in sourced]
+        sources, state = len({s['source_url'] for s in sourced}), None
+        reasons = [f"{SIGNALS[s['type']][0]}: {s['title']}" for s in sourced[:2]]
+    elif lead['type'] == 'shadow':
+        shadow = lead.get('shadow') or {}
+        window = shadow.get('window') or []
+        if shadow.get('state') == 'challenged' or (len(window) == 2 and window[1] < today.isoformat()):
+            return None  # contradicted by later evidence, or its window has closed
+        evidence = [{'text': f"{e['label']}: {e['statement']}", 'source_url': e['source_url'], 'date': e['published'], 'basis': 'published'}
+                    for e in shadow.get('timeline') or [] if e.get('role') in ('anchor', 'supports') and e.get('basis') == 'published' and e.get('source_url')]
+        sources, state = int(shadow.get('independent_sources') or len({e['source_url'] for e in evidence})), shadow.get('state')
+        reasons = [evidence[0]['text']] if evidence else []
+    else:
+        return None
+    dates = [d for d in (_latest(e['date']) for e in evidence) if d]
+    if not evidence or not dates or (today - max(dates)).days > RECENT_DAYS:
+        return None  # nothing sourced, or nothing current
+    uncertainty = ['Need not confirmed: no fire or security requirement is stated']
+    if sources <= 1:
+        uncertainty.append('Single source')
+    elif lead['type'] == 'private':
+        reasons.append(f'{sources} independent sources')
+    if lead['type'] == 'shadow':
+        uncertainty.append('Read from indirect public records, not stated by the organisation')
+    return {'evidence': evidence[:3], 'sources': sources, 'age': max((today - max(dates)).days, 0), 'state': state, 'uncertainty': uncertainty, 'reasons': reasons}
+
+
+def explore_step(lead: dict) -> str:
+    """An investigation, never a pitch: what to confirm before anyone sells anything."""
+    org, confirm = lead['organisation'], 'confirm there is a need before any pitch.'
+    if lead['type'] == 'shadow':
+        first = ((lead.get('shadow') or {}).get('first_action') or '').rstrip('. ')
+        return f"{first}: {confirm}" if first else f"Check the records on {org}: {confirm}"
+    types = {s['type'] for s in lead.get('sourced_signals') or []}
+    if types & {'new_site', 'relocation', 'expansion', 'planning_application', 'refurbishment'}:
+        return f"Find out whether fire and security for the new or changed site at {org} is already specified or let, and who decides it, and when: {confirm}"
+    if types & {'leadership_change', 'hiring_fm_security'}:
+        return f"Check that the new role at {org} covers fire and security, then ask how it is handled today: {confirm}"
+    if types & {'acquisition', 'outsourcing_or_restructure', 'contract_change', 'incumbent_distress', 'incumbent_poor_performance'}:
+        return f"Ask {org} whether the change affects who maintains their fire and security, and when that is decided: {confirm}"
+    return f"Read the source and ask {org} who is responsible for fire and security, and whether anything is planned: {confirm}"
+
+
+def opportunities(db: Session, *, limit: int = 10, strict_service: bool = True, explore_limit: int | None = None) -> dict:
+    """strict_service: the qualified list needs evidence that names a service you sell (or an existing relationship), and
+    leads without it are considered for the exploratory list. PR #8 had neither rule; the evaluation keeps its behaviour
+    as its own arm (strict_service=False), with no exploratory list."""
     today = core.uk_today()
     prof = profile(db)
+    ours = set(prof['stated']['services'])
     items = core.discover_items(db, limit=None)
     rel = _relationships(db, today)
     learned_sectors = {s['name'].lower() for s in (prof['learned'] or {}).get('sectors', []) if s['name'] != 'Not recorded'}
@@ -165,7 +272,12 @@ def opportunities(db: Session, *, limit: int = 10, strict_service: bool = True) 
     for x in items:
         if x['status'] == 'dismissed':
             continue
-        if any(g == 'Services outside what you sell' for g in x['brief']['fit']['gaps']):
+        if strict_service:  # only what the evidence names can rule a lead out: a guessed service never does
+            named = set(_evidenced(x))
+            outside_service = bool(ours) and bool(named) and not named & ours
+        else:
+            outside_service = any(g == 'Services outside what you sell' for g in x['brief']['fit']['gaps'])
+        if outside_service:
             set_aside['Services you do not sell'] += 1
             continue
         if x['kind'] == 'unverified_candidate':
@@ -185,13 +297,20 @@ def opportunities(db: Session, *, limit: int = 10, strict_service: bool = True) 
     for key, members in groups.items():
         lead = members[0]  # discover_items is already ordered: published deadlines first, then fit
         r = rel.get(lead.get('account_id')) if lead.get('account_id') else None
-        tier, why = _tier(lead, r)
+        requirement = _evidenced_requirement(lead, ours, today) if strict_service and lead['type'] == 'private' else None
+        tier, why = _tier(lead, r, strict_service, requirement)
         fit = lead['brief']['fit']
-        sells = any(m.startswith('Sells what you sell') for m in fit['matched'])
+        matched = list(fit['matched'])
+        if strict_service:  # "sells what you sell" only when the evidence itself names it
+            evidenced = set(_evidenced(lead)) & ours
+            matched = [m for m in matched if not m.startswith('Sells what you sell')]
+            if evidenced:
+                matched.insert(0, 'Sells what you sell: ' + ', '.join(sorted(evidenced)).replace('_', ' '))
+        sells = any(m.startswith('Sells what you sell') for m in matched)
         relationship = bool(r and (r['requirement'] or r['overdue'] or r['status'] == 'customer'))
-        unproven_service = strict_service and bool(prof['stated']['services']) and not sells and not relationship
+        unproven_service = strict_service and bool(ours) and not sells and not relationship
         outside = strict_service and 'Outside your recorded territory' in fit['gaps'] and not relationship
-        reasons = list(why) + fit['matched']
+        reasons = list(why) + matched
         if r and r['status'] == 'customer' and 'Existing customer with a new signal' not in reasons:
             reasons.append('Already a customer: you have a relationship to build on')
         sector = (r or {}).get('sector') or lead.get('sector') or ''
@@ -214,27 +333,48 @@ def opportunities(db: Session, *, limit: int = 10, strict_service: bool = True) 
         rows.append({
             'key': lead['key'], 'organisation': lead['organisation'], 'account_id': lead.get('account_id'), 'type': lead['type'], 'kind': lead['kind'],
             'kind_label': lead['kind_label'], 'title': lead['title'], 'site': (lead.get('shadow') or {}).get('site'), 'tier': tier, 'tier_label': TIERS[tier],
-            'reasons': reasons, 'cautions': cautions[:3], 'why_customer': brief['why_customer'], 'why_now': brief['why_now'], 'why_now_basis': brief['why_now_basis'],
-            'known': brief['known'][:3], 'unknown': brief['unknown'][:3], 'speak_to': brief['who'], 'next': next_action(lead, r, prof['stated']), 'timing': lead.get('timing'),
-            'days': lead.get('days'), 'services': lead['services'],
+            'pathway': 'qualified', 'reasons': reasons, 'cautions': cautions[:3], 'why_customer': matched or brief['why_customer'], 'why_now': brief['why_now'],
+            'why_now_basis': brief['why_now_basis'], 'known': brief['known'][:3], 'unknown': brief['unknown'][:3], 'speak_to': brief['who'],
+            'next': next_action(lead, r, prof['stated']), 'timing': lead.get('timing'), 'days': lead.get('days'), 'services': lead['services'],
             'signals': [{'key': m['key'], 'type': m['type'], 'label': m['kind_label'], 'why_now': m['why_now']} for m in members[:4]],
             'relationship': {k: r[k] for k in ('status', 'open_deals', 'overdue', 'requirement', 'last_activity')} if r else None,
-            '_sort': ({'act_now': 0, 'this_week': 1, 'watch': 2}[tier], lead['basis'] != 'published', -(len(fit['matched']) - len(fit['gaps'])),
+            '_lead': lead, '_fit': fit, '_qualifies': (sells or relationship) and not outside, '_relationship': relationship,
+            '_sort': ({'act_now': 0, 'this_week': 1, 'watch': 2}[tier], lead['basis'] != 'published', -(len(matched) - len(fit['gaps'])),
                       0 if r else 1, lead['days'] if lead.get('days') is not None and lead['days'] >= 0 else 9999, lead['organisation']),
         })
     rows.sort(key=lambda x: x['_sort'])
-    for x in rows:
-        x.pop('_sort')
     # A focused day: only what is worth acting on today or this week. Everything else stays in Discover, counted, not listed.
     focus = [x for x in rows if x['tier'] != 'watch'][:limit]
-    if len(focus) < 3:  # a quiet day still shows the strongest leads in view, labelled as such
-        focus += [x for x in rows if x['tier'] == 'watch'][:3 - len(focus)]
-    shown = focus
-    return {'as_of': today.isoformat(), 'items': shown, 'total': len(rows), 'tiers': dict(Counter(x['tier'] for x in rows)),
-            'in_view': sum(1 for x in rows if x['tier'] == 'watch' and x not in shown),
+    if len(focus) < 3:  # a quiet day still shows the strongest qualified leads in view, labelled as such: never an exploratory one
+        focus += [x for x in rows if x['tier'] == 'watch' and (x['_qualifies'] or not strict_service)][:3 - len(focus)]
+    shown = {x['key'] for x in focus}
+    # Exploratory: credible changes with no evidenced requirement, shown apart and labelled, never mixed into the day above.
+    candidates = []
+    if strict_service:
+        for x in rows:
+            if x['tier'] == 'watch' and x['key'] not in shown and x['type'] in ('private', 'shadow') and not x['_relationship']:
+                info = _exploration(x['_lead'], x['_fit'], today)
+                if info:
+                    candidates.append((x, info))
+    candidates.sort(key=lambda p: (-p[1]['sources'], p[1]['age'], p[0]['organisation']))
+    explore = candidates[:EXPLORE_LIMIT if explore_limit is None else explore_limit]
+    for x, info in explore:
+        x.update({'pathway': 'exploratory', 'tier': 'explore', 'tier_label': TIERS['explore'], 'uncertainty': info['uncertainty'], 'known': info['evidence'],
+                  'evidence_state': info['state'], 'sources': info['sources'], 'next': explore_step(x['_lead']),
+                  'reasons': info['reasons'] + [r for r in x['reasons'] if r not in info['reasons']],
+                  'cautions': [c for c in x['cautions'] if not c.startswith('The record does not say it needs')]})
+    for x in rows:
+        for k in ('_lead', '_fit', '_qualifies', '_relationship', '_sort'):
+            x.pop(k, None)
+    explored = {x['key'] for x, _ in explore}
+    return {'as_of': today.isoformat(), 'items': focus, 'exploratory': [x for x, _ in explore], 'exploratory_total': len(candidates),
+            'total': len(rows), 'tiers': dict(Counter(x['tier'] for x in rows)),
+            'in_view': sum(1 for x in rows if x['tier'] == 'watch' and x['key'] not in shown and x['key'] not in explored),
             'set_aside': [{'reason': k, 'count': v} for k, v in set_aside.items()], 'profile': prof,
             'method': ('Ordered by tier, then published evidence before inferred, closer fit to your profile, existing relationships, and the soonest date. '
-                       'No probability is shown: none has been validated.')}
+                       'No probability is shown: none has been validated.'),
+            'exploratory_method': ('Credible, sourced changes at an organisation or site, with no stated need for what you sell: a reason to investigate, '
+                                   'not a requirement. Each is dated within a year, inside your territory and not contradicted. More sources first, then the newest.')}
 
 
 def results(db: Session) -> dict:

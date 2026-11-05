@@ -31,6 +31,8 @@ def test_models_create_against_sqlite() -> None:
         "si_lead_feedback",
         "si_gap_requests",
         "si_review_decisions",
+        "si_review_adjudications",
+        "si_review_states",
         "competitor_profiles",
         "enrichment_runs",
         "evidence_observations",

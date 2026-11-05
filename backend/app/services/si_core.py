@@ -283,6 +283,7 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
                 "rank": (0 if urgent and (s.get("priority") or {}).get("tier") == 1 else 1 if urgent else 2, days if days is not None and days >= 0 else 9999),
             })
             it = items[-1]
+            it["evidenced_services"] = it["services"]  # read from the notice's own title
             it["kind"] = _kind(it, statuses.get(it["account_id"]))
             known = [{"text": f"{e.get('source')} notice {e.get('record_key')}", "source_url": e.get("source_url"), "date": (e.get("published_at") or "")[:10], "basis": "published"}
                      for e in s.get("evidence") or []]
@@ -312,6 +313,11 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
                 "rank": (1 if phase == "engage_now" else 2 if phase == "prepare" else 3, 9999),
             })
             it = items[-1]
+            # What the sources themselves state, apart from the research model's own guesses ("services", timing): only
+            # these can qualify a lead, and only these are shown as an exploratory lead's evidence.
+            it["sourced_signals"] = [{"type": sig.get("type") or "", "title": sig.get("title") or "", "detail": sig.get("detail") or "", "date": sig.get("date") or "",
+                                      "source_url": sig["source_url"]} for sig in v.get("signals") or [] if sig.get("source_url") and sig.get("basis") == "stated"]
+            it["evidenced_services"] = sorted({svc for sig in it["sourced_signals"] for svc in _services_from_title(f"{sig['title']} {sig['detail']}")})
             it["kind"] = _kind(it, statuses.get(it["account_id"]))
             known = [{"text": sig.get("title") or "", "source_url": sig.get("source_url") or None, "date": sig.get("date") or "", "basis": sig.get("basis") or "inferred"}
                      for sig in v.get("signals") or []]
@@ -428,7 +434,8 @@ def _shadow_items(db: Session, links: dict, statuses: dict, routes: dict, prefs:
         item = {"key": f"sh:{row.id}", "type": "shadow", "source_label": "Shadow Radar", "organisation": display_name(a["entity_name"]),
                 "title": f"{a['sensor_name']}: {a.get('site') or a['hypothesis']}", "why_now": shadow_why(a), "category": a["sensor"], "category_label": a["sensor_name"],
                 "basis": "inferred", "timing": a["window"][0], "days": (start - today).days, "timing_label": "Possible investigation window opens",
-                "nation": None, "region": None, "tier": None, "services": a["services"], "supplier": a.get("main_contractor"), "value": None,
+                "nation": None, "region": None, "tier": None, "services": a["services"], "evidenced_services": [],  # services inferred from the building type
+                "supplier": a.get("main_contractor"), "value": None,
                 "status": reviewed.get(row.id, "new"), "account_id": link.account_id if link else None, "link_basis": link.basis if link else None,
                 "rank": (1 + order.get(a["state"], 3), max((start - today).days, 0)),
                 "shadow": {**a, "competing": [{"key": f"sh:{r.id}", "sensor_name": x["sensor_name"], "hypothesis": x["hypothesis"], "first_action": x["first_action"],

@@ -34,16 +34,18 @@ test("Scenario A: from the daily list to a qualified deal, with every claim sour
   let t0 = Date.now();
   const mark = (step: string) => marks.push({ step, seconds: Math.round((Date.now() - t0) / 100) / 10, clicks });
 
-  // 1. Understand why a lead matters: it is on the list when the day starts, with its reasons.
+  // 1. Understand why a lead matters: it is waiting when the day starts, with its reasons. Indirect evidence states no
+  // requirement, so it is offered as worth investigating, labelled as unconfirmed, never as a confirmed need.
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "Today", exact: true }).click(); clicks++;
   t0 = Date.now(); clicks = 0;
   const best = page.getByRole("region", { name: "Your best opportunities" });
-  const card = best.getByRole("article", { name: /Harbourside Community Health/ });
+  const card = best.getByRole("region", { name: "Worth investigating" }).getByRole("article", { name: /Harbourside Community Health/ });
   await expect(card).toContainText("Corroborated by 2 independent sources");
   await expect(card).toContainText("Inferred, not advertised");
+  await expect(card).toContainText("Need not confirmed");
   await expect(best).not.toContainText(/\d+(\.\d+)?\s?%/); // no score or probability anywhere on the list
   mark("Understand why the lead matters");
-  await card.getByText("What we know, what we don't, who to speak to").click(); clicks++;
+  await card.getByText("The evidence, and what to confirm").click(); clicks++;
   await expect(card).toContainText("Estates, property or facilities manager");
   await best.screenshot({ animations: "disabled", path: `${SHOTS}/10-best-opportunities-desktop.png` });
 

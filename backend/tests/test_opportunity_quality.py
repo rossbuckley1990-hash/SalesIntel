@@ -108,7 +108,8 @@ def test_two_organisations_with_the_same_name_are_not_merged_on_the_list(hosted)
         db.commit()
     alice, org = workspace(h, 'alice', 'Alpha Fire Ltd')
     prospect(h, org, 'Harbourside Community Health', [signal('expansion', 'A logistics firm of the same name expands its fleet')])
-    rows = [x for x in alice.get('/api/si/best', params={'limit': 40}).json()['items'] if x['organisation'] == 'Harbourside Community Health']
+    best = alice.get('/api/si/best', params={'limit': 40, 'explore': 40}).json()
+    rows = [x for x in best['items'] + best['exploratory'] if x['organisation'] == 'Harbourside Community Health']
     assert len(rows) == 2 and {r['type'] for r in rows} == {'shadow', 'private'}  # a public trust and a private firm stay separate
 
 
@@ -120,7 +121,8 @@ def test_reading_the_list_is_not_counted_as_showing_it(hosted):
         load(db, real=False)
         db.commit()
     alice, _ = workspace(h, 'alice', 'Alpha Fire Ltd')
-    items = alice.get('/api/si/best').json()['items']
+    best = alice.get('/api/si/best').json()
+    items = best['items'] + best['exploratory']  # the leads the page shows, on either list
     alice.get('/api/si/best')
     with h.system() as db:
         assert not db.scalars(select(FunnelEvent).where(FunnelEvent.event == 'lead_presented')).all()  # an API read is not exposure

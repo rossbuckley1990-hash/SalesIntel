@@ -25,8 +25,8 @@ router = APIRouter(prefix='/api/si', tags=['intelligence'], dependencies=[Depend
 
 
 @router.get('/best')
-def best_opportunities(limit: int = 10, db: Session = Depends(tenant_db)):
-    return run(db, lambda: best.opportunities(db, limit=max(1, min(limit, 40))))
+def best_opportunities(limit: int = 10, explore: int | None = None, db: Session = Depends(tenant_db)):
+    return run(db, lambda: best.opportunities(db, limit=max(1, min(limit, 40)), explore_limit=None if explore is None else max(0, min(explore, 40))))
 
 
 class Seen(BaseModel):

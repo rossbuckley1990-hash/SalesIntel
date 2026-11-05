@@ -45,3 +45,6 @@ yarn-error.log*
 test-results/
 playwright-report/
 playwright-report-hosted/
+
+# An evaluation key unblinds a review: it is never committed. Keep it in ~/.salesintel/evaluation until the review is locked.
+*.key.json

@@ -3,11 +3,11 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Briefcase, Calculator, CheckCircle2, ClipboardList, Package, Trophy, XCircle } from "lucide-react";
 import { EmptyState, Pill } from "./ds";
 import { safeUrl } from "./radar-model";
-import { SERVICES, SERVICE_NAME, STAGE_LABEL, goto, param, si, type DealCard, type DealT } from "./si-api";
+import { SERVICES, SERVICE_NAME, STAGE_LABEL, goto, param, pounds, si, type DealCard, type DealT } from "./si-api";
 import { ActivityForm, Basis, PageHeader, Panel, TaskRow, Timeline, useUrl } from "./si-shared";
 import type { SharedProps } from "./types";
 
-const money = (v: number | null | undefined) => (v === null || v === undefined ? "Unknown" : `£${v.toLocaleString("en-GB", { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 })}`);
+const money = pounds;
 const OPEN = ["qualify", "engage", "survey", "proposal", "bid_review", "negotiation", "approval"];
 
 export function SiDeals(props: SharedProps) {
@@ -63,6 +63,7 @@ function DealRecordView({ id, notify }: SharedProps & { id: number }) {
   }, [id]);
   useEffect(() => { load().catch((e) => notify(e.message, true)); }, [load, notify]);
   if (!d) return <div className="ds-root space-y-3"><div className="ds-skeleton h-24 rounded-xl" /><div className="ds-skeleton h-72 rounded-xl" /></div>;
+  const won = d.stage === "won";
 
   async function patch(json: Record<string, unknown>, done?: string) {
     try { setD(await si<DealT>(`/deals/${id}`, { method: "PATCH", json })); if (done) notify(done); return true; } catch (e) { notify((e as Error).message, true); return false; }
@@ -73,8 +74,9 @@ function DealRecordView({ id, notify }: SharedProps & { id: number }) {
   }
   async function buildQuote() {
     await saveScope();
-    const numeric = Object.fromEntries(Object.entries(rates).filter(([, v]) => v !== "" && !Number.isNaN(Number(v))).map(([k, v]) => [k, Number(v)]));
-    try { setD(await si<DealT>(`/deals/${id}/quote`, { method: "POST", json: { rates: numeric } })); notify("Quotation draft updated."); } catch (e) { notify((e as Error).message, true); }
+    // Rates go to the server exactly as typed; it validates them as decimals.
+    const entered = Object.fromEntries(Object.entries(rates).filter(([, v]) => v.trim() !== "").map(([k, v]) => [k, v.trim()]));
+    try { setD(await si<DealT>(`/deals/${id}/quote`, { method: "POST", json: { rates: entered } })); notify("Quotation draft updated."); } catch (e) { notify((e as Error).message, true); }
   }
   async function approveQuote() {
     try { setD(await si<DealT>(`/deals/${id}/quote/approve`, { method: "POST", json: { reviewer } })); notify("Quotation approved for issue."); } catch (e) { notify((e as Error).message, true); }
@@ -104,13 +106,15 @@ function DealRecordView({ id, notify }: SharedProps & { id: number }) {
 
       {closing && <form className="ds-card space-y-2 p-4" onSubmit={async (e) => { e.preventDefault(); if (await patch({ stage: closing, reason }, closing === "won" ? "Marked won. Handover recorded." : "Marked lost.")) { setClosing(""); setReason(""); } }}>
         <label className="block"><span className="ds-label">{closing === "won" ? "Why did we win?" : "Why did we lose?"}</span><textarea className="mt-1 w-full rounded-lg border border-ds-border-strong p-2.5 text-[14px]" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} required /></label>
-        {closing === "won" && d.quote?.status !== "approved" && <p className="text-[12px] text-ds-amber">The quotation must be approved before a deal can be marked won.</p>}
+        {closing === "won" && d.quote?.status !== "approved" && <p className="text-[12px] text-ds-amber">The current quotation must be approved before a deal can be marked won.</p>}
         <div className="flex gap-2"><button className="ds-btn primary">Confirm {closing}</button><button type="button" className="ds-btn ghost" onClick={() => setClosing("")}>Cancel</button></div>
       </form>}
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-5">
-          <Panel title={<span className="flex items-center gap-2"><ClipboardList size={15} className="text-ds-muted" /> Scope</span>} action={<button className="ds-btn sm" onClick={() => void saveScope()}>Save scope</button>}>
+          <Panel title={<span className="flex items-center gap-2"><ClipboardList size={15} className="text-ds-muted" /> Scope</span>} action={!won && <button className="ds-btn sm" onClick={() => void saveScope()}>Save scope</button>}>
+            {won && <p className="mb-3 text-[13px] text-ds-muted">Won and handed over. Scope and quotation are locked; record a change as a new deal.</p>}
+            <fieldset disabled={won} className="contents">
             <div className="mb-3 flex flex-wrap gap-1.5">{SERVICES.map(([v, l]) => <button key={v} aria-pressed={d.services.includes(v)} onClick={() => void patch({ services: d.services.includes(v) ? d.services.filter((x) => x !== v) : [...d.services, v] })}
               className={`rounded-full border px-3 py-1 text-[12px] font-medium ${d.services.includes(v) ? "border-ds-brand bg-ds-brand-soft text-ds-brand" : "border-ds-border bg-white text-ds-ink-2"}`}>{l}</button>)}
               <select className="ds-select !h-8 text-[12px]" aria-label="Type of work" value={d.work_type} onChange={(e) => void patch({ work_type: e.target.value })}><option value="">Type of work</option>{Object.entries(d.work_types).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
@@ -120,9 +124,11 @@ function DealRecordView({ id, notify }: SharedProps & { id: number }) {
                 <td className="py-2 pr-3"><input aria-label={s.question} className="h-9 w-full rounded-md border border-ds-border-strong px-2" value={v.value} placeholder="Unknown" onChange={(e) => setScope({ ...scope, [k]: { ...v, value: e.target.value } })} /></td>
                 <td className="py-2"><select aria-label={`Basis for ${s.question}`} className="h-9 rounded-md border border-ds-border-strong px-2" value={v.basis} onChange={(e) => setScope({ ...scope, [k]: { ...v, basis: e.target.value } })}><option value="surveyed">Surveyed</option><option value="customer_stated">Customer stated</option><option value="estimate">Estimate</option></select></td>
               </tr>; })}</tbody></table></div>
-          </Panel>
+          </fieldset></Panel>
 
-          <Panel title={<span className="flex items-center gap-2"><Calculator size={15} className="text-ds-muted" /> Quotation draft</span>} action={d.quote?.status && <Pill tone={d.quote.status === "approved" ? "green" : "amber"}>{d.quote.status === "approved" ? `Approved by ${d.quote.approved_by}` : "Draft"}</Pill>}>
+          <Panel title={<span className="flex items-center gap-2"><Calculator size={15} className="text-ds-muted" /> Quotation draft</span>} action={d.quote?.status && <Pill tone={d.quote.status === "approved" ? "green" : d.quote.status === "superseded" ? "red" : "amber"}>{d.quote.status === "approved" ? `Version ${d.quote.version} approved by ${d.quote.approved_by}` : d.quote.status === "superseded" ? "Approval superseded" : "Draft"}</Pill>}>
+            <fieldset disabled={won} className="contents">
+            {d.quote?.status === "superseded" && <p role="alert" className="mb-3 rounded-lg border border-ds-red-line bg-ds-red-soft px-3 py-2 text-[13px] text-ds-red">{d.quote.superseded_reason || "Inputs changed after approval."} Rebuild and approve the quotation again before this deal can be won.</p>}
             {!d.services.length ? <p className="text-[13px] text-ds-muted">Choose the services in scope first.</p> : <>
               <div className="grid gap-2 sm:grid-cols-2">{d.scope.filter((s) => s.service !== "common" && s.unit).map((s) => { const k = `${s.service}.${s.field}`; return <label key={k} className="block"><span className="ds-label">Rate per {s.unit} ({SERVICE_NAME[s.service]})</span>
                 <input inputMode="decimal" className="mt-1 block h-9 w-full rounded-md border border-ds-border-strong px-2 text-[13px]" placeholder="£ not set" value={rates[k] || ""} onChange={(e) => setRates({ ...rates, [k]: e.target.value })} /></label>; })}</div>
@@ -133,10 +139,12 @@ function DealRecordView({ id, notify }: SharedProps & { id: number }) {
                   <tr className="border-t-2 border-ds-border-strong"><td className="py-2 font-semibold" colSpan={3}>Total</td><td className="py-2 text-right font-semibold">{d.quote.subtotal !== null && d.quote.subtotal !== undefined ? money(d.quote.subtotal) : "Incomplete"}</td></tr></tbody></table></div>}
               {!!d.quote?.missing?.length && <div className="mt-3 rounded-lg border border-ds-amber-line bg-ds-amber-soft p-3"><p className="text-[13px] font-semibold text-ds-amber">Missing before approval</p><ul className="mt-1 list-disc pl-5 text-[12px] text-ds-ink-2">{d.quote.missing.map((m) => <li key={m}>{m}</li>)}</ul></div>}
               {d.quote?.terms_note && <p className="mt-2 text-[12px] text-ds-muted">{d.quote.terms_note}</p>}
-              {d.quote?.status === "draft" && <div className="mt-3 flex flex-wrap items-end gap-2"><label><span className="ds-label">Approved by</span><input className="mt-1 block h-9 rounded-md border border-ds-border-strong px-2 text-[13px]" value={reviewer} onChange={(e) => setReviewer(e.target.value)} /></label>
+              {!!d.quote?.approvals?.length && <details className="mt-3 text-[12px] text-ds-muted"><summary className="cursor-pointer font-semibold">Approval history ({d.quote.approvals.length})</summary>
+                <ul className="mt-1 space-y-1">{d.quote.approvals.map((a) => <li key={a.version}>Version {a.version}: {pounds(a.subtotal)} approved by {a.reviewer}, {new Date(a.approved_at).toLocaleString("en-GB")}{a.superseded_at ? `; superseded: ${a.superseded_reason}` : ""}</li>)}</ul></details>}
+              {d.quote?.status !== "approved" && !!d.quote?.lines && <div className="mt-3 flex flex-wrap items-end gap-2"><label><span className="ds-label">Approved by</span><input className="mt-1 block h-9 rounded-md border border-ds-border-strong px-2 text-[13px]" value={reviewer} onChange={(e) => setReviewer(e.target.value)} /></label>
                 <button className="ds-btn primary" disabled={reviewer.trim().length < 2} onClick={() => void approveQuote()}><CheckCircle2 size={15} /> Approve quotation</button></div>}
             </>}
-          </Panel>
+          </fieldset></Panel>
 
           {d.stage === "won" && handover.captured_at && <Panel title={<span className="flex items-center gap-2"><Package size={15} className="text-ds-green" /> Handover record</span>}>
             <p className="text-[13px] text-ds-ink-2">Captured {new Date(handover.captured_at).toLocaleString("en-GB")}. Won because: {d.outcome_reason}</p>

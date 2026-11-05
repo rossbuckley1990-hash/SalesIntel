@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, StrictStr
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -374,7 +374,7 @@ class NewDeal(Strict):
     work_type: str = Field('', max_length=32)
     qualification: Qualification
     next_step: str = Field('', max_length=1000)
-    value_total: float | None = Field(None, ge=0)
+    value_total: StrictStr | StrictInt | StrictFloat | None = None
 
 
 @router.post('/accounts/{account_id}/deals')
@@ -398,7 +398,7 @@ class DealUpdate(Strict):
     services: list[str] | None = Field(None, max_length=8)
     work_type: str | None = Field(None, max_length=32)
     next_step: str | None = Field(None, max_length=1000)
-    value_total: float | None = Field(None, ge=0)
+    value_total: StrictStr | StrictInt | StrictFloat | None = None
 
 
 @router.patch('/deals/{deal_id}')
@@ -408,14 +408,11 @@ def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(get_db)
         row = db.get(DealRecord, deal_id)
         if not row:
             raise LookupError('Deal not found')
-        if payload.services is not None:
-            row.services = [s for s in payload.services if s in engage.SERVICE_LABEL]
-        if payload.work_type is not None:
-            row.work_type = payload.work_type if payload.work_type in engage.WORK_TYPES else ''
+        engage.update_terms(db, deal_id, services=payload.services, work_type=payload.work_type)
         if payload.next_step is not None:
             row.next_step = payload.next_step
         if payload.value_total is not None:
-            row.value_total, row.value_basis = payload.value_total, 'user_estimate'
+            row.value_total, row.value_basis = float(engage.money(payload.value_total, 'Deal value')), 'user_estimate'
         if payload.stage:
             engage.move_stage(db, deal_id, payload.stage, payload.reason)
         row.updated_at = core.now()
@@ -426,7 +423,7 @@ def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(get_db)
 class ScopeEntry(Strict):
     service: str = Field(max_length=32)
     field: str = Field(max_length=32)
-    value: str | float | int | None = None
+    value: StrictStr | StrictInt | StrictFloat | None = None
     basis: Literal['surveyed', 'customer_stated', 'estimate'] | None = None
 
 
@@ -440,7 +437,7 @@ def scope(deal_id: int, payload: ScopeIn, db: Session = Depends(get_db)):
 
 
 class QuoteIn(Strict):
-    rates: dict[str, float] = Field(default_factory=dict)
+    rates: dict[str, StrictStr | StrictInt | StrictFloat | None] = Field(default_factory=dict, max_length=60)
 
 
 @router.post('/deals/{deal_id}/quote')

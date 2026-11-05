@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     app_env: str = "local"
     database_url: str = "sqlite:///./misi.db"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    # SalesIntel has no sign-in: it answers only local hosts and loopback clients.
+    allowed_hosts: str = "127.0.0.1,localhost,[::1],testserver"
+    allow_remote_clients: bool = False
     max_upload_bytes: int = 5 * 1024 * 1024
     openai_api_key: str | None = Field(default=None, repr=False)
     openai_model: str = "gpt-6.1-terra"

@@ -60,7 +60,8 @@ function Composer({ accountId, notify, onChange }: { accountId: number; notify: 
   const load = useCallback(async () => {
     const account = await si<AccountT>(`/accounts/${accountId}`);
     setA(account);
-    const draft = account.drafts.find((d) => d.id === draftId) || account.drafts.find((d) => d.status !== "logged" && !draftId);
+    // Reopen the draft asked for; otherwise only a draft that can still be used.
+    const draft = account.drafts.find((d) => d.id === draftId) || (!draftId ? account.drafts.find((d) => d.status === "draft" || d.status === "approved") : undefined);
     if (draft) {
       setDraftId(draft.id); setSubject(draft.subject); setBody(draft.body); setGaps(draft.gaps); setEvidence(draft.evidence); setStatus(draft.status);
       setContactId(draft.contact_id ? String(draft.contact_id) : "");
@@ -123,7 +124,7 @@ function Composer({ accountId, notify, onChange }: { accountId: number; notify: 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><p className="text-[12px] font-semibold uppercase tracking-wide text-ds-muted">Introduction to</p>
             <button className="mt-0.5 flex items-center gap-1.5 text-[20px] font-semibold text-ds-ink hover:text-ds-brand" onClick={() => goto("clients", { account: a.id })}><Building2 size={18} />{a.name}</button></div>
-          {status !== "new" && <Pill tone={status === "approved" ? "green" : status === "logged" ? "brand" : "neutral"}>{status === "approved" ? "Approved, ready to send" : status === "logged" ? "Logged as sent" : "Draft"}</Pill>}
+          {status !== "new" && <Pill tone={status === "approved" ? "green" : status === "logged" ? "brand" : status === "suppressed" ? "red" : "neutral"}>{status === "approved" ? "Approved, ready to send" : status === "logged" ? "Logged as sent" : status === "suppressed" ? "Suspended: recipient opted out" : "Draft"}</Pill>}
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="block"><span className="ds-label">To</span><select className="ds-select mt-1 w-full" value={contactId} onChange={(e) => setContactId(e.target.value)}>
@@ -142,7 +143,7 @@ function Composer({ accountId, notify, onChange }: { accountId: number; notify: 
           {!!evidence.length && <div><p className="ds-label">Based on</p><ul className="mt-1 space-y-1">{evidence.map((e, i) => { const href = safeUrl(e.url); return <li key={i} className="text-[13px]">{href ? <a className="inline-flex items-center gap-1 font-medium text-ds-brand hover:underline" href={href} target="_blank" rel="noreferrer">{e.label}<ArrowUpRight size={12} /></a> : e.label}</li>; })}</ul></div>}
           <div className="flex flex-wrap gap-2">
             <button className="ds-btn" onClick={() => void save()} disabled={busy || status === "logged"}>Save draft</button>
-            <button className="ds-btn primary" onClick={() => void approve()} disabled={busy || placeholders || status === "logged" || status === "approved"} title={placeholders ? "Replace the [placeholders] first" : ""}><Check size={15} /> Approve</button>
+            <button className="ds-btn primary" onClick={() => void approve()} disabled={busy || placeholders || status === "logged" || status === "approved" || status === "suppressed"} title={placeholders ? "Replace the [placeholders] first" : ""}><Check size={15} /> Approve</button>
             <button className="ds-btn ghost" onClick={() => { void navigator.clipboard?.writeText(`${subject}\n\n${body}`); notify("Copied."); }}><Copy size={15} /> Copy</button>
             {mailto && status === "approved" && <a className="ds-btn ghost" href={mailto}><Mail size={15} /> Open in my email</a>}
           </div>

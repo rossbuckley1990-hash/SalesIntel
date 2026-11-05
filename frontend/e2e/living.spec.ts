@@ -257,6 +257,10 @@ test("keyboard command, responsive layout, reduced motion, no-WebGL fallback and
 test("GPU lifecycle: repeated navigation, resize, live morph and context loss", async ({
   page,
 }) => {
+  // CI renders WebGL in software at about 10 frames a second, and this test waits for 160+
+  // real frames three times. A passing CI run took 35s of the default 60s; a slower runner
+  // ran out of budget at the last step. Triple the budget for this test only; no assertion changes.
+  test.slow();
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => {

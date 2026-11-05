@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -34,6 +35,14 @@ REGIONS = ["yorkshire", "north west", "north east", "midlands", "east midlands",
 
 def now() -> datetime:
     return datetime.now(UTC)
+
+
+UK = ZoneInfo("Europe/London")
+
+
+def uk_today() -> date:
+    """The salesperson's calendar day. Follow-ups are UK dates, so 00:30 BST is already tomorrow."""
+    return now().astimezone(UK).date()
 
 
 def name_key(name: str) -> str:
@@ -206,12 +215,12 @@ def _why_public(s: dict) -> str:
     if cat == "pre_tender":
         return f"Published contract{f' with {supplier}' if supplier else ''} ends {when or 'soon'}; the buyer is likely to plan its replacement before then."
     if cat == "verify_first":
-        return f"Published term {'ended' if timing and _days(timing, date.today()) is not None and _days(timing, date.today()) < 0 else 'ends'} {when or 'on an unpublished date'}; current arrangement not confirmed."
+        return f"Published term {'ended' if timing and _days(timing, uk_today()) is not None and _days(timing, uk_today()) < 0 else 'ends'} {when or 'on an unpublished date'}; current arrangement not confirmed."
     return (s.get("brief") or {}).get("why_it_matters") or "Public signal worth checking."
 
 
 def discover_items(db: Session, *, include_private: bool = True, include_public: bool = True, limit: int | None = 200) -> list[dict]:
-    today = now().date()
+    today = uk_today()
     links = {(x.entity_type, x.entity_id): x for x in db.scalars(select(AccountLink))}
     items: list[dict] = []
     if include_public:
@@ -421,7 +430,7 @@ def draft_dict(d: Draft) -> dict:
 
 def accounts_list(db: Session, q: str = "") -> list[dict]:
     rows = db.scalars(select(Account).order_by(Account.updated_at.desc())).all()
-    today = now().date()
+    today = uk_today()
     out = []
     for a in rows:
         if q and q.lower() not in a.name.lower():
@@ -439,7 +448,7 @@ def accounts_list(db: Session, q: str = "") -> list[dict]:
 # ---------------------------------------------------------------- today
 
 def today_queue(db: Session) -> dict:
-    today = now().date()
+    today = uk_today()
     names = {a.id: a.name for a in db.scalars(select(Account))}
     queue: list[dict] = []
     for t in db.scalars(select(Task).where(Task.status == "open", Task.due_on <= today).order_by(Task.due_on)):

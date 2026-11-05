@@ -31,6 +31,7 @@ class Meter:
     provider: str
     simulated: bool = False
     ceiling_cents: int | None = None  # stop before a call once this much has been spent
+    on_call: Any = None  # records usage after every call, so a later crash cannot lose it
     usage: dict[str, int] = field(default_factory=lambda: {'input_tokens': 0, 'output_tokens': 0, 'web_searches': 0, 'calls': 0})
 
     def __call__(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -42,6 +43,8 @@ class Meter:
         self.usage['output_tokens'] += int(u.get('output_tokens') or 0)
         self.usage['web_searches'] += int((u.get('server_tool_use') or {}).get('web_search_requests') or 0)
         self.usage['calls'] += 1
+        if self.on_call is not None:
+            self.on_call()
         return result
 
     @property

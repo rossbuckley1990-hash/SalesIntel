@@ -96,8 +96,11 @@ def _finish(db: Session, job: ResearchJob, status: str, *, stage: str = '', erro
     if error:
         job.error = error[:2000]
     if job.reserved_cents or job.actual_cents:
-        day = datetime.fromisoformat(job.params.get('internal', {}).get('spend_day', spend.uk_today().isoformat())).date()
-        spend.settle(db, job.requested_by, job.reserved_cents, job.actual_cents, day)
+        internal = job.params.get('internal', {})
+        day = datetime.fromisoformat(internal.get('spend_day', spend.uk_today().isoformat())).date()
+        # A provider call cut off by a crash cannot be measured, so a recovered job is charged at least its estimate.
+        charged = max(job.actual_cents, job.estimated_cents) if internal.get('interrupted') else job.actual_cents
+        spend.settle(db, job.requested_by, job.reserved_cents, charged, day)
         job.reserved_cents = 0
 
 
@@ -117,10 +120,12 @@ def claim(engine, worker: str = '') -> tuple[int, int, str] | None:
                 db.info.pop(ORG)
                 continue
             token = secrets.token_hex(16)
+            params = job.params if job.status == 'queued' else {**job.params, 'internal': {**job.params.get('internal', {}), 'interrupted': True}}
             won = db.execute(update(ResearchJob).where(ResearchJob.id == job.id, ResearchJob.status == job.status,
                                                        or_(ResearchJob.lease_token.is_(None), ResearchJob.lease_token == job.lease_token))
                              .values(status='running', lease_token=token, lease_until=moment + lease, attempts=ResearchJob.attempts + 1,
-                                     started_at=moment, updated_at=moment, stage='Starting'), execution_options={'synchronize_session': False})
+                                     started_at=moment, updated_at=moment, stage='Recovering after an interruption' if job.status == 'running' else 'Starting',
+                                     params=params), execution_options={'synchronize_session': False})
             db.commit()
             if won.rowcount == 1:
                 return job.id, job.organisation_id, token
@@ -133,9 +138,22 @@ class Run:
     def __init__(self, db: Session, job: ResearchJob, token: str):
         self.db, self.job, self.token = db, job, token
         self.meter = None  # set by a handler that calls a provider, so cost is recorded even on failure
+        self.base_cents = job.actual_cents  # cost of earlier attempts
+
+    def attach(self, meter) -> None:
+        """Measure a provider for this job: cap it at the reservation and save usage after every call."""
+        self.meter = meter
+        if meter is not None:
+            meter.ceiling_cents = self.job.estimated_cents
+            meter.on_call = self.record_cost
+
+    def record_cost(self) -> None:
+        self.job.actual_cents, self.job.usage = self.base_cents + self.meter.cents, self.meter.summary()
+        self.db.commit()
 
     def step(self, stage: str) -> None:
         """Record progress, renew the lease and stop if cancelled."""
+        self.db.flush()  # keep what the handler has recorded before re-reading the job
         self.db.refresh(self.job)
         if self.job.lease_token != self.token:
             raise Cancelled('Another worker took over this research.')
@@ -159,7 +177,7 @@ def handler(kind: str):
 def _record_spend(job: ResearchJob, run: Run) -> None:
     """Money spent before a failure or cancellation is still spent."""
     if run.meter is not None:
-        job.actual_cents = max(job.actual_cents, run.meter.cents)
+        job.actual_cents = max(job.actual_cents, run.base_cents + run.meter.cents)
         job.usage = run.meter.summary()
 
 
@@ -175,9 +193,9 @@ def run_one(engine) -> int | None:
         run = Run(db, job, token)
         try:
             result = HANDLERS[job.kind](run)
-            db.refresh(job)
-            if job.lease_token != token:
-                return job_id
+            if db.scalar(select(ResearchJob.lease_token).where(ResearchJob.id == job_id)) != token:
+                db.rollback()
+                return job_id  # another worker took over; it will record the outcome
             job.result = result
             _finish(db, job, result.get('status', 'succeeded'), stage=result.get('stage', 'Complete'))
         except Cancelled as exc:

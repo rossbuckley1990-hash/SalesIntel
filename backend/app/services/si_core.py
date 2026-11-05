@@ -225,6 +225,10 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
     today = uk_today()
     links = {(x.entity_type, x.entity_id): x for x in db.scalars(select(AccountLink))}
     items: list[dict] = []
+    prefs = preferences(db)
+    statuses = {a.id: a.status for a in db.scalars(select(Account))}
+    routes = dict(db.execute(select(Contact.account_id, func.count()).where(Contact.status != "do_not_contact", Contact.route_kind.not_in(["", "none"]))
+                             .group_by(Contact.account_id)).all())
     if include_public:
         # This workspace's own review of each shared notice; another company's review is never seen.
         reviewed = {r.entity_id: r.status for r in db.scalars(select(LeadState).where(LeadState.entity_type == "market_opportunity"))}
@@ -245,6 +249,17 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
                 "account_id": link.account_id if link else None, "link_basis": link.basis if link else None,
                 "rank": (0 if urgent and (s.get("priority") or {}).get("tier") == 1 else 1 if urgent else 2, days if days is not None and days >= 0 else 9999),
             })
+            it = items[-1]
+            it["kind"] = _kind(it, statuses.get(it["account_id"]))
+            known = [{"text": f"{e.get('source')} notice {e.get('record_key')}", "source_url": e.get("source_url"), "date": (e.get("published_at") or "")[:10], "basis": "published"}
+                     for e in s.get("evidence") or []]
+            if s.get("supplier"):
+                known.append({"text": f"Supplier named on the published record: {s['supplier']} (reported, not necessarily today's incumbent)", "source_url": None, "date": "", "basis": "published"})
+            if s.get("timing"):
+                known.append({"text": f"{s.get('timing_basis') or 'Timing'}: {s['timing']}", "source_url": None, "date": "", "basis": "published"})
+            it["brief"] = _brief(it, it["kind"], prefs, s.get("sector") or "", known, (s.get("brief") or {}).get("missing_information") or [],
+                                 routes.get(it["account_id"], 0), 0)
+            it["kind_label"] = KIND_LABEL[it["kind"]]
     if include_private:
         for row in db.scalars(select(Prospect)):
             v = prospect_view(row, today)
@@ -262,8 +277,88 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
                 # Inferred timing never outranks a published deadline in the same bucket.
                 "rank": (1 if phase == "engage_now" else 2 if phase == "prepare" else 3, 9999),
             })
-    items.sort(key=lambda x: (x["status"] == "dismissed", x["rank"], x["organisation"]))
+            it = items[-1]
+            it["kind"] = _kind(it, statuses.get(it["account_id"]))
+            known = [{"text": sig.get("title") or "", "source_url": sig.get("source_url") or None, "date": sig.get("date") or "", "basis": sig.get("basis") or "inferred"}
+                     for sig in v.get("signals") or []]
+            known += [{"text": f"{c.get('detail') or c.get('kind')}", "source_url": c.get("source_url") or None, "date": c.get("date") or "", "basis": c.get("basis") or "inferred"}
+                      for c in v.get("timing_clues") or [] if c.get("source_url")]
+            stated = next((sig for sig in v.get("signals") or [] if sig.get("basis") == "stated" and sig.get("source_url")), None)
+            it["brief"] = _brief(it, it["kind"], prefs, v.get("sector") or "", known, v.get("unknowns") or [], routes.get(it["account_id"], 0), len(v.get("people") or []),
+                                 why_now=(v.get("headline") or stated.get("title")) if stated else None, inferred_timing=it["why_now"] if stated else "")
+            it["kind_label"] = KIND_LABEL[it["kind"]]
+    # Published deadlines first, then by how much of the recorded fit matches; never by an invented score.
+    items.sort(key=lambda x: (x["status"] == "dismissed", x["kind"] == "unverified_candidate", x["rank"], -len(x["brief"]["fit"]["matched"]), x["organisation"]))
     return items if limit is None else items[:limit]
+
+
+KIND_LABEL = {"published_procurement": "Published procurement opportunity", "contract_ending": "Existing contract approaching a reported end date",
+              "private_signal": "Private organisation with an observable signal", "customer_expansion": "Existing customer: expansion opportunity",
+              "unverified_candidate": "Unverified research candidate"}
+WHO = {"public": ["Procurement or category manager", "Estates, property or facilities manager", "Fire safety or health and safety manager"],
+       "private": ["Estates, property or facilities manager", "Operations or managing director", "Fire safety or health and safety manager"]}
+
+
+def _kind(item: dict, status: str | None) -> str:
+    if status == "customer":
+        return "customer_expansion"
+    if item["type"] == "public":
+        return {"live_procurement": "published_procurement", "official_early_signal": "published_procurement", "inferred_signal": "unverified_candidate"}.get(item["category"], "contract_ending")
+    return "private_signal" if item["basis"] == "published" else "unverified_candidate"
+
+
+def _fit(item: dict, prefs: dict, sector: str) -> dict:
+    """Transparent fit against what this workspace sells and covers. No score is invented."""
+    matched, gaps, unknown = [], [], []
+    ours = set(prefs["services"])
+    if not ours:
+        unknown.append("Your services are not set")
+    elif set(item["services"]) & ours:
+        matched.append("Sells what you sell: " + ", ".join(sorted(set(item["services"]) & ours)).replace("_", " "))
+    elif item["services"]:
+        gaps.append("Services outside what you sell")
+    else:
+        unknown.append("Services not stated")
+    place = f"{item.get('nation') or ''} {item.get('region') or ''}".lower()
+    territory = [t for t in prefs["territory"] if t.lower() in place]
+    (matched.append(f"In your territory: {territory[0]}") if territory else gaps.append("Outside your recorded territory") if prefs["territory"] and place.strip()
+     else unknown.append("Location not stated" if prefs["territory"] else "Your territory is not set"))
+    if prefs["sectors"]:
+        hit = [s for s in prefs["sectors"] if s.lower() in (sector or "").lower() or s.lower() in item["title"].lower()]
+        matched.append(f"Target sector: {hit[0]}") if hit else unknown.append("Sector not matched to your targets")
+    value = (item.get("value") or {}).get("published_total") if isinstance(item.get("value"), dict) else None
+    low, high = prefs.get("deal_size_min"), prefs.get("deal_size_max")
+    if value and (low or high):
+        inside = (not low or value >= float(low)) and (not high or value <= float(high))
+        (matched if inside else gaps).append(f"Published value £{value:,.0f} {'within' if inside else 'outside'} your preferred deal size")
+    elif low or high:
+        unknown.append("Value not published")
+    return {"matched": matched, "gaps": gaps, "unknown": unknown}
+
+
+def _brief(item: dict, kind: str, prefs: dict, sector: str, known: list[dict], unknowns: list[str], routes: int, people: int,
+           why_now: str | None = None, inferred_timing: str = "") -> dict:
+    fit = _fit(item, prefs, sector)
+    if kind == "contract_ending":
+        unknowns = ["Whether the buyer will re-tender, extend or bring it in house: a contract ending is not a confirmed tender.", *unknowns]
+    if kind in ("private_signal", "unverified_candidate"):
+        unknowns = [*unknowns, "Any confirmed requirement: the signal is a reason to investigate, not proof of buying intent."]
+    if kind == "unverified_candidate":
+        unknowns = ["The signal is inferred or unsourced. Verify it before acting.", *unknowns]
+    if item["account_id"] is None:
+        nxt = "Open the account and find the right people." if kind != "unverified_candidate" else "Verify the signal before opening an account."
+    elif not routes:
+        nxt = "Find the right people at this organisation."
+    elif kind == "published_procurement":
+        nxt = "Read the notice and respond through the buyer's portal and rules."
+    else:
+        nxt = "Prepare an introduction to the best-ranked contact."
+    return {"why_customer": fit["matched"] or ["No recorded fit yet: set your services, territory and sectors."], "fit": fit,
+            "why_now": why_now or item["why_now"], "why_now_basis": "Published" if item["basis"] == "published" else "Inferred",
+            "inferred_timing": inferred_timing,
+            "known": known[:6], "unknown": list(dict.fromkeys(unknowns))[:6],
+            "who": {"roles": WHO[item["type"]], "routes_saved": routes, "people_in_research": people,
+                    "summary": (f"{routes} saved contact route(s)" if routes else "No contact routes saved yet")}, "next": nxt}
 
 
 def interpret(q: str) -> dict:

@@ -192,7 +192,8 @@ def saved_research_candidates(db: Session, account: Account) -> list[Candidate]:
     return out
 
 
-NAV_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["people", "routes", "roles_seen"], "properties": {
+NAV_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["website", "people", "routes", "roles_seen"], "properties": {
+    "website": {"type": "string", "description": "The organisation's own website, only if a retrieved page shows it; otherwise empty."},
     "people": {"type": "array", "items": {"type": "object", "additionalProperties": False,
                "required": ["name", "role", "role_category", "employer", "source_url", "source_date", "quote"],
                "properties": {k: {"type": "string"} for k in ["name", "role", "role_category", "employer", "source_url", "source_date", "quote"]}}},
@@ -203,7 +204,7 @@ NAV_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["peo
                    "properties": {k: {"type": "string"} for k in ["role_category", "role", "source_url", "quote"]}}}}}
 
 
-def web_candidates(meter: Meter, org: dict, roles: list[dict], seller: str) -> tuple[list[Candidate], dict[str, str], list[dict]]:
+def web_candidates(meter: Meter, org: dict, roles: list[dict], seller: str) -> tuple[list[Candidate], dict[str, str], list[dict], str]:
     """Ask the provider to find people and published routes, keeping what it actually retrieved."""
     system = (f"You are SalesIntel's Contact Navigator, researching an organisation for {seller or 'a UK fire and security company'}. "
               "Use only lawful public business information on the organisation's own website, official registers, procurement notices "
@@ -233,13 +234,13 @@ def web_candidates(meter: Meter, org: dict, roles: list[dict], seller: str) -> t
     try:
         answer = json.loads(text)
     except ValueError:
-        answer = {"people": [], "routes": [], "roles_seen": []}
+        answer = {"website": "", "people": [], "routes": [], "roles_seen": []}
     found = [Candidate('person', p.get('name', ''), role=p.get('role', ''), role_category=p.get('role_category', ''), source_url=p.get('source_url', ''),
                        quote=p.get('quote', ''), source_date=p.get('source_date', ''), source='web_research', employer=p.get('employer', ''))
              for p in answer.get('people') or []]
     found += [Candidate(r.get('kind', ''), r.get('value', ''), label=r.get('label', ''), person=r.get('person_name', ''), source_url=r.get('source_url', ''),
                         quote=r.get('quote', ''), source_date=r.get('source_date', ''), source='web_research') for r in answer.get('routes') or []]
-    return found, excerpts, answer.get('roles_seen') or []
+    return found, excerpts, answer.get('roles_seen') or [], str(answer.get('website') or '')
 
 
 # ---------------------------------------------------------------- validation
@@ -306,6 +307,17 @@ def validate(c: Candidate, org: dict, excerpts: dict[str, str] | None) -> tuple[
             return False, '', ["The form is not on the organisation's own website."]
         return True, 'public_source', ["The organisation's own enquiry form."]
     return False, '', ['Not a recognised contact route.']
+
+
+def confirm_website(website: str, org: dict, excerpts: dict[str, str]) -> str:
+    """Accept a proposed website only if a page retrieved from that host names the organisation in full."""
+    host = _host(website if '://' in website else f'https://{website}')
+    if not host or not org['phrase']:
+        return ''
+    for url, text in excerpts.items():
+        if _host(url) == host and org['phrase'] in _norm(text) and not INJECTION.search(text):
+            return host
+    return ''
 
 
 def route_kind(c: Candidate) -> str:
@@ -440,8 +452,12 @@ def run(db: Session, account_id: int, meter: Meter | None, *, seller: str, fetch
     roles_seen: list[dict] = []
     if meter is not None:
         step('Researching the organisation and its people')
-        found, excerpts, roles_seen = web_candidates(meter, org, roles, seller)
+        found, excerpts, roles_seen, website = web_candidates(meter, org, roles, seller)
         candidates += found
+        confirmed = confirm_website(website, org, excerpts)
+        if confirmed and not org['domain']:
+            org['domain'] = confirmed
+            account.website = account.website or f'https://{confirmed}'
     from app.config import get_settings
     enabled = [p.strip() for p in get_settings().contact_enrichment_providers.split(',') if p.strip()]
     if enabled:

@@ -77,7 +77,11 @@ export function param(name: string) {
   return typeof window === "undefined" ? null : new URL(window.location.href).searchParams.get(name);
 }
 
-export const inDays = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+/** A local calendar date n days from today. Not toISOString(), which is UTC and lands on the wrong day just after midnight in summer. */
+export const inDays = (n: number) => {
+  const d = new Date(); d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 export function dayLabel(iso: string | null | undefined) {
   if (!iso) return "";
   const d = new Date(`${iso.slice(0, 10)}T00:00:00`);

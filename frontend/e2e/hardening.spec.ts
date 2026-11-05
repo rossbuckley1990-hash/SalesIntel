@@ -45,3 +45,22 @@ test("a draft to someone who opted out is suspended and cannot be approved", asy
   const today = await (await request.get(`${api}/today`)).json();
   expect(today.queue.some((q: { draft_id?: number }) => q.draft_id === draft)).toBe(false);
 });
+
+test("a won deal shows its scope and quotation as locked", async ({ page, request }) => {
+  const account = (await (await request.post(`${api}/accounts`, { data: { name: "Locked Deal Ltd" } })).json()).account_id;
+  const deal = (await (await request.post(`${api}/accounts/${account}/deals`, { data: { services: ["cctv"], qualification: { requirement: "CCTV maintenance" } } })).json()).id;
+  await request.put(`${api}/deals/${deal}/scope`, { data: { entries: [
+    { service: "cctv", field: "cameras", value: 10, basis: "surveyed" }, { service: "cctv", field: "recorders", value: 1, basis: "surveyed" },
+    { service: "cctv", field: "visits_per_year", value: 1, basis: "surveyed" }] } });
+  await request.post(`${api}/deals/${deal}/quote`, { data: { rates: { "cctv.cameras": "10", "cctv.recorders": "50", "cctv.visits_per_year": "200" } } });
+  await request.post(`${api}/deals/${deal}/quote/approve`, { data: { reviewer: "Pat Manager" } });
+  expect((await (await request.patch(`${api}/deals/${deal}`, { data: { stage: "won", reason: "Signed" } })).json()).stage).toBe("won");
+  expect((await request.put(`${api}/deals/${deal}/scope`, { data: { entries: [{ service: "cctv", field: "cameras", value: 12, basis: "surveyed" }] } })).status()).toBe(409);
+
+  await page.goto(`/?view=deals&deal=${deal}`);
+  await expect(page.getByText("Won and handed over. Scope and quotation are locked")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save scope" })).toHaveCount(0);
+  await expect(page.getByLabel("Cameras", { exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Build quotation draft" })).toBeDisabled();
+  await expect(page.getByText("Handover record")).toBeVisible();
+});

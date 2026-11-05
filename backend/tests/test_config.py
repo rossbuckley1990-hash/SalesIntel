@@ -17,7 +17,7 @@ def test_openai_model_default_and_explicit_override(monkeypatch: pytest.MonkeyPa
 
 
 def test_cors_defaults_to_local_frontend_only() -> None:
-    settings = Settings()
+    settings = Settings(_env_file=None)  # the defaults, not this machine's .env
 
     assert settings.cors_origin_list == [
         "http://localhost:3000",

@@ -143,8 +143,16 @@ def prepare_introduction(db: Session, account_id: int, *, contact_id: int | None
     return {"subject": subject[:255], "body": body, "evidence": evidence, "gaps": gaps, "source_key": source["key"] if source else None, "contact_id": contact.id if contact else None}
 
 
+def _deal_on_account(db: Session, deal_id: int | None, account_id: int) -> None:
+    if deal_id:
+        deal = db.get(DealRecord, deal_id)
+        if not deal or deal.account_id != account_id:
+            raise LookupError("Deal not found on this account")
+
+
 def save_draft(db: Session, account_id: int, data: dict, draft_id: int | None = None) -> Draft:
     moment = now()
+    _deal_on_account(db, data.get("deal_id"), account_id)
     if data.get("contact_id"):
         contact = db.get(Contact, data["contact_id"])
         if not contact or contact.account_id != account_id:
@@ -213,10 +221,11 @@ def log_activity(db: Session, account_id: int, data: dict, follow_up: dict | Non
         raise ValueError("Choose call, email, meeting, site visit or note.")
     if not str(data.get("summary") or "").strip():
         raise ValueError("Say what happened.")
-    if data.get("deal_id"):
-        deal = db.get(DealRecord, data["deal_id"])
-        if not deal or deal.account_id != account_id:
-            raise LookupError("Deal not found on this account")
+    _deal_on_account(db, data.get("deal_id"), account_id)
+    for done in (follow_up or {}).get("complete_task_ids", []):
+        task = db.get(Task, done)
+        if not task or task.account_id != account_id:
+            raise LookupError("Follow-up not found on this account")
     if data.get("contact_id"):
         contact = db.get(Contact, data["contact_id"])
         if not contact or contact.account_id != account_id:
@@ -250,6 +259,7 @@ def log_activity(db: Session, account_id: int, data: dict, follow_up: dict | Non
 def add_task(db: Session, account_id: int, data: dict) -> Task:
     if not db.get(Account, account_id):
         raise LookupError("Account not found")
+    _deal_on_account(db, data.get("deal_id"), account_id)
     due = data["due_on"] if isinstance(data["due_on"], date) else date.fromisoformat(str(data["due_on"]))
     task = Task(account_id=account_id, deal_id=data.get("deal_id"), activity_id=data.get("activity_id"), title=str(data["title"])[:255], due_on=due,
                 status="open", created_at=now())
@@ -427,10 +437,17 @@ def supersede(deal: DealRecord, reason: str) -> None:
                   "superseded_reason": reason}
 
 
+def _not_won(deal: DealRecord) -> None:
+    """A won deal has been handed over; its quotation is the record of what was agreed."""
+    if deal.stage == "won":
+        raise PermissionError("This deal is won and handed over. Record a change as a new deal so the agreed quotation stays intact.")
+
+
 def update_scope(db: Session, deal_id: int, entries: list[dict]) -> DealRecord:
     deal = db.get(DealRecord, deal_id)
     if not deal:
         raise LookupError("Deal not found")
+    _not_won(deal)
     units = _units(deal)
     scope = {k: dict(v) for k, v in (deal.scope or {}).items()}
     for e in entries:
@@ -462,11 +479,13 @@ def update_terms(db: Session, deal_id: int, *, services: list[str] | None = None
     if services is not None:
         chosen = [s for s in dict.fromkeys(services) if s in SERVICE_LABEL]
         if chosen != deal.services:
+            _not_won(deal)
             deal.services = chosen
             supersede(deal, "Services changed after approval.")
     if work_type is not None:
         chosen_type = work_type if work_type in WORK_TYPES else ""
         if chosen_type != deal.work_type:
+            _not_won(deal)
             deal.work_type = chosen_type
             supersede(deal, "Type of work changed after approval.")
     deal.updated_at = now()
@@ -482,6 +501,7 @@ def build_quote(db: Session, deal_id: int, rates: dict | None = None) -> DealRec
     deal = db.get(DealRecord, deal_id)
     if not deal:
         raise LookupError("Deal not found")
+    _not_won(deal)
     previous = dict(deal.quote or {})
     raw = rates if rates is not None else previous.get("rates", {})
     clean_rates: dict[str, str] = {}
@@ -537,6 +557,7 @@ def approve_quote(db: Session, deal_id: int, reviewer: str) -> DealRecord:
     deal = db.get(DealRecord, deal_id)
     if not deal or not deal.quote or not deal.quote.get("lines") and not deal.quote.get("missing"):
         raise LookupError("Build a quotation draft first.")
+    _not_won(deal)
     quote = deal.quote
     if quote.get("inputs_fingerprint") != inputs_fingerprint(deal, quote.get("rates", {})):
         raise ValueError("The scope or rates changed since this draft was built. Rebuild the quotation before approval.")
@@ -570,6 +591,7 @@ def move_stage(db: Session, deal_id: int, stage: str, reason: str = "") -> DealR
         raise LookupError("Deal not found")
     if stage not in STAGES:
         raise ValueError("Unknown stage.")
+    _not_won(deal)
     if stage in ("won", "lost") and not reason.strip():
         raise ValueError("Record why it was won or lost.")
     if stage == "approval" and not deal.quote:
@@ -578,6 +600,8 @@ def move_stage(db: Session, deal_id: int, stage: str, reason: str = "") -> DealR
         raise ValueError("Approve the current quotation before marking the deal won. The approved version no longer matches the scope, services or rates."
                          if (deal.quote or {}).get("approvals") else "Approve the quotation before marking the deal won.")
     deal.stage, deal.updated_at = stage, now()
+    if stage not in ("won", "lost"):
+        deal.outcome_reason = ""  # a lost deal reopened is open again
     if stage in ("won", "lost"):
         deal.outcome_reason = reason.strip()
         account = db.get(Account, deal.account_id)

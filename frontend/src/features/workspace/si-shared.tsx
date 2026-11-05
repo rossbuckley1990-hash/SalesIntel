@@ -73,7 +73,7 @@ export function Timeline({ items, contacts = [] }: { items: ActivityT[]; contact
 }
 
 export function TaskRow({ t, onDone, account }: { t: TaskT; onDone?: () => void; account?: boolean }) {
-  const overdue = t.status === "open" && t.due_on < new Date().toISOString().slice(0, 10);
+  const overdue = t.status === "open" && t.due_on < inDays(0);
   return (
     <li className="flex items-center gap-3 py-2">
       {t.status === "open" && onDone ? <button aria-label={`Mark done: ${t.title}`} onClick={onDone} className="grid h-5 w-5 flex-none place-items-center rounded-full border border-ds-border-strong text-transparent hover:border-ds-green hover:text-ds-green"><CheckCircle2 size={14} /></button>

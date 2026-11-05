@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
-import { Briefcase, Building2, CalendarCheck, Compass, LogOut, Mail, Settings, Users } from "lucide-react";
+import { Briefcase, Building2, CalendarCheck, Compass, LogOut, Mail, Menu, Settings, Users } from "lucide-react";
 
 import { ApiError, api, authMode, getWorkspace, setToken, setWorkspace, signOut } from "@/lib/session";
 import { SERVICES, si } from "@/features/workspace/si-api";
@@ -136,13 +136,14 @@ function CreateWorkspace({ onCreated, notice }: { onCreated: (id: number) => voi
 
 function Shell({ me, reload }: { me: Me; reload: () => void }) {
   const [view, setView] = useState<View>("today");
+  const [mobile, setMobile] = useState(false);
   const [current, setCurrent] = useState<Current | null>(null);
   const [toast, setToast] = useState<{ message: string; error: boolean } | null>(null);
   const notify = useCallback((message: string, isError = false) => setToast({ message, error: isError }), []);
   const loadCurrent = useCallback(async () => setCurrent(await api<Current>("/api/workspace")), []);
   useEffect(() => { setView(viewFromUrl()); void loadCurrent(); const sync = () => setView(viewFromUrl()); window.addEventListener("popstate", sync); return () => window.removeEventListener("popstate", sync); }, [loadCurrent]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), toast.error ? 15000 : 7000); return () => clearTimeout(t); }, [toast]);
-  const go = (next: View) => { const url = new URL(window.location.href); url.search = ""; url.searchParams.set("view", next); window.history.pushState({}, "", url); setView(next); };
+  const go = (next: View) => { const url = new URL(window.location.href); url.search = ""; url.searchParams.set("view", next); window.history.pushState({}, "", url); setView(next); setMobile(false); };
   if (!current) return <Centre><div className="ds-skeleton h-24 w-80 rounded-xl" aria-label="Loading" /></Centre>;
   const needsSetup = !current.me.services.length || !current.me.target.amount;
   const shared = { data: { changes: [] } as unknown as Workspace, notify, inspect: () => {}, navigate: () => {}, refresh: async () => {}, selectedId: null, selectOpportunity: () => {} } as SharedProps;
@@ -150,7 +151,8 @@ function Shell({ me, reload }: { me: Me; reload: () => void }) {
   return (
     <div className="m-workspace">
       <a className="m-skip" href="#m-main">Skip to workspace</a>
-      <aside id="m-navigation" className="m-sidebar">
+      {mobile && <button className="m-mobile-backdrop" aria-label="Close navigation" onClick={() => setMobile(false)} />}
+      <aside id="m-navigation" className={`m-sidebar ${mobile ? "open" : ""}`}>
         <a className="m-brand" href="/?view=today" aria-label="SalesIntel home"><span className="m-brand-mark" aria-hidden="true">S<span>i</span></span><span className="m-brand-wordmark">SalesIntel<small>Find · Research · Win</small></span></a>
         <div className="m-workspace-name"><div><small>YOUR WORKSPACE</small>
           {me.workspaces.length > 1 ? <select aria-label="Workspace" className="ds-select mt-1 w-full" value={current.id} onChange={(e) => { setWorkspace(Number(e.target.value)); window.location.assign("/?view=today"); }}>
@@ -166,7 +168,9 @@ function Shell({ me, reload }: { me: Me; reload: () => void }) {
       </aside>
       <div className="m-shell-main">
         <header className="m-topbar">
-          <div className="m-breadcrumb"><span>{current.name}</span></div>
+          <div className="m-breadcrumb">
+            <button className="m-icon-button m-menu" onClick={() => setMobile((v) => !v)} aria-label="Toggle navigation" aria-expanded={mobile} aria-controls="m-navigation"><Menu size={20} /></button>
+            <span>{current.name}</span></div>
           <div className="m-topbar-right">
             <span className="text-[13px] text-ds-ink-2">{me.user.name} · <span className="font-semibold">{ws?.role_label || current.role_label}</span></span>
             <button className="m-icon-button" aria-label="Sign out" title="Sign out" onClick={() => signOut()}><LogOut size={17} /></button>
@@ -196,14 +200,25 @@ function MySettings({ current, notify, saved }: { current: Current; notify: (m: 
   const [amount, setAmount] = useState(current.me.target.amount || "");
   const [basis, setBasis] = useState(current.me.target.basis || "");
   const [period, setPeriod] = useState(current.me.target.period || "annual");
-  const admin = current.permissions.includes("members.manage");
+  const [sectors, setSectors] = useState("");
+  const [dealMin, setDealMin] = useState("");
+  const [dealMax, setDealMax] = useState("");
+  const [capabilities, setCapabilities] = useState("");
+  const writer = current.permissions.includes("crm.write");
+  useEffect(() => {
+    si<{ sectors: string[]; deal_size_min: string | null; deal_size_max: string | null; capabilities: string[] }>("/preferences").then((p) => {
+      setSectors(p.sectors.join(", ")); setDealMin(p.deal_size_min || ""); setDealMax(p.deal_size_max || ""); setCapabilities(p.capabilities.join(", "));
+    }).catch(() => {});
+  }, []);
+  const list = (text: string) => text.split(",").map((t) => t.trim()).filter(Boolean);
   async function submit(e: FormEvent) {
     e.preventDefault();
     try {
       const places = territory.split(",").map((t) => t.trim()).filter(Boolean);
       await api("/api/workspace/me", { method: "PATCH", json: { services, territory: places, ...(amount ? { target_amount: amount.replace(/[£,\s]/g, ""), target_basis: basis || null, target_period: period } : {}) } });
-      // The first administrator's answers also describe what the company delivers, which commercial fit uses.
-      if (admin) await si("/preferences", { method: "PUT", json: { services, territory: places, company_name: current.name } });
+      // These also describe what the company sells and where, which discovery and commercial fit use.
+      if (writer) await si("/preferences", { method: "PUT", json: { services, territory: places, company_name: current.name, sectors: list(sectors),
+        deal_size_min: dealMin.replace(/[£,\s]/g, "") || null, deal_size_max: dealMax.replace(/[£,\s]/g, "") || null, capabilities: list(capabilities) } });
       notify("Saved."); saved();
     } catch (err) { notify((err as Error).message, true); }
   }
@@ -214,6 +229,13 @@ function MySettings({ current, notify, saved }: { current: Current; notify: (m: 
         <div className="flex flex-wrap gap-1.5">{SERVICES.map(([v, l]) => <button type="button" key={v} aria-pressed={services.includes(v)} onClick={() => setServices(services.includes(v) ? services.filter((s) => s !== v) : [...services, v])}
           className={`rounded-full border px-3 py-1 text-[13px] font-medium ${services.includes(v) ? "border-ds-brand bg-ds-brand-soft text-ds-brand" : "border-ds-border bg-white text-ds-ink-2"}`}>{l}</button>)}</div></fieldset>
       <label className="ds-card block p-4"><span className="ds-label">Territory</span><input className="ds-input mt-1 h-10 w-full" aria-label="Territory" placeholder="e.g. England, Yorkshire" value={territory} onChange={(e) => setTerritory(e.target.value)} /></label>
+      <fieldset className="ds-card grid gap-3 p-4 sm:grid-cols-2"><legend className="ds-label px-1">Customers you want</legend>
+        <label className="block sm:col-span-2"><span className="ds-label">Customer sectors</span><input className="ds-input mt-1 h-10 w-full" aria-label="Customer sectors" placeholder="e.g. Logistics, Housing, Healthcare" value={sectors} onChange={(e) => setSectors(e.target.value)} /></label>
+        <label className="block"><span className="ds-label">Smallest contract (£)</span><input className="ds-input mt-1 h-10 w-full" inputMode="decimal" aria-label="Smallest contract" value={dealMin} onChange={(e) => setDealMin(e.target.value)} /></label>
+        <label className="block"><span className="ds-label">Largest contract (£)</span><input className="ds-input mt-1 h-10 w-full" inputMode="decimal" aria-label="Largest contract" value={dealMax} onChange={(e) => setDealMax(e.target.value)} /></label>
+        <label className="block sm:col-span-2"><span className="ds-label">Capabilities and accreditations</span><input className="ds-input mt-1 h-10 w-full" aria-label="Capabilities" placeholder="e.g. BAFE SP203-1, NSI Gold, 24/7 call-out" value={capabilities} onChange={(e) => setCapabilities(e.target.value)} /></label>
+        <p className="text-[12px] text-ds-muted sm:col-span-2">Discovery ranks what fits these first and shows why. Capabilities are recorded as you state them; SalesIntel does not assume compliance.</p>
+      </fieldset>
       <fieldset className="ds-card p-4"><legend className="ds-label px-1">Your new-business target</legend>
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block"><span className="ds-label">Amount (£)</span><input className="ds-input mt-1 h-10 w-full" inputMode="decimal" aria-label="Target amount" value={amount} onChange={(e) => setAmount(e.target.value)} /></label>

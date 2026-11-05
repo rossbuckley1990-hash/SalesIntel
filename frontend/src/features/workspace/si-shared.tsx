@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, useRef } from "react";
 import { Calendar, CheckCircle2, FileText, Mail, MapPin, MessageSquare, Phone, StickyNote, Users } from "lucide-react";
 import { Pill } from "./ds";
 import { safeUrl } from "./radar-model";
 import { OUTCOMES, dayLabel, inDays, si, when, type ActivityT, type ContactT, type TaskT } from "./si-api";
+import { newKey } from "./si-people";
 
 /** Re-render when the URL changes, so workspaces can link to each other. */
 export function useUrl() {
@@ -124,14 +125,16 @@ export function ActivityForm({ accountId, dealId, contacts = [], onSaved, notify
   const [followTitle, setFollowTitle] = useState("");
   const [more, setMore] = useState(!compact);
   const [busy, setBusy] = useState(false);
+  const submission = useRef(newKey());
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!summary.trim()) return;
     setBusy(true);
     try {
-      await si(`/accounts/${accountId}/activities`, { method: "POST", json: {
+      await si(`/accounts/${accountId}/activities`, { method: "POST", headers: { "Idempotency-Key": submission.current }, json: {
         kind, summary, outcome, requirements, objections, commitments, deal_id: dealId || null, contact_id: contactId ? Number(contactId) : null,
         follow_up: follow ? { due_on: follow, title: followTitle || null } : null } });
+      submission.current = newKey();
       setSummary(""); setRequirements(""); setObjections(""); setCommitments(""); setOutcome(""); setFollowTitle("");
       notify(follow ? `Logged. Follow-up set for ${dayLabel(follow).toLowerCase()}.` : "Logged.");
       onSaved();

@@ -77,6 +77,16 @@ class Contact(TenantScoped, Base):
     source_quote: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default='unverified')  # unverified, verified, do_not_contact
     influence: Mapped[str] = mapped_column(String(24), nullable=False, default='')
+    # Contact Navigator evidence. quality: public_source, provider_verified, unverified, role_only.
+    role_category: Mapped[str] = mapped_column(String(16), nullable=False, default='')  # procurement, commercial, technical, security, executive
+    route_kind: Mapped[str] = mapped_column(String(24), nullable=False, default='')  # direct_email, phone, departmental_email, switchboard, web_form, procurement_notice, none
+    quality: Mapped[str] = mapped_column(String(20), nullable=False, default='')
+    verification_method: Mapped[str] = mapped_column(Text, nullable=False, default='')
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_date: Mapped[str | None] = mapped_column(String(10))
+    provider: Mapped[str] = mapped_column(String(40), nullable=False, default='')
+    flags: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)  # stale, conflict, may_have_moved
+    use_restriction: Mapped[str] = mapped_column(Text, nullable=False, default='')
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

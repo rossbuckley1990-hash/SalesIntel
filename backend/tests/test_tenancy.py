@@ -212,8 +212,11 @@ def test_the_session_itself_refuses_unscoped_or_foreign_access(hosted):
 
 # ---------------------------------------------------------------- roles
 
-def test_roles_are_enforced_by_the_server(hosted):
+def test_roles_are_enforced_by_the_server(hosted, monkeypatch):
     h = hosted
+    from app.config import get_settings
+    monkeypatch.setenv("AI_DAILY_LIMIT_CENTS_PER_WORKSPACE", "0")  # hosted default: paid research off until a limit is set
+    get_settings.cache_clear()
     with h.system() as db:
         add_mo(db)
     admin, org = workspace(h, "ann", "ann@alpha.example", "Alpha Fire Ltd")
@@ -319,6 +322,7 @@ def test_oidc_mode_verifies_the_providers_keys_issuer_and_audience(tmp_path, mon
     monkeypatch.setenv("OIDC_ISSUER", "https://login.provider.example/tenant/v2.0")
     monkeypatch.setenv("OIDC_AUDIENCE", "api://salesintel")
     monkeypatch.setenv("OIDC_JWKS_URL", "https://login.provider.example/keys")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://app@db.example/salesintel")  # hosted mode refuses SQLite; this test overrides the session
     get_settings.cache_clear()
 
     class FakeJwks:  # stands in for the provider's published keys; no network
@@ -344,3 +348,58 @@ def test_oidc_mode_verifies_the_providers_keys_issuer_and_audience(tmp_path, mon
     with pytest.raises(RuntimeError, match="Development tokens exist only"):
         auth.dev_token("x", "x@x.example")
     get_settings.cache_clear()
+
+
+def _oidc_app(tmp_path, monkeypatch, **env):
+    from fastapi.testclient import TestClient
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from app.config import get_settings
+    from app.db import Base, get_db
+    from app.main import create_app
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    for k, v in {"AUTH_MODE": "oidc", "OIDC_AUDIENCE": "api://salesintel", "OIDC_JWKS_URL": "https://login.provider.example/keys",
+                 "DATABASE_URL": "postgresql://app@db.example/salesintel", **env}.items():
+        monkeypatch.setenv(k, v)
+    get_settings.cache_clear()
+    monkeypatch.setattr(auth, "_jwks_client", lambda url: type("J", (), {"get_signing_key_from_jwt": lambda self, t: type("K", (), {"key": key.public_key()})()})())
+    engine = create_engine(f"sqlite:///{tmp_path / 'oidc2.db'}")
+    Base.metadata.create_all(engine)
+    app = create_app()
+    app.dependency_overrides[get_db] = lambda: Session(engine)
+    return TestClient(app), key
+
+
+def test_id_tokens_and_tokens_without_the_api_scope_are_refused(tmp_path, monkeypatch):
+    c, key = _oidc_app(tmp_path, monkeypatch, OIDC_ISSUER="https://idp.example/", OIDC_REQUIRED_SCOPE="SalesIntel.Use")
+    moment = datetime.now(UTC)
+    base = {"iss": "https://idp.example/", "aud": "api://salesintel", "sub": "u1", "email": "pat@company.example", "email_verified": True,
+            "iat": moment, "exp": moment + timedelta(minutes=5)}
+    me = lambda claims: c.get("/api/me", headers={"Authorization": f"Bearer {jwt.encode(claims, key, algorithm='RS256')}"}).status_code  # noqa: E731
+    assert me(base | {"scp": "SalesIntel.Use"}) == 200
+    assert me(base | {"roles": ["SalesIntel.Use"]}) == 200
+    assert me(base | {"scp": "openid profile"}) == 403  # a token for something else
+    assert me(base | {"scp": "SalesIntel.Use", "nonce": "abc"}) == 401  # an ID token presented as an access token
+    from app.config import get_settings
+    get_settings.cache_clear()
+
+
+def test_entra_multi_tenant_tokens_are_checked_per_directory(tmp_path, monkeypatch):
+    allowed, other = "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"
+    c, key = _oidc_app(tmp_path, monkeypatch, OIDC_PROVIDER="entra", OIDC_ISSUER="https://login.microsoftonline.com/{tid}/v2.0", OIDC_ALLOWED_TENANTS=allowed)
+    moment = datetime.now(UTC)
+
+    def token(tid, **extra):
+        claims = {"iss": f"https://login.microsoftonline.com/{tid}/v2.0", "aud": "api://salesintel", "sub": "pairwise", "tid": tid, "oid": "obj-1",
+                  "preferred_username": "pat@contoso.example", "xms_edov": True, "iat": moment, "exp": moment + timedelta(minutes=5)} | extra
+        return {"Authorization": f"Bearer {jwt.encode(claims, key, algorithm='RS256')}"}
+    ok = c.get("/api/me", headers=token(allowed))
+    assert ok.status_code == 200 and ok.json()["user"]["email"] == "pat@contoso.example"
+    assert c.get("/api/me", headers=token(other)).status_code == 401  # a directory not on the allow-list
+    assert c.get("/api/me", headers=token(allowed, iss=f"https://login.microsoftonline.com/{other}/v2.0")).status_code == 401  # issuer and tid disagree
+    assert c.get("/api/me", headers=token(allowed, xms_edov=False)).status_code == 403  # email domain not verified
+    from app.config import get_settings
+    get_settings.cache_clear()
+    with pytest.raises(RuntimeError, match="OIDC_ALLOWED_TENANTS"):
+        Settings(_env_file=None, auth_mode="oidc", oidc_provider="entra", oidc_issuer="https://login.microsoftonline.com/{tid}/v2.0", oidc_audience="a",
+                 oidc_jwks_url="https://k.example", database_url="postgresql://x@y/z", oidc_allowed_tenants="").check_safe_to_serve()

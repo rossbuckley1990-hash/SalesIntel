@@ -51,9 +51,14 @@ def add_contact(db: Session, account_id: int, data: dict) -> Contact:
     if not (data.get("name") or data.get("role") or data.get("email") or data.get("phone")):
         raise ValueError("Give at least a name, role, email or phone.")
     moment = now()
+    from app.services.navigator import digest, suppressed_hashes
+    blocked = suppressed_hashes(db) & {digest(k, v) for k, v in (("email", data.get("email")), ("phone", data.get("phone"))) if v}
     contact = Contact(account_id=account_id, name=(data.get("name") or None), role=data.get("role") or "", email=data.get("email") or None, phone=data.get("phone") or None,
                       label=data.get("label") or "", basis="user_entered", source_url=data.get("source_url") or None, source_quote=None,
-                      status="verified" if data.get("verified") else "unverified", influence=data.get("influence") or "", created_at=moment, updated_at=moment)
+                      status="do_not_contact" if blocked else "verified" if data.get("verified") else "unverified", influence=data.get("influence") or "",
+                      quality="", route_kind=("direct_email" if data.get("email") else "phone" if data.get("phone") else "none"), role_category="",
+                      verification_method="Entered by a member of this workspace." + (" Matches an earlier opt-out." if blocked else ""), flags=[],
+                      provider="", use_restriction="", created_at=moment, updated_at=moment)
     db.add(contact)
     db.flush()
     return contact

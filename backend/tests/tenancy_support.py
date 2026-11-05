@@ -47,6 +47,20 @@ def database(kind: str, tmp_path):
         admin.dispose()
 
 
+def app_role_engine(admin_engine):
+    """PostgreSQL: row-level security on, and the application connecting as an ordinary role, as in production."""
+    from app.rls import enable
+    role = f"si_app_{uuid.uuid4().hex[:8]}"
+    with admin_engine.begin() as c:
+        enable(c)
+        c.execute(text(f"CREATE ROLE {role} LOGIN PASSWORD 'test-only' NOSUPERUSER NOBYPASSRLS"))
+        c.execute(text(f"GRANT USAGE ON SCHEMA public TO {role}"))
+        c.execute(text(f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {role}"))
+        c.execute(text(f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {role}"))
+    url = admin_engine.url.set(username=role, password="test-only")
+    return create_engine(url), role
+
+
 class Hosted:
     def __init__(self, engine):
         self.engine = engine
@@ -85,8 +99,18 @@ def hosted(request, tmp_path, monkeypatch):
     require_postgres_in_ci()
     monkeypatch.setenv("AUTH_MODE", "dev")
     monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("RESEARCH_PROVIDER", "replay")  # offline synthetic research; no network, no credit
+    monkeypatch.setenv("RESEARCH_WORKER", "off")  # tests run jobs explicitly with jobs.drain
     get_settings.cache_clear()
     with database(request.param, tmp_path) as engine:
         Base.metadata.create_all(engine)
-        yield Hosted(engine)
+        if request.param == "postgresql":
+            app_engine, role = app_role_engine(engine)
+            yield Hosted(app_engine)
+            app_engine.dispose()
+            with engine.begin() as c:
+                c.execute(text(f"DROP OWNED BY {role}"))
+                c.execute(text(f"DROP ROLE {role}"))
+        else:
+            yield Hosted(engine)
     get_settings.cache_clear()

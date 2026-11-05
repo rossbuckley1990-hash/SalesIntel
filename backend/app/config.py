@@ -27,13 +27,24 @@ class Settings(BaseSettings):
     oidc_jwks_url: str | None = None
     oidc_algorithms: str = "RS256"
     dev_auth_key_file: str | None = None  # PEM private key for dev tokens; generated per run when unset
-    # Paid research is off in hosted workspaces until a daily allowance is configured.
-    research_daily_limit_per_workspace: int = 0
+    # Provider profile: generic OIDC, or Microsoft Entra ID (multi-tenant issuer, tid and xms_edov claims).
+    oidc_provider: Literal["generic", "entra"] = "generic"
+    oidc_required_scope: str | None = None  # an API scope or app role the access token must carry
+    oidc_allowed_tenants: str = ""  # Entra: comma-separated directory (tenant) ids allowed to sign in
+    # Daily AI spending limits in US cents at provider list price. Unset: hosted 0 (off), local $10, demo/test $1.
+    ai_daily_limit_cents_per_workspace: int | None = None
+    ai_daily_limit_cents_per_user: int | None = None
+    research_worker: Literal["inline", "off"] = "inline"  # off: run backend/scripts/research_worker.py separately
+    research_lease_seconds: int = 120
+    # Fetch a buyer's published procurement contact from the official notice when a workspace asks.
+    navigator_fetch_published_notices: bool = False
+    # Licensed contact-data providers, by registered name. Empty: none is called (Hunter and Apollo are evaluated, not integrated).
+    contact_enrichment_providers: str = ""
     max_upload_bytes: int = 5 * 1024 * 1024
     openai_api_key: str | None = Field(default=None, repr=False)
     openai_model: str = "gpt-6.1-terra"
     openai_request_timeout_seconds: float = 45
-    research_provider: Literal["openai", "anthropic"] = "openai"
+    research_provider: Literal["openai", "anthropic", "replay"] = "openai"  # replay: offline synthetic research, demo and test only
     anthropic_api_key: str | None = Field(default=None, repr=False)
     anthropic_model: str = "claude-sonnet-4-6"
     companies_house_api_key: str | None = Field(default=None, repr=False)
@@ -100,6 +111,12 @@ class Settings(BaseSettings):
                 raise RuntimeError("OIDC_JWKS_URL must use https.")
             if {a.strip() for a in self.oidc_algorithms.split(",")} - {"RS256", "RS384", "RS512", "ES256", "ES384", "PS256"}:
                 raise RuntimeError("OIDC_ALGORITHMS must be asymmetric signature algorithms.")
+        if self.research_provider == "replay" and self.app_env not in {"demo", "test"}:
+            raise RuntimeError("RESEARCH_PROVIDER=replay serves synthetic research and is only allowed with APP_ENV=demo or test.")
+        if self.auth_mode == "oidc" and self.database_url.startswith("sqlite"):
+            raise RuntimeError("A hosted workspace needs PostgreSQL: row-level security is part of tenant isolation.")
+        if self.auth_mode == "oidc" and self.oidc_provider == "entra" and "{tid}" in (self.oidc_issuer or "") and not self.oidc_allowed_tenants.strip():
+            raise RuntimeError("A multi-tenant Entra issuer needs OIDC_ALLOWED_TENANTS: list the directories allowed to sign in.")
         if self.allow_remote_clients and self.auth_mode == "local":
             raise RuntimeError("ALLOW_REMOTE_CLIENTS requires sign-in (AUTH_MODE=oidc). A local install has no sign-in.")
 

@@ -1,11 +1,43 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Bookmark, Building2, Eye, Globe, Inbox, Loader2, MailPlus, MousePointerClick, Search, Sparkles, X, XCircle } from "lucide-react";
+import { ArrowUpRight, Bookmark, Building2, Eye, Globe, Inbox, MailPlus, MousePointerClick, Search, Sparkles, Users, X, XCircle } from "lucide-react";
 import { EmptyState, Pill } from "./ds";
-import { CATEGORY, NATIONS, relative, valueLine } from "./radar-model";
+import { CATEGORY, NATIONS, relative, safeUrl, valueLine } from "./radar-model";
 import { BASIS_LABEL, SERVICES, SERVICE_NAME, dayLabel, goto, param, si, type DiscoverResult, type Lead } from "./si-api";
 import { useUrl } from "./si-shared";
 import type { SharedProps } from "./types";
+import { authMode } from "@/lib/session";
+import { JobStatus, newKey, useJob, type JobT } from "./si-people";
+
+const KIND_SHORT: Record<string, string> = { published_procurement: "Live tender", contract_ending: "Contract ending", private_signal: "Signal", customer_expansion: "Customer", unverified_candidate: "Unverified" };
+const KIND_TONE: Record<string, "green" | "blue" | "amber" | "violet" | "neutral" | "brand"> = { published_procurement: "green", contract_ending: "blue", private_signal: "violet", customer_expansion: "brand", unverified_candidate: "amber" };
+
+function ResearchRow({ job, onDone }: { job: JobT & { params?: { query?: string } }; onDone: () => void }) {
+  const [live] = useJob(job, onDone) as [(JobT & { params?: { query?: string } }) | null, unknown];
+  if (!live) return null;
+  return <div><p className="mb-1 text-[12px] text-ds-muted">Web research: “{live.params?.query || job.params?.query}”</p><JobStatus job={live} />
+    {live.result?.message && !["queued", "running"].includes(live.status) && <p className="mt-1 text-[12px] text-ds-ink-2">{live.result.message}</p>}</div>;
+}
+
+function BriefView({ lead, onPeople }: { lead: Lead; onPeople: () => void }) {
+  const b = lead.brief;
+  const Q = ({ q, children }: { q: string; children: React.ReactNode }) => <section className="border-t border-ds-border pt-3 first:border-0 first:pt-0" aria-label={q}>
+    <h3 className="text-[12px] font-semibold uppercase tracking-wide text-ds-muted">{q}</h3><div className="mt-1 text-[14px] leading-6 text-ds-ink">{children}</div></section>;
+  return (
+    <div className="mt-4 space-y-3 rounded-xl border border-ds-border p-4">
+      <Q q="Why this customer?"><ul className="space-y-0.5">{b.why_customer.map((x) => <li key={x}>{x}</li>)}{b.fit.gaps.map((x) => <li key={x} className="text-ds-amber">{x}</li>)}</ul>
+        {!!b.fit.unknown.length && <p className="text-[12px] text-ds-muted">Not yet known: {b.fit.unknown.join("; ")}</p>}</Q>
+      <Q q="Why now?"><p className="font-medium">{b.why_now} <span className={`text-[11px] font-semibold uppercase ${b.why_now_basis === "Published" ? "text-ds-green" : "text-ds-amber"}`}>{b.why_now_basis}</span></p>
+        {b.inferred_timing && <p className="text-[12px] text-ds-muted">Inferred timing: {b.inferred_timing}</p>}</Q>
+      <Q q="What do we know?"><ul className="space-y-1">{b.known.map((k, i) => { const href = safeUrl(k.source_url || ""); return <li key={i} className="text-[13px]">{k.text}{k.date && <span className="text-ds-muted"> · {k.date}</span>}
+        {href && <> · <a className="font-medium text-ds-brand hover:underline" href={href} target="_blank" rel="noreferrer">source</a></>}{k.basis !== "published" && k.basis !== "stated" && <span className="text-ds-amber"> (inferred)</span>}</li>; })}</ul></Q>
+      <Q q="What remains unknown?"><ul className="list-disc space-y-0.5 pl-5 text-[13px] text-ds-ink-2">{b.unknown.map((u) => <li key={u}>{u}</li>)}</ul></Q>
+      <Q q="Who should we contact?"><p className="text-[13px]">{b.who.roles.join(" · ")}</p><p className="text-[12px] text-ds-muted">{b.who.summary}{b.who.people_in_research ? ` · ${b.who.people_in_research} named in research` : ""}</p>
+        <button className="ds-btn sm mt-2" onClick={onPeople}><Users size={13} /> Find the right people</button></Q>
+      <Q q="What should we do next?"><p className="font-semibold text-ds-brand">{b.next}</p></Q>
+    </div>
+  );
+}
 
 type View = { id: number; name: string; filters: Record<string, string> };
 const STATUS: [string, string][] = [["active", "Active"], ["new", "New"], ["watching", "Watching"], ["investigating", "Investigating"], ["dismissed", "Dismissed"]];
@@ -21,7 +53,11 @@ export function SiDiscover({ notify }: SharedProps) {
   const [result, setResult] = useState<DiscoverResult | null>(null);
   const [selected, setSelected] = useState<string | null>(param("lead"));
   const [views, setViews] = useState<View[]>([]);
-  const [researching, setResearching] = useState("");
+  const [jobs, setJobs] = useState<(JobT & { params?: { query?: string } })[]>([]);
+  const loadJobs = useCallback(async () => {
+    try { setJobs((await si<{ items: (JobT & { kind: string; params?: { query?: string } })[] }>("/research-jobs")).items.filter((j) => j.kind === "prospect_search").slice(0, 3)); } catch { /* optional */ }
+  }, []);
+  useEffect(() => { void loadJobs(); }, [loadJobs]);
   const [loading, setLoading] = useState(true);
   const search = useRef<HTMLInputElement>(null);
 
@@ -33,7 +69,9 @@ export function SiDiscover({ notify }: SharedProps) {
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { si<{ items: View[] }>("/saved-views").then((d) => setViews(d.items)).catch(() => {}); }, []);
   useEffect(() => {
-    if (result?.items.length && !result.items.some((x) => x.key === selected)) setSelected(result.items[0].key);
+    // On a wide screen the first result opens beside the list. On a phone the detail is a sheet over the page, so it opens only when chosen.
+    const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1280px)").matches;
+    if (wide && result?.items.length && !result.items.some((x) => x.key === selected)) setSelected(result.items[0].key);
   }, [result, selected]);
 
   // Keyboard: / to search, j and k to move, o to open the account.
@@ -73,9 +111,9 @@ export function SiDiscover({ notify }: SharedProps) {
     const text = applied || q;
     if (text.trim().length < 3) return notify("Describe what to look for first.", true);
     try {
-      await si("/discover/research", { method: "POST", json: { query: text } });
-      setResearching(text);
-      notify("Web research started. Results land in Discover in three to six minutes.");
+      const job = await si<JobT>("/discover/research", { method: "POST", json: { query: text }, headers: { "Idempotency-Key": newKey() } });
+      setJobs((j) => [{ ...job, params: { query: text } } as JobT & { params: { query: string } }, ...j]);
+      notify("Web research started. It keeps running if you leave or refresh this page.");
     } catch (e) { notify((e as Error).message, true); }
   }
   async function saveView() {
@@ -127,7 +165,7 @@ export function SiDiscover({ notify }: SharedProps) {
         {result && applied && (result.interpreted.nations.length + result.interpreted.services.length + result.interpreted.regions.length > 0) && <p className="text-[12px] text-ds-muted">
           Understood: {[...result.interpreted.nations, ...result.interpreted.services.map((s) => SERVICE_NAME[s] || s), ...result.interpreted.regions].join(", ")}{result.interpreted.keywords.length ? `; matching “${result.interpreted.keywords.join(" ")}”` : ""}.</p>}
         {result?.gaps.map((g) => <p key={g} className="rounded-lg bg-ds-amber-soft px-3 py-2 text-[12px] text-ds-ink-2">{g}</p>)}
-        {researching && <p role="status" className="flex items-center gap-2 rounded-lg bg-ds-brand-soft px-3 py-2 text-[12px] text-ds-brand"><Loader2 size={13} className="ds-spin" /> Researching “{researching}” on the web. Refresh Discover in a few minutes.</p>}
+        {jobs.map((j) => <ResearchRow key={j.id} job={j} onDone={() => { void load(); void loadJobs(); }} />)}
       </section>
 
       <div className="mt-4 grid items-start gap-5 xl:grid-cols-[minmax(340px,440px)_minmax(0,1fr)]">
@@ -159,6 +197,7 @@ function LeadRow({ lead, active, onClick }: { lead: Lead; active: boolean; onCli
       <span className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 flex-wrap items-center gap-1.5">
           <Pill tone={lead.type === "public" ? "blue" : "violet"}>{lead.type === "public" ? (meta?.short || "Public") : "Private"}</Pill>
+          <Pill tone={KIND_TONE[lead.kind] || "neutral"}>{KIND_SHORT[lead.kind] || lead.kind_label}</Pill>
           {lead.type === "private" && lead.light && <Pill tone={lead.light === "green" ? "green" : lead.light === "amber" ? "amber" : lead.light === "red" ? "red" : "neutral"} dot>{lead.category_label}</Pill>}
           {lead.basis === "inferred" && <Pill tone="amber">Inferred</Pill>}
           {lead.account_id && <Pill tone="green">Account</Pill>}
@@ -181,15 +220,13 @@ function LeadDetail({ lead, onStatus, onOpen, onClose }: { lead: Lead; onStatus:
       <div className="flex flex-wrap items-center gap-1.5">
         <Pill tone={lead.type === "public" ? "blue" : "violet"}>{lead.source_label}</Pill>
         <Pill tone={lead.basis === "published" ? "green" : "amber"}>{lead.basis === "published" ? "Published evidence" : "Inferred: verify"}</Pill>
+        <Pill tone={KIND_TONE[lead.kind] || "neutral"}>{lead.kind_label}</Pill>
         {lead.account_id && <Pill tone="green">{BASIS_LABEL[lead.link_basis || ""] || "Linked"}</Pill>}
       </div>
       <h2 className="mt-3 text-[20px] font-semibold leading-tight tracking-[-0.02em] text-ds-ink">{lead.organisation}</h2>
       <p className="mt-1 text-[14px] leading-6 text-ds-ink-2">{lead.title}</p>
 
-      <div className="mt-4 rounded-xl border border-ds-brand-line bg-ds-brand-soft p-4">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-ds-brand">Why now?</p>
-        <p className="mt-1 text-[15px] font-medium leading-6 text-ds-ink">{lead.why_now}</p>
-      </div>
+      <BriefView lead={lead} onPeople={() => onOpen(lead)} />
 
       <dl className="mt-4 grid gap-2.5 sm:grid-cols-2">
         <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">{lead.type === "public" ? (lead.timing_label ? lead.timing_label[0].toUpperCase() + lead.timing_label.slice(1) : "Timing") : "Timing"}</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.type === "public" ? (lead.timing ? new Date(lead.timing).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Not published") : lead.category_label}</dd></div>
@@ -207,8 +244,8 @@ function LeadDetail({ lead, onStatus, onOpen, onClose }: { lead: Lead; onStatus:
         {lead.status !== "dismissed" ? <button className="ds-btn ghost" onClick={() => onStatus(lead, "dismissed")}><XCircle size={15} /> Dismiss</button>
           : <button className="ds-btn ghost" onClick={() => onStatus(lead, "new")}>Restore</button>}
       </div>
-      <button className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-ds-brand hover:underline" onClick={() => goto(legacy.view, { [legacy.key]: legacy.id })}>
-        {lead.type === "public" ? "Full record, evidence and deep research" : "Full research: signals, timing, people"} <ArrowUpRight size={13} /></button>
+      {authMode === "local" && <button className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-ds-brand hover:underline" onClick={() => goto(legacy.view, { [legacy.key]: legacy.id })}>
+        {lead.type === "public" ? "Full record, evidence and deep research" : "Full research: signals, timing, people"} <ArrowUpRight size={13} /></button>}
       {lead.type === "private" && <p className="mt-3 flex items-center gap-1.5 text-[12px] text-ds-muted"><Sparkles size={12} /> Found by AI web research. Check the sources before relying on it.</p>}
     </article>
   );

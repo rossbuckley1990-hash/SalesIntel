@@ -1,10 +1,11 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { ArrowLeft, ArrowUpRight, Briefcase, Building2, CheckCircle2, CircleHelp, Eye, EyeOff, Globe, Link2, MailPlus, MapPin, Plus, Search, UserPlus } from "lucide-react";
 import { EmptyState, Pill } from "./ds";
 import { safeUrl } from "./radar-model";
 import { BASIS_LABEL, SERVICES, STAGE_LABEL, dayLabel, goto, param, si, type AccountRow, type AccountT } from "./si-api";
 import { ActivityForm, Basis, ContactCard, PageHeader, Panel, TaskRow, Timeline, useUrl } from "./si-shared";
+import { PeopleFinder, newKey } from "./si-people";
 import type { SharedProps } from "./types";
 
 export function SiAccounts(props: SharedProps) {
@@ -114,6 +115,7 @@ function AccountRecord({ id, notify }: SharedProps & { id: number }) {
               <ul className="space-y-1.5">{a.to_confirm.map((k) => <li key={k} className="flex gap-2 text-[13px] leading-5 text-ds-ink-2"><span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-ds-amber" />{k}</li>)}</ul>
             </Panel>
           </div>
+          <PeopleFinder accountId={a.id} notify={notify} onChanged={() => void load()} />
           <Panel title="Log an interaction"><ActivityForm accountId={a.id} contacts={a.contacts} notify={notify} onSaved={() => void load()} /></Panel>
           <Panel title={`History (${a.activities.length})`}><Timeline items={a.activities} contacts={a.contacts} /></Panel>
         </div>
@@ -123,10 +125,11 @@ function AccountRecord({ id, notify }: SharedProps & { id: number }) {
           <Panel title={`Follow-ups (${a.tasks.filter((t) => t.status === "open").length})`}>
             {!a.tasks.length ? <p className="text-[13px] text-ds-muted">None scheduled.</p> : <ul className="divide-y divide-ds-border">{a.tasks.map((t) => <TaskRow key={t.id} t={t} onDone={() => void call(`/tasks/${t.id}/complete`, "POST", undefined, "Done.")} />)}</ul>}
           </Panel>
-          <Panel title={`Who to contact (${a.contacts.length})`} action={<button className="ds-btn ghost sm" onClick={() => setPanel(panel === "contact" ? "" : "contact")}><UserPlus size={14} /> Add</button>}>
+          <Panel title="Add or review contacts" action={<button className="ds-btn ghost sm" onClick={() => setPanel(panel === "contact" ? "" : "contact")}><UserPlus size={14} /> Add</button>}>
             {panel === "contact" && <ContactForm onSave={async (c) => { if (await call(`/accounts/${a.id}/contacts`, "POST", c, "Contact added.")) setPanel(""); }} />}
-            {!a.contacts.length && panel !== "contact" && <p className="text-[13px] text-ds-muted">No named person or published route yet. Ask for the estates, facilities or security lead, or deepen the research.</p>}
-            <ul className="space-y-2">{a.contacts.map((c) => <ContactCard key={c.id} c={c} onStatus={(status) => void call(`/contacts/${c.id}`, "PATCH", { status }, status === "do_not_contact" ? "Marked do not contact." : "Updated.")} />)}</ul>
+            {panel !== "contact" && <p className="text-[13px] text-ds-muted">Everyone you can contact is ranked under Find the right people. Add someone you know here.</p>}
+            {a.contacts.some((c) => c.status === "do_not_contact") && <div className="mt-3"><p className="ds-label">Asked not to be contacted</p>
+              <ul className="mt-1 space-y-2">{a.contacts.filter((c) => c.status === "do_not_contact").map((c) => <ContactCard key={c.id} c={c} onStatus={(status) => void call(`/contacts/${c.id}`, "PATCH", { status }, "Updated.")} />)}</ul></div>}
           </Panel>
           <Panel title={`Sites (${a.sites.length})`} action={<button className="ds-btn ghost sm" onClick={() => setPanel(panel === "site" ? "" : "site")}><MapPin size={14} /> Add</button>}>
             {panel === "site" && <SiteForm onSave={async (s) => { if (await call(`/accounts/${a.id}/sites`, "POST", s, "Site added.")) setPanel(""); }} />}
@@ -172,6 +175,7 @@ function SiteForm({ onSave }: { onSave: (s: Record<string, unknown>) => void }) 
 }
 
 function DealForm({ a, notify, onDone }: { a: AccountT; notify: SharedProps["notify"]; onDone: () => void }) {
+  const submission = useRef(newKey());  // one key per form, so a double-click creates one deal
   const [source, setSource] = useState(a.sources[0]?.key || "");
   const [q, setQ] = useState({ requirement: "", decision_maker: "", timing: "", budget: "", incumbent: "", drivers: "" });
   const [services, setServices] = useState<string[]>([]);
@@ -181,7 +185,7 @@ function DealForm({ a, notify, onDone }: { a: AccountT; notify: SharedProps["not
     e.preventDefault();
     setBusy(true);
     try {
-      const deal = await si<{ id: number }>(`/accounts/${a.id}/deals`, { method: "POST", json: { source_key: source || null, services, work_type: work, qualification: q } });
+      const deal = await si<{ id: number }>(`/accounts/${a.id}/deals`, { method: "POST", headers: { "Idempotency-Key": submission.current }, json: { source_key: source || null, services, work_type: work, qualification: q } });
       notify("Deal created with its evidence and history.");
       goto("deals", { deal: deal.id });
     } catch (err) { notify((err as Error).message, true); } finally { setBusy(false); }

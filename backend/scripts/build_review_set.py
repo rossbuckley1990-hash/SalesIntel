@@ -73,6 +73,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--as-of')
     parser.add_argument('--exclude-from', help='a withdrawn set\'s key file: every lead it contains is excluded from the frames')
+    parser.add_argument('--exclude-list', help='a JSON list of {"lead_key": ...}: leads already published with their method, excluded too')
     parser.add_argument('--key-dir', default=str(Path.home() / '.salesintel' / 'evaluation'))
     parser.add_argument('--replace', action='store_true', help='overwrite an existing set (only before anyone has reviewed it)')
     parser.add_argument('--verify', help='check a private key against the committed set, and stop')
@@ -98,6 +99,10 @@ def main() -> None:
     if args.exclude_from:
         withdrawn = json.loads(Path(args.exclude_from).expanduser().read_text())
         exclude = {v['lead_key'] for v in withdrawn['items'].values()}
+    exposed: set[str] = set()
+    if args.exclude_list:
+        exposed = {x['lead_key'] for x in json.loads(Path(args.exclude_list).expanduser().read_text())}
+        exclude |= exposed
     with SessionLocal() as system:
         system.info[SYSTEM] = True
         org = system.scalar(select(Organisation).where(Organisation.slug == SLUG))
@@ -123,7 +128,8 @@ def main() -> None:
     database = get_settings().database_url.removeprefix('sqlite:///')
     key['built'] = {'at': datetime.now(UTC).isoformat(timespec='seconds'), 'code': code_version(),
                     'database': {'path': database, 'sha256': file_sha256(Path(database)) if os.path.exists(database) else None},
-                    'excluded_leads': sorted(exclude), 'exclude_from': Path(args.exclude_from).name if args.exclude_from else None}
+                    'excluded_leads': sorted(exclude), 'exclude_from': Path(args.exclude_from).name if args.exclude_from else None,
+                    'excluded_as_published': sorted(exposed), 'exclude_list': Path(args.exclude_list).name if args.exclude_list else None}
     commitment = {**review.commit(review_set, key), 'created_at': key['built']['at'], 'code': key['built']['code']}
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / f'{stem}.json').write_text(json.dumps(review_set, indent=1, ensure_ascii=False) + '\n')

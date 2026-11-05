@@ -60,3 +60,7 @@ def test_the_committed_set_follows_its_published_protocol():
     text = json.dumps(data).lower()
     for word in ('radar:', 'shadow radar', 'salesintel', 'window open', 'research says', 'not necessarily today'):
         assert word not in text, word
+    # Nothing published names a reviewed organisation with the method that found it: the showcase skips them all.
+    showcase = (Path(__file__).parents[2] / 'docs' / 'saas' / 'evaluation' / 'SHOWCASE.md').read_text()
+    featured = {line[4:].strip().lower() for line in showcase.splitlines() if line.startswith('### ')}
+    assert featured and not featured & {i['organisation'].lower() for i in data['items']}

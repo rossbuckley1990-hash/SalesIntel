@@ -47,7 +47,9 @@ test("Scenario A: from the daily list to a qualified deal, with every claim sour
   mark("Understand why the lead matters");
   await card.getByText("The evidence, and what to confirm").click(); clicks++;
   await expect(card).toContainText("Estates, property or facilities manager");
-  await best.screenshot({ animations: "disabled", path: `${SHOTS}/10-best-opportunities-desktop.png` });
+  // Real organisations on SalesIntel's lists are masked in published screenshots, so none can tell a blind reviewer how an item was found.
+  const real = best.getByRole("article").filter({ hasNotText: /Harbourside|Example Housing Trust|Sample Borough Council/ });
+  await best.screenshot({ animations: "disabled", mask: [real], maskColor: "#efeee9", path: `${SHOTS}/10-best-opportunities-desktop.png` });
 
   // 2. Start an investigation, and 3. review its critical findings (including the evidence against it).
   await card.getByRole("button", { name: "Investigate Harbourside Community Health" }).click(); clicks++;

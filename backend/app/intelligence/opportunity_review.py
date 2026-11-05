@@ -9,7 +9,9 @@ Arms. Each is a simple random sample of PER_ARM leads from its own list, as of o
   pr8          the daily list as PR #8 built it (no service or evidence rule, no separate exploratory list)
   renewal      published contract ends within RENEWAL_DAYS
   keyword      leads whose own source text names a fire or security system
-Leads that appeared in the withdrawn v1 set are excluded from every sampling frame, so its public key reveals nothing here.
+Excluded from every sampling frame, so nothing published reveals how any reviewed item was found:
+- leads in the withdrawn v1 set, whose key is public;
+- leads that v1's published documents or screenshots show with the method that found them.
 
 Blinding.
 - Reviewers see each item as its source records describe it: organisation, site, location, the record's own title, the
@@ -138,7 +140,8 @@ PROTOCOL = {
              'keyword': "Leads whose own source text names a fire or security system"},
     'reference_profile': {k: REFERENCE_PROFILE[k] for k in ('services', 'territory')},
     'sampling': f'A simple random sample of up to {PER_ARM} leads per arm from its own list, with a seed fixed in the sealed key. '
-                'A lead sampled by two arms is judged once and counts in both. Leads in the withdrawn v1 set are excluded from every frame.',
+                'A lead sampled by two arms is judged once and counts in both. Excluded from every frame: leads in the withdrawn v1 set, and leads '
+                "that v1's published documents or screenshots show with the method that found them.",
     'blinding': 'Reviewers see only the source records: no arm, rank, tier, reasons, summary, service list or inferences. Order and ids use a secret salt.',
     'completion': 'At least two independent complete reviews per item; every disagreement on relevance, reason or pursue adjudicated with a recorded '
                   'method (consensus or an independent third reviewer) and rationale; then the set is locked before the key is revealed.',

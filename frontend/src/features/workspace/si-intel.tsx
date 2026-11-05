@@ -107,8 +107,11 @@ export function BestOpportunities({ notify }: { notify: (m: string, e?: boolean)
       </div>
       {error && <p role="alert" className="text-[13px] text-ds-red">{error}</p>}
       {!data && !error && <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="ds-skeleton h-[118px] rounded-[10px]" />)}</div>}
-      {data && !data.items.length && <p className="ds-card px-4 py-6 text-[13px] text-ds-muted">No evidenced requirement for what you sell today.
-        {data.exploratory.length ? " The changes below may be worth investigating." : " Widen your services or territory, or run new research in Discover."}</p>}
+      {data && !data.items.length && (data.profile.complete
+        ? <p className="ds-card px-4 py-6 text-[13px] text-ds-muted">No evidenced requirement for what you sell today.
+            {data.exploratory.length ? " The changes below may be worth investigating." : " Widen your services or territory, or run new research in Discover."}</p>
+        : <div className="ds-card flex flex-wrap items-center justify-between gap-3 px-4 py-5 text-[13px] text-ds-muted"><p>Tell SalesIntel what you sell and where, and this list shows evidenced requirements for it.</p>
+            <button className="ds-btn sm" onClick={() => goto("settings")}>Complete your profile</button></div>)}
       <ol className="si-stagger space-y-2">
         {data?.items.map((x) => {
           const head = x.tier_label !== last ? x.tier_label : null;

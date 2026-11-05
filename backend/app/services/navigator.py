@@ -342,6 +342,16 @@ def suppress(db: Session, contact: Contact, user_id: int | None) -> None:
             db.add(Suppression(kind=kind, value_hash=digest(kind, value), reason='Asked not to be contacted', created_by=user_id, created_at=moment))
 
 
+def lift(db: Session, contact: Contact) -> int:
+    """A person who opted out has agreed to be contacted again: remove their suppression, deliberately and on the record."""
+    hashes = {digest(k, v) for k, v in (('email', contact.email), ('phone', contact.phone),
+                                         ('person', f"{contact.name}|{contact.account_id}" if contact.name else None)) if v}
+    rows = db.scalars(select(Suppression).where(Suppression.value_hash.in_(hashes))).all()
+    for row in rows:
+        db.delete(row)
+    return len(rows)
+
+
 def _is_suppressed(c: Candidate, account_id: int, hashes: set[str]) -> bool:
     checks = [('person', f"{c.value}|{account_id}")] if c.kind == 'person' else [('email' if c.kind == 'email' else 'phone', c.value)]
     if c.person:
@@ -422,7 +432,7 @@ def ranked(db: Session, account: Account, roles: list[dict]) -> list[dict]:
         why = [f"{ROLES[c.role_category][0]}" if c.role_category in ROLES else 'Role not matched', ROUTE_LABEL.get(c.route_kind, 'Contact'),
                QUALITY_LABEL.get(c.quality, 'Entered by you' if c.basis == 'user_entered' else 'Unverified')] + [{'stale': 'Source over 18 months old', 'undated': 'Source undated',
                'may_have_moved': 'A newer source suggests they have moved', 'conflict': 'Sources disagree'}[f] for f in c.flags if f in ('stale', 'undated', 'may_have_moved', 'conflict')]
-        out.append({'contact_id': c.id, 'score': score, 'why': why, 'name': c.name, 'role': c.role, 'role_category': c.role_category, 'route_kind': c.route_kind,
+        out.append({'contact_id': c.id, 'score': score, 'why': why, 'name': c.name, 'label': c.label, 'verification_method': c.verification_method, 'status': c.status, 'basis': c.basis, 'role': c.role, 'role_category': c.role_category, 'route_kind': c.route_kind,
                     'route_label': ROUTE_LABEL.get(c.route_kind, ''), 'email': c.email, 'phone': c.phone, 'url': c.source_url if c.route_kind in ('web_form', 'procurement_notice') else None,
                     'quality': c.quality, 'quality_label': QUALITY_LABEL.get(c.quality, ''), 'source_url': c.source_url, 'source_quote': c.source_quote,
                     'source_date': c.source_date, 'verified_at': c.verified_at.isoformat() if c.verified_at else None, 'flags': c.flags, 'use_restriction': c.use_restriction})

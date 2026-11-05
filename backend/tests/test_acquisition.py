@@ -154,6 +154,14 @@ def test_suppression_survives_repeated_research_and_new_sources(hosted, monkeypa
         assert [r.status for r in db.scalars(select(Contact).where(Contact.email == "assets@example-housing.example"))] == ["do_not_contact"]
     added = alice.post(f"/api/si/accounts/{account}/contacts", json={"name": "Assets", "role": "Team", "email": "ASSETS@example-housing.example"}).json()
     assert added["status"] == "do_not_contact"  # typed in by hand: still suppressed
+    # Lifting an opt-out is deliberate and audited, and then research respects it.
+    with h.as_workspace(a_org) as db:
+        current = db.scalar(select(Contact).where(Contact.email == "assets@example-housing.example", Contact.name.is_(None)))
+    alice.patch(f"/api/si/contacts/{current.id}", json={"status": "unverified"})
+    alice.patch(f"/api/si/contacts/{added['id']}", json={"status": "unverified"})
+    view, _ = people_for(alice, account, h, refresh=True)
+    assert any(r["email"] == "assets@example-housing.example" for r in view["routes"])
+    assert any(e["action"] == "lift_optout" for e in alice.get("/api/workspace/audit").json()["items"])
 
 
 def test_a_person_who_moved_employer_and_stale_or_conflicting_provider_data_are_flagged(hosted, monkeypatch):

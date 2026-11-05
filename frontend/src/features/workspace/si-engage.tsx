@@ -74,7 +74,9 @@ function Composer({ accountId, notify, onChange }: { accountId: number; notify: 
       // Arriving to engage someone: choose the best contact and draft straight away.
       if (started.current || draft) return;
       started.current = true;
-      const first = account.contacts.find((c) => c.status !== "do_not_contact" && (c.name || c.email)) || account.contacts.find((c) => c.status !== "do_not_contact");
+      const wanted = Number(param("contact"));
+      const first = account.contacts.find((c) => c.id === wanted && c.status !== "do_not_contact")
+        || account.contacts.find((c) => c.status !== "do_not_contact" && (c.name || c.email)) || account.contacts.find((c) => c.status !== "do_not_contact");
       if (first) setContactId(String(first.id));
       void prepare(first ? String(first.id) : "");
     }).catch((e) => notify(e.message, true));
@@ -107,7 +109,7 @@ function Composer({ accountId, notify, onChange }: { accountId: number; notify: 
   async function logSent() {
     if (!draftId) return;
     try {
-      await si(`/drafts/${draftId}/log`, { method: "POST", json: { sent_externally: confirmSent, follow_up: follow ? { due_on: follow, title: `Follow up on introduction to ${a?.name}` } : null } });
+      await si(`/drafts/${draftId}/log`, { method: "POST", headers: { "Idempotency-Key": `draft-${draftId}-logged-as-sent` }, json: { sent_externally: confirmSent, follow_up: follow ? { due_on: follow, title: `Follow up on introduction to ${a?.name}` } : null } });
       notify(follow ? `Logged as sent. Follow-up set for ${dayLabel(follow).toLowerCase()}.` : "Logged as sent.");
       setStatus("logged"); setDraftId(null); setConfirmSent(false); onChange(); await load();
     } catch (e) { notify((e as Error).message, true); }

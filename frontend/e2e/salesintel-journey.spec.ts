@@ -15,7 +15,7 @@ test("discover to contact to deal, with continuity after a reload", async ({ pag
   await results.getByRole("button", { name: /Example Housing Trust Limited/ }).click();
   const detail = page.getByRole("complementary", { name: "Selected opportunity" });
   await expect(detail.getByText(/Published contract with Sample Fire Services Ltd ends/)).toBeVisible();
-  await expect(detail.getByText("Reported, not necessarily today's incumbent")).toBeVisible();
+  await expect(detail.getByText("Reported, not necessarily today's incumbent", { exact: true })).toBeVisible();
 
   // Prepare an introduction straight from the lead.
   await detail.getByRole("button", { name: "Prepare introduction" }).click();

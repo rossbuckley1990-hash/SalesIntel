@@ -303,9 +303,15 @@ class ContactStatus(Strict):
 @router.patch('/contacts/{contact_id}')
 def contact_status(contact_id: int, payload: ContactStatus, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
     def work():
+        from app.models.crm import Contact
+        from app.tenancy import record
+        before = db.get(Contact, contact_id)
+        was_suppressed = before is not None and before.status == 'do_not_contact'
         contact = engage.update_contact(db, contact_id, payload.status)
         if payload.status == 'do_not_contact':
             navigator.suppress(db, contact, ctx.user_id)  # survives repeated research and new sources
+        elif was_suppressed:
+            record(db, 'lift_optout', 'si_contacts', contact.id, {'removed': navigator.lift(db, contact)})  # deliberate and audited
         return core.contact_dict(contact)
     return run(db, work)
 

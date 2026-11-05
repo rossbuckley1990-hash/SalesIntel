@@ -15,6 +15,12 @@ export type Lead = {
   basis: "published" | "inferred"; timing: string | null; days: number | null; timing_label: string; light?: "green" | "amber" | "red" | "grey";
   nation: string | null; region?: string | null; tier: number | null; services: string[]; supplier: string | null; value: Value | null;
   status: LeadStatus; account_id: number | null; link_basis: string | null; people?: number; contact_routes?: number;
+  kind: "published_procurement" | "contract_ending" | "private_signal" | "customer_expansion" | "unverified_candidate"; kind_label: string; brief: Brief;
+};
+export type Brief = {
+  why_customer: string[]; fit: { matched: string[]; gaps: string[]; unknown: string[] }; why_now: string; why_now_basis: string; inferred_timing: string;
+  known: { text: string; source_url: string | null; date: string; basis: string }[]; unknown: string[];
+  who: { roles: string[]; routes_saved: number; people_in_research: number; summary: string }; next: string;
 };
 export type DiscoverResult = { items: Lead[]; total: number; counts: { public: number; private: number }; interpreted: { nations: string[]; services: string[]; regions: string[]; keywords: string[] }; gaps: string[] };
 export type Evidence = { label: string; url: string; date?: string; basis?: string };

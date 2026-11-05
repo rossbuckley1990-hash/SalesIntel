@@ -20,7 +20,7 @@ export function PageHeader({ eyebrow, title, children, actions }: { eyebrow?: st
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        {eyebrow && <p className="text-[13px] font-semibold text-ds-brand">{eyebrow}</p>}
+        {eyebrow && <p className="si-eyebrow mb-1.5">{eyebrow}</p>}
         <h1 className="mt-0.5 text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ds-ink">{title}</h1>
         {children && <p className="mt-1 max-w-3xl text-[14px] leading-6 text-ds-muted">{children}</p>}
       </div>

@@ -51,8 +51,9 @@ export function Fact({ label, children, hint }: { label: string; children: React
 
 export function EmptyState({ icon, title, children, action }: { icon: ReactNode; title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center px-6 py-14 text-center">
-      <span className="grid h-12 w-12 place-items-center rounded-xl border border-ds-border bg-white text-ds-muted shadow-ds-xs">{icon}</span>
+    <div className="relative isolate flex flex-col items-center px-6 py-14 text-center">
+      <span className="relative grid h-12 w-12 place-items-center rounded-2xl border border-ds-border bg-gradient-to-b from-white to-ds-canvas text-ds-brand shadow-ds-sm">
+        <span aria-hidden="true" className="absolute -inset-3 -z-10 rounded-full bg-ds-brand-soft blur-xl" />{icon}</span>
       <h3 className="mt-4 text-[15px] font-semibold text-ds-ink">{title}</h3>
       {children && <div className="mt-1 max-w-sm text-[13px] leading-5 text-ds-muted">{children}</div>}
       {action && <div className="mt-5">{action}</div>}

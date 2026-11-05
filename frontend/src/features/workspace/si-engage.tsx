@@ -7,6 +7,10 @@ import { dayLabel, goto, inDays, param, si, type AccountT, type DraftT, type Evi
 import { ActivityForm, PageHeader, Panel, useUrl } from "./si-shared";
 import type { SharedProps } from "./types";
 
+// Saving your details and rebuilding a draft are separate requests. A rebuild waits for a save still in flight,
+// so the draft is always signed with what you just saved.
+let detailsSaving: Promise<unknown> | null = null;
+
 export function SiEngage({ notify }: SharedProps) {
   useUrl();
   const accountId = Number(param("account"));
@@ -86,6 +90,7 @@ function Composer({ accountId, notify, onChange }: { accountId: number; notify: 
   async function prepare(chosen = contactId) {
     setBusy(true);
     try {
+      await detailsSaving?.catch(() => {});
       const intro = await si<{ subject: string; body: string; gaps: string[]; evidence: Evidence[] }>(`/accounts/${accountId}/introduction`, { method: "POST", json: { contact_id: chosen ? Number(chosen) : null, source_key: source || null } });
       setSubject(intro.subject); setBody(intro.body); setGaps(intro.gaps); setEvidence(intro.evidence); setStatus(draftId ? "draft" : "new");
     } catch (e) { notify((e as Error).message, true); } finally { setBusy(false); }
@@ -166,13 +171,21 @@ function Composer({ accountId, notify, onChange }: { accountId: number; notify: 
 
 function YourDetails({ notify }: { notify: SharedProps["notify"] }) {
   const [p, setP] = useState<Prefs | null>(null);
-  useEffect(() => { si<Prefs>("/preferences").then(setP).catch(() => {}); }, []);
+  const edited = useRef(false);
+  // A late response (or React's second development run of this effect) must never overwrite what you have typed.
+  useEffect(() => { si<Prefs>("/preferences").then((server) => setP((mine) => (edited.current && mine ? mine : server))).catch(() => {}); }, []);
   if (!p) return null;
   return (
     <Panel title="Your details">
-      <form className="space-y-2" onSubmit={async (e) => { e.preventDefault(); try { setP(await si<Prefs>("/preferences", { method: "PUT", json: { sender_name: p.sender_name, company_name: p.company_name } })); notify("Saved. New introductions will use these."); } catch (err) { notify((err as Error).message, true); } }}>
-        <label className="block"><span className="ds-label">Your name</span><input className="mt-1 block h-9 w-full rounded-lg border border-ds-border-strong px-2.5 text-[13px]" value={p.sender_name} onChange={(e) => setP({ ...p, sender_name: e.target.value })} /></label>
-        <label className="block"><span className="ds-label">Your company</span><input className="mt-1 block h-9 w-full rounded-lg border border-ds-border-strong px-2.5 text-[13px]" value={p.company_name} onChange={(e) => setP({ ...p, company_name: e.target.value })} /></label>
+      <form className="space-y-2" onSubmit={async (e) => {
+        e.preventDefault();
+        const saving = si<Prefs>("/preferences", { method: "PUT", json: { sender_name: p.sender_name, company_name: p.company_name } });
+        detailsSaving = saving;
+        try { setP(await saving); notify("Saved. New introductions will use these."); } catch (err) { notify((err as Error).message, true); }
+        finally { if (detailsSaving === saving) detailsSaving = null; }
+      }}>
+        <label className="block"><span className="ds-label">Your name</span><input className="mt-1 block h-9 w-full rounded-lg border border-ds-border-strong px-2.5 text-[13px]" value={p.sender_name} onChange={(e) => { edited.current = true; setP({ ...p, sender_name: e.target.value }); }} /></label>
+        <label className="block"><span className="ds-label">Your company</span><input className="mt-1 block h-9 w-full rounded-lg border border-ds-border-strong px-2.5 text-[13px]" value={p.company_name} onChange={(e) => { edited.current = true; setP({ ...p, company_name: e.target.value }); }} /></label>
         <button className="ds-btn sm">Save</button>
       </form>
     </Panel>

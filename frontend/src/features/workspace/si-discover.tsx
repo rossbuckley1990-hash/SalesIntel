@@ -1,14 +1,15 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Bookmark, Building2, Eye, Globe, Inbox, MailPlus, MousePointerClick, Search, Sparkles, Users, X, XCircle } from "lucide-react";
+import { ArrowUpRight, Bookmark, Building2, CalendarRange, Eye, Globe, Inbox, Info, Landmark, Layers, MailPlus, MousePointerClick, Radar, Rows3, Search, Sparkles, Users, X, XCircle } from "lucide-react";
 import { EmptyState, Pill } from "./ds";
-import { CATEGORY, NATIONS, relative, safeUrl, valueLine } from "./radar-model";
+import { NATIONS, relative, safeUrl, valueLine } from "./radar-model";
 import { BASIS_LABEL, SERVICES, SERVICE_NAME, dayLabel, goto, param, si, type DiscoverResult, type Lead } from "./si-api";
 import { useUrl } from "./si-shared";
 import type { SharedProps } from "./types";
 import { authMode } from "@/lib/session";
 import { JobStatus, newKey, useJob, type JobT } from "./si-people";
 import { ShadowCard } from "./si-shadow";
+import { Runway } from "./si-runway";
 
 const KIND_SHORT: Record<string, string> = { published_procurement: "Live tender", contract_ending: "Contract ending", private_signal: "Signal", customer_expansion: "Customer", unverified_candidate: "Unverified" };
 const KIND_TONE: Record<string, "green" | "blue" | "amber" | "violet" | "neutral" | "brand"> = { published_procurement: "green", contract_ending: "blue", private_signal: "violet", customer_expansion: "brand", unverified_candidate: "amber" };
@@ -23,7 +24,7 @@ function ResearchRow({ job, onDone }: { job: JobT & { params?: { query?: string 
 function BriefView({ lead, onPeople }: { lead: Lead; onPeople: () => void }) {
   const b = lead.brief;
   const Q = ({ q, children }: { q: string; children: React.ReactNode }) => <section className="border-t border-ds-border pt-3 first:border-0 first:pt-0" aria-label={q}>
-    <h3 className="text-[12px] font-semibold uppercase tracking-wide text-ds-muted">{q}</h3><div className="mt-1 text-[14px] leading-6 text-ds-ink">{children}</div></section>;
+    <h3 className="si-eyebrow">{q}</h3><div className="mt-1 text-[14px] leading-6 text-ds-ink">{children}</div></section>;
   return (
     <div className="mt-4 space-y-3 rounded-xl border border-ds-border p-4">
       <Q q="Why this customer?"><ul className="space-y-0.5">{b.why_customer.map((x) => <li key={x}>{x}</li>)}{b.fit.gaps.map((x) => <li key={x} className="text-ds-amber">{x}</li>)}</ul>
@@ -47,10 +48,11 @@ export function SiDiscover({ notify }: SharedProps) {
   useUrl();
   const [q, setQ] = useState(param("q") || "");
   const [applied, setApplied] = useState(param("q") || "");
-  const [source, setSource] = useState<"all" | "public" | "private" | "shadow">("all");
+  const [source, setSource] = useState<"all" | "public" | "private" | "shadow">(() => (["public", "private", "shadow"].includes(param("source") || "") ? param("source") as "public" | "private" | "shadow" : "all"));
   const [nation, setNation] = useState("");
   const [service, setService] = useState("");
   const [status, setStatus] = useState("active");
+  const [layout, setLayout] = useState<"list" | "runway">(() => (param("layout") === "runway" ? "runway" : "list"));
   const [result, setResult] = useState<DiscoverResult | null>(null);
   const [selected, setSelected] = useState<string | null>(param("lead"));
   const [views, setViews] = useState<View[]>([]);
@@ -68,7 +70,14 @@ export function SiDiscover({ notify }: SharedProps) {
     try { setResult(await si<DiscoverResult>(`/discover?${params}`)); } catch (e) { notify((e as Error).message, true); } finally { setLoading(false); }
   }, [applied, source, nation, service, status, notify]);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { si<{ items: View[] }>("/saved-views").then((d) => setViews(d.items)).catch(() => {}); }, []);
+  useEffect(() => {
+    si<{ items: View[] }>("/saved-views").then((d) => {
+      setViews(d.items);
+      const chosen = d.items.find((v) => v.id === Number(param("saved"))); // opened from the sidebar
+      if (chosen) applyView(chosen);
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     // On a wide screen the first result opens beside the list. On a phone the detail is a sheet over the page, so it opens only when chosen.
     const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1280px)").matches;
@@ -136,16 +145,21 @@ export function SiDiscover({ notify }: SharedProps) {
     <div className="ds-root">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <p className="si-eyebrow mb-1.5">Opportunities</p>
           <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ds-ink">Discover</h1>
-          <p className="mt-1 text-[14px] text-ds-muted">Public tenders, contract renewals and private-sector research in one list, most time-sensitive first.</p>
+          <p className="mt-1.5 text-[14px] text-ds-muted">Public tenders, contract renewals and private-sector research in one list, most time-sensitive first.</p>
         </div>
-        {!!views.length && <div className="flex flex-wrap items-center gap-1.5"><Bookmark size={14} className="text-ds-muted" />{views.map((v) => <button key={v.id} className="rounded-full border border-ds-border bg-white px-2.5 py-1 text-[12px] font-medium text-ds-ink-2 hover:border-ds-brand-line hover:text-ds-brand" onClick={() => applyView(v)}>{v.name}</button>)}</div>}
+        <div className="ds-tabs" role="group" aria-label="Layout">
+          <button aria-pressed={layout === "list"} onClick={() => setLayout("list")}><Rows3 size={14} aria-hidden="true" />List</button>
+          <button aria-pressed={layout === "runway"} onClick={() => setLayout("runway")}><CalendarRange size={14} aria-hidden="true" />Runway</button>
+        </div>
+        {!!views.length && <div className="flex w-full flex-wrap items-center gap-1.5"><Bookmark size={14} className="text-ds-muted" />{views.map((v) => <button key={v.id} className="rounded-full border border-ds-border bg-white px-2.5 py-1 text-[12px] font-medium text-ds-ink-2 hover:border-ds-brand-line hover:text-ds-brand" onClick={() => applyView(v)}>{v.name}</button>)}</div>}
       </header>
 
       <section aria-label="Search and filters" className="mt-4 space-y-2.5">
         <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(e) => { e.preventDefault(); setApplied(q.trim()); }} role="search">
-          <div className="relative flex-1">
-            <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ds-faint" />
+          <div className="si-hero-search relative flex-1">
+            <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ds-muted" />
             <input ref={search} className="ds-input !h-11 !pl-10 !pr-9" aria-label="Search opportunities" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. care homes in Yorkshire with fire alarm maintenance    ( / )" />
             {q && <button type="button" aria-label="Clear search" className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-ds-faint hover:bg-ds-subtle" onClick={() => { setQ(""); setApplied(""); }}><X size={15} /></button>}
           </div>
@@ -154,8 +168,8 @@ export function SiDiscover({ notify }: SharedProps) {
         </form>
         <div className="flex flex-wrap items-center gap-2">
           <div className="ds-tabs" role="group" aria-label="Source">
-            {([["all", "All"], ["shadow", "Shadow Radar"], ["public", "Public procurement"], ["private", "Private research"]] as const).map(([id, label]) => (
-              <button key={id} aria-pressed={source === id} onClick={() => setSource(id)}>{label}{result && id !== "all" && <span>{result.counts[id]}</span>}</button>))}
+            {([["all", "All", Layers], ["shadow", "Shadow Radar", Radar], ["public", "Public procurement", Landmark], ["private", "Private research", Building2]] as const).map(([id, label, Icon]) => (
+              <button key={id} aria-pressed={source === id} onClick={() => setSource(id)}><Icon size={14} aria-hidden="true" />{label}{result && id !== "all" && <span>{result.counts[id]}</span>}</button>))}
           </div>
           <select className="ds-select !h-9" aria-label="Nation" value={nation} onChange={(e) => setNation(e.target.value)}><option value="">All of the UK</option>{NATIONS.map((n) => <option key={n} value={n}>{n}</option>)}</select>
           <select className="ds-select !h-9" aria-label="Service" value={service} onChange={(e) => setService(e.target.value)}><option value="">Any service</option>{SERVICES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
@@ -165,40 +179,49 @@ export function SiDiscover({ notify }: SharedProps) {
         </div>
         {result && applied && (result.interpreted.nations.length + result.interpreted.services.length + result.interpreted.regions.length > 0) && <p className="text-[12px] text-ds-muted">
           Understood: {[...result.interpreted.nations, ...result.interpreted.services.map((s) => SERVICE_NAME[s] || s), ...result.interpreted.regions].join(", ")}{result.interpreted.keywords.length ? `; matching “${result.interpreted.keywords.join(" ")}”` : ""}.</p>}
-        {result?.gaps.map((g) => <p key={g} className="rounded-lg bg-ds-amber-soft px-3 py-2 text-[12px] text-ds-ink-2">{g}</p>)}
+        {result?.gaps.map((g) => <p key={g} className="flex items-start gap-2 rounded-xl border border-ds-amber-line bg-ds-amber-soft px-3 py-2 text-[12px] leading-[18px] text-ds-ink-2"><Info size={14} className="mt-px flex-none text-ds-amber" aria-hidden="true" />{g}</p>)}
         {jobs.map((j) => <ResearchRow key={j.id} job={j} onDone={() => { void load(); void loadJobs(); }} />)}
       </section>
 
-      <div className="mt-4 grid items-start gap-5 xl:grid-cols-[minmax(340px,440px)_minmax(0,1fr)]">
+      {layout === "runway" && <div className="mt-5 space-y-4">
+        {!result ? <div className="ds-skeleton h-72 rounded-xl" /> : <Runway items={result.items} selected={selected} onSelect={setSelected} />}
+        {current && <section aria-label="Selected opportunity" className="ds-card si-swap max-w-4xl" key={current.key}>
+          {current.type === "shadow" ? <ShadowCard lead={current} notify={notify} onChanged={() => void load()} /> : <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} />}</section>}
+      </div>}
+
+      {layout === "list" && <div className="mt-4 grid items-start gap-5 xl:grid-cols-[minmax(340px,440px)_minmax(0,1fr)]">
         <section aria-label="Results" className="min-w-0">
           <p className="mb-2 px-1 text-[12px] font-medium text-ds-muted" aria-live="polite">{result ? `${result.total} result${result.total === 1 ? "" : "s"}` : "Loading…"}{result && result.total > 0 && " · j/k to move, o to open"}</p>
           {!result && loading && <div className="space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="ds-skeleton h-[104px] rounded-xl" />)}</div>}
           {result && !result.items.length && <div className="ds-card"><EmptyState icon={<Inbox size={20} />} title="No matches">{result.gaps[result.gaps.length - 1]}</EmptyState></div>}
-          <ul className={`space-y-2 ${loading ? "opacity-60" : ""}`}>
+          <ul className={`si-stagger si-results space-y-2 ${loading ? "opacity-60" : ""}`}>
             {result?.items.map((lead) => <li key={lead.key}><LeadRow lead={lead} active={lead.key === selected} onClick={() => setSelected(lead.key)} /></li>)}
           </ul>
         </section>
         <aside aria-label="Selected opportunity" className="ds-card sticky top-[76px] hidden max-h-[calc(100vh-96px)] overflow-y-auto xl:block">
-          {current ? (current.type === "shadow" ? <ShadowCard key={current.key} lead={current} notify={notify} onChanged={() => void load()} /> : <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} />) : <EmptyState icon={<MousePointerClick size={20} />} title="Select a result">See why it is worth your time, what is known and what to do next.</EmptyState>}
+          {current ? <div key={current.key} className="si-swap">{current.type === "shadow" ? <ShadowCard lead={current} notify={notify} onChanged={() => void load()} /> : <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} />}</div> : <EmptyState icon={<MousePointerClick size={20} />} title="Select a result">See why it is worth your time, what is known and what to do next.</EmptyState>}
         </aside>
-        {current && <div className="fixed inset-x-0 bottom-0 z-40 max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-ds-border bg-white shadow-ds-lg xl:hidden" role="region" aria-label="Selected opportunity details">
+        {current && <button className="si-sheet-backdrop xl:hidden" aria-label="Close details" tabIndex={-1} onClick={() => setSelected(null)} />}
+        {current && <div key={current.key} className="si-sheet fixed inset-x-0 bottom-0 z-40 max-h-[78vh] overflow-y-auto rounded-t-[20px] border-t border-ds-border bg-white shadow-ds-lg xl:hidden" role="region" aria-label="Selected opportunity details">
+          <span className="si-sheet-handle" aria-hidden="true" />
           {current.type === "shadow" ? <><button className="ds-btn ghost sm m-3 mb-0" onClick={() => setSelected(null)}><X size={14} /> Close</button><ShadowCard key={current.key} lead={current} notify={notify} onChanged={() => void load()} /></>
             : <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} onClose={() => setSelected(null)} />}
         </div>}
-      </div>
+      </div>}
     </div>
   );
 }
 
 function LeadRow({ lead, active, onClick }: { lead: Lead; active: boolean; onClick: () => void }) {
-  const meta = CATEGORY[lead.category];
   const urgent = lead.days !== null && lead.days >= 0 && lead.days <= 30;
+  const rid = `lead-${lead.key.replace(/[^a-z0-9]/gi, "-")}`;
   return (
-    <button onClick={onClick} aria-current={active ? "true" : undefined}
-      className={`w-full rounded-xl border bg-white px-4 py-3 text-left transition ${active ? "border-ds-brand shadow-ds-sm ring-4 ring-[rgba(59,79,216,.10)]" : "border-ds-border shadow-ds-xs hover:border-ds-border-strong"} ${lead.status === "dismissed" ? "opacity-60" : ""}`}>
-      <span className="flex items-center justify-between gap-2">
+    // Named organisation first, so a screen reader hears who before what (and the row is never confused with a source tab).
+    <button onClick={onClick} aria-current={active ? "true" : undefined} aria-labelledby={`${rid}-org ${rid}-meta ${rid}-why`}
+      className={`si-lead w-full rounded-xl border bg-white px-4 py-3 text-left transition duration-200 ${active ? "border-ds-brand" : "border-ds-border shadow-ds-xs hover:border-ds-border-strong"} ${lead.status === "dismissed" ? "opacity-60" : ""}`}>
+      <span id={`${rid}-meta`} className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <Pill tone={lead.type === "public" ? "blue" : lead.type === "shadow" ? "amber" : "violet"}>{lead.type === "public" ? (meta?.short || "Public") : lead.type === "shadow" ? "Shadow Radar" : "Private"}</Pill>
+          <span className="si-type mr-1" style={{ ["--c" as string]: lead.type === "public" ? (lead.kind === "contract_ending" ? "#1baf7a" : "#2a78d6") : lead.type === "shadow" ? "#eb6834" : "#8e8b93" }}><i aria-hidden="true" />{lead.type === "public" ? "Public" : lead.type === "shadow" ? "Shadow Radar" : "Private"}</span>
           {lead.type === "shadow" && lead.shadow ? <><Pill>{lead.shadow.state_label}</Pill><Pill tone="violet">{lead.shadow.sensor_name}{lead.shadow.competing?.length ? ` +${lead.shadow.competing.length}` : ""}</Pill></>
             : <Pill tone={KIND_TONE[lead.kind] || "neutral"}>{KIND_SHORT[lead.kind] || lead.kind_label}</Pill>}
           {lead.type === "private" && lead.light && <Pill tone={lead.light === "green" ? "green" : lead.light === "amber" ? "amber" : lead.light === "red" ? "red" : "neutral"} dot>{lead.category_label}</Pill>}
@@ -208,9 +231,9 @@ function LeadRow({ lead, active, onClick }: { lead: Lead; active: boolean; onCli
         </span>
         {lead.timing && lead.type === "public" && <span className={`flex-none text-[12px] font-semibold ${urgent ? "text-ds-red" : "text-ds-muted"}`}>{lead.days !== null && lead.days < 0 ? relative(lead.timing) : dayLabel(lead.timing)}</span>}
       </span>
-      <span className="mt-1.5 block truncate text-[14px] font-semibold text-ds-ink">{lead.organisation}</span>
+      <span id={`${rid}-org`} className="mt-1.5 block truncate text-[14px] font-semibold text-ds-ink">{lead.organisation}</span>
       {lead.type === "shadow" && lead.shadow?.site && <span className="mt-0.5 block truncate text-[13px] text-ds-ink-2">{lead.shadow.site}</span>}
-      <span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-ds-ink-2"><strong className="font-semibold">Why now: </strong>{lead.type === "shadow" ? lead.shadow?.timeline.find((e) => e.role === "anchor")?.statement : lead.why_now}</span>
+      <span id={`${rid}-why`} className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-ds-ink-2"><strong className="font-semibold">Why now: </strong>{lead.type === "shadow" ? lead.shadow?.timeline.find((e) => e.role === "anchor")?.statement : lead.why_now}</span>
     </button>
   );
 }

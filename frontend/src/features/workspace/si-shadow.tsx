@@ -11,9 +11,9 @@ import { SERVICE_NAME, goto, si, type Lead } from "./si-api";
 import { JobStatus, newKey, useJob, type JobT } from "./si-people";
 
 const STATE_TONE: Record<string, "green" | "amber" | "blue" | "red" | "neutral" | "violet"> = { corroborated: "green", indicated: "violet", surfaced: "blue", challenged: "red", closed: "neutral" };
-const ROLE: Record<string, { label: string; tone: "brand" | "green" | "red" | "blue" | "neutral" }> = {
-  anchor: { label: "Signal", tone: "brand" }, supports: { label: "Supports", tone: "green" }, challenges: { label: "Against", tone: "red" },
-  advertised: { label: "Now advertised", tone: "blue" }, related: { label: "Related, may differ", tone: "neutral" } };
+const ROLE: Record<string, { label: string; tone: "brand" | "green" | "red" | "blue" | "neutral"; dot: string }> = {
+  anchor: { label: "Signal", tone: "brand", dot: "#c2410c" }, supports: { label: "Supports", tone: "green", dot: "#1d6b47" }, challenges: { label: "Against", tone: "red", dot: "#a8291c" },
+  advertised: { label: "Now advertised", tone: "blue", dot: "#1e5a85" }, related: { label: "Related, may differ", tone: "neutral", dot: "#8e8b93" } };
 const fmt = (d: string | null | undefined) => (d ? new Date(`${d.slice(0, 10)}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "");
 type Detail = { assessment: Lead["shadow"]; revisions: { as_of: string; state: string; recorded: string }[]; account_id: number | null;
   relationship: { kind: string; summary: string; outcome: string; occurred_at: string }[]; feedback: { decision: string; reason: string; at: string }[] };
@@ -59,21 +59,21 @@ export function ShadowCard({ lead, notify, onChanged }: { lead: Lead; notify: (m
     <article className="p-5" aria-label={lead.organisation}>
       <div className="flex flex-wrap items-center gap-1.5">
         <Pill tone="violet"><Radar size={12} /> Shadow Radar</Pill>
-        <Pill tone={STATE_TONE[a.state] || "neutral"}>{a.state_label}</Pill>
+        <Pill tone={STATE_TONE[a.state] || "neutral"}>{["corroborated", "surfaced"].includes(a.state) && <span className="si-live-dot" aria-hidden="true" />}{a.state_label}</Pill>
         <Pill tone="amber">Inferred, not advertised</Pill>
       </div>
-      <h2 className="mt-3 text-[20px] font-semibold leading-tight tracking-[-0.02em] text-ds-ink">{lead.organisation}</h2>
+      <h2 className="si-serif mt-3 text-[28px] leading-[1.08] text-ds-ink">{lead.organisation}</h2>
       {a.site && <p className="mt-0.5 text-[14px] text-ds-ink-2">{a.site}{a.postcode ? ` · ${a.postcode}` : ""}</p>}
 
-      <section aria-label="Potential requirement" className="mt-4 rounded-xl border border-ds-brand-line bg-ds-brand-soft p-4">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-ds-brand">{a.sensor_name}</p>
-        <p className="mt-1 text-[15px] font-medium leading-6 text-ds-ink">{a.hypothesis}</p>
+      <section aria-label="Potential requirement" className="si-callout mt-4 p-4">
+        <p className="si-eyebrow">{a.sensor_name}</p>
+        <p className="mt-1.5 text-[15px] font-medium leading-6 text-ds-ink">{a.hypothesis}</p>
         <p className="mt-2 text-[13px] text-ds-ink-2"><strong>Why now:</strong> {timeline.find((e) => e.role === "anchor")?.statement}</p>
         {a.main_contractor && <p className="mt-1 text-[13px] text-ds-ink-2"><strong>Main contractor:</strong> {a.main_contractor} <span className="text-ds-muted">(published on the award)</span></p>}
       </section>
 
       {!!a.competing?.length && <section aria-label="Competing hypotheses" className="mt-3 rounded-xl border border-ds-border p-3">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-ds-muted">Another reading of the same evidence</p>
+        <p className="si-section-title text-ds-muted">Another reading of the same evidence</p>
         {a.competing.map((c) => <div key={c.key} className="mt-1.5"><p className="text-[14px] font-medium text-ds-ink">{c.sensor_name}: {c.hypothesis}</p>
           <p className="text-[12px] text-ds-muted">{c.state_label} · window {fmt(c.window[0])} to {fmt(c.window[1])}. First step: {c.first_action}</p></div>)}
         <p className="mt-1.5 text-[12px] text-ds-muted">Both can be true. The investigation tests the first; its findings bear on both.</p>
@@ -90,31 +90,31 @@ export function ShadowCard({ lead, notify, onChanged }: { lead: Lead; notify: (m
       {lead.brief?.fit && <p className="mt-2 text-[13px] text-ds-ink-2"><strong>Fit:</strong> {[...lead.brief.fit.matched, ...lead.brief.fit.gaps].join(" · ") || "Set your services, territory and sectors to see fit."}</p>}
 
       <section aria-label="Evidence timeline" className="mt-4">
-        <h3 className="text-[12px] font-semibold uppercase tracking-wide text-ds-muted">Evidence timeline</h3>
-        <ol className="mt-2 space-y-2 border-l border-ds-border pl-3">{timeline.map((e, i) => { const href = safeUrl(e.source_url); return (
-          <li key={i} className="text-[13px]"><span className="flex flex-wrap items-center gap-1.5"><span className="font-semibold text-ds-ink">{fmt(e.published)}</span><Pill tone={ROLE[e.role].tone}>{ROLE[e.role].label}</Pill>
+        <h3 className="si-section-title text-ds-muted">Evidence timeline</h3>
+        <ol className="si-timeline">{timeline.map((e, i) => { const href = safeUrl(e.source_url); return (
+          <li key={i} className="text-[13px]" style={{ ["--dot" as string]: ROLE[e.role].dot }}><span className="flex flex-wrap items-center gap-1.5"><span className="font-semibold text-ds-ink">{fmt(e.published)}</span><Pill tone={ROLE[e.role].tone}>{ROLE[e.role].label}</Pill>
             <span className="text-ds-muted">{e.label}{e.basis === "derived" ? " (derived by SalesIntel)" : ""}</span></span>
             <span className="mt-0.5 block text-ds-ink-2">{e.statement}</span>
             {href && <a className="inline-flex items-center gap-0.5 text-[12px] font-medium text-ds-brand hover:underline" href={href} target="_blank" rel="noreferrer">Source <ArrowUpRight size={11} /></a>}</li>); })}</ol>
       </section>
 
-      <div className="mt-4 grid gap-3">
-        <section aria-label="What is verified"><h3 className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-ds-green"><CheckCircle2 size={13} /> Verified (published)</h3>
+      <div className="mt-4 grid gap-2.5 2xl:grid-cols-2">
+        <section aria-label="What is verified" className="rounded-[9px] border border-ds-border bg-white p-3"><h3 className="si-section-title text-ds-green"><CheckCircle2 size={13} /> Verified (published)</h3>
           <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[13px] text-ds-ink-2">{a.verified.map((x) => <li key={x}>{x}</li>)}</ul></section>
-        <section aria-label="What is inferred"><h3 className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-ds-amber"><Lightbulb size={13} /> Inferred</h3>
+        <section aria-label="What is inferred" className="rounded-[9px] border border-ds-border bg-white p-3"><h3 className="si-section-title text-ds-amber"><Lightbulb size={13} /> Inferred</h3>
           <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[13px] text-ds-ink-2">{a.inferred.map((x) => <li key={x}>{x}</li>)}</ul></section>
-        <section aria-label="What is unknown"><h3 className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-ds-muted"><CircleHelp size={13} /> Unknown</h3>
+        <section aria-label="What is unknown" className="rounded-[9px] border border-ds-border bg-white p-3"><h3 className="si-section-title text-ds-muted"><CircleHelp size={13} /> Unknown</h3>
           <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[13px] text-ds-ink-2">{a.unknown.map((x) => <li key={x}>{x}</li>)}</ul></section>
-        <section aria-label="Alternative explanations"><h3 className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-ds-red"><ShieldAlert size={13} /> Other explanations</h3>
+        <section aria-label="Alternative explanations" className="rounded-[9px] border border-ds-border bg-white p-3"><h3 className="si-section-title text-ds-red"><ShieldAlert size={13} /> Other explanations</h3>
           <ul className="mt-1 space-y-1 text-[13px]">{a.alternatives.map((x) => <li key={x.explanation}><span className="text-ds-ink">{x.explanation}.</span> <span className="text-ds-muted">Check: {x.test}</span></li>)}</ul></section>
       </div>
 
-      {!!detail?.relationship.length && <section aria-label="Relationship history" className="mt-4"><h3 className="text-[12px] font-semibold uppercase tracking-wide text-ds-muted">Your history with them</h3>
+      {!!detail?.relationship.length && <section aria-label="Relationship history" className="mt-4"><h3 className="si-section-title text-ds-muted">Your history with them</h3>
         <ul className="mt-1 space-y-0.5 text-[13px] text-ds-ink-2">{detail.relationship.map((r, i) => <li key={i}>{fmt(r.occurred_at)} · {r.kind}: {r.summary}</li>)}</ul></section>}
 
-      <section aria-label="Best next action" className="mt-4 rounded-xl border border-ds-border p-3">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-ds-muted">Best next action</p>
-        <p className="mt-1 text-[14px] font-semibold text-ds-brand">{a.first_action}</p>
+      <section aria-label="Best next action" className="mt-4 rounded-[10px] border border-ds-border bg-[#faf9f7] p-4">
+        <p className="si-eyebrow">Best next action</p>
+        <p className="mt-1 text-[15px] font-semibold leading-6 text-ds-ink">{a.first_action}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button className="ds-btn primary" onClick={() => void investigate()}><FileSearch size={15} /> Investigate</button>
           <button className="ds-btn" onClick={() => void open("clients")}><Users size={15} /> Find the right people</button>
@@ -130,7 +130,7 @@ export function ShadowCard({ lead, notify, onChanged }: { lead: Lead; notify: (m
         </div>}
       </section>
 
-      <details className="mt-4 text-[12px] text-ds-muted"><summary className="flex cursor-pointer items-center gap-1 font-semibold"><ChevronDown size={12} /> How SalesIntel inferred this</summary>
+      <details className="mt-4 text-[12px] text-ds-muted"><summary className="flex cursor-pointer items-center gap-1 font-semibold hover:text-ds-ink"><ChevronDown size={12} className="si-chevron" /> How SalesIntel inferred this</summary>
         <p className="mt-1">Sensor “{a.sensor_name}” ({a.rule_version}). Repeated notices about one project, and republished copies, count as one source. No probability is shown, because none has been validated.</p>
         {!!a.disconfirming.length && <p className="mt-1">It would be disproved by: {a.disconfirming.join("; ")}.</p>}
         {!!detail?.revisions.length && <p className="mt-1">Assessment history: {detail.revisions.map((r) => `${fmt(r.as_of)} ${r.state}`).join(" → ")}.</p>}
@@ -148,7 +148,19 @@ const OUTCOME_TONE: Record<string, "green" | "red" | "neutral"> = { supports: "g
 
 export function DossierPanel({ accountId, notify, onChanged }: { accountId: number; notify: (m: string, e?: boolean) => void; onChanged: () => void }) {
   const [data, setData] = useState<{ latest: DossierT | null; versions: { version: number; verdict: string }[]; job: JobT | null } | null>(null);
-  const load = useCallback(async () => { try { setData(await si(`/radar/accounts/${accountId}/dossier`)); } catch { /* not every account has one */ } }, [accountId]);
+  const first = useRef(true);
+  const changed = useRef(onChanged);
+  useEffect(() => { changed.current = onChanged; }, [onChanged]);
+  const load = useCallback(async () => {
+    try {
+      const next = await si<{ latest: DossierT | null; versions: { version: number; verdict: string }[]; job: JobT | null }>(`/radar/accounts/${accountId}/dossier`);
+      setData(next);
+      // The investigation may have finished between the account loading and this panel loading. If so the
+      // account was read before the job saved its contacts, so refresh it once rather than wait for a poll that never comes.
+      if (first.current && next.job && !["queued", "running"].includes(next.job.status)) changed.current();
+      first.current = false;
+    } catch { /* not every account has one */ }
+  }, [accountId]);
   const done = useCallback(() => { void load(); onChanged(); }, [load, onChanged]);
   const [job] = useJob(data?.job || null, done);
   useEffect(() => { void load(); }, [load]);

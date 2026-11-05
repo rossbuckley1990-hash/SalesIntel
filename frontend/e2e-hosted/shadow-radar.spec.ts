@@ -41,7 +41,7 @@ test("an unadvertised opportunity: evidence, investigation that challenges itsel
   for (const region of ["What is verified", "What is inferred", "What is unknown", "Alternative explanations", "Best next action"]) await expect(card.getByRole("region", { name: region })).toBeVisible();
   await expect(card.getByText(/\d+(\.\d+)?\s?%/)).toHaveCount(0); // no percentage is shown anywhere on the card
   await expect(card.getByText(/No probability is shown/)).toBeHidden(); // said plainly inside the collapsed "how this was inferred"
-  await page.screenshot({ path: `${SHOTS}/6-shadow-card-desktop.png` });
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/6-shadow-card-desktop.png` });
 
   // Investigate: the research tries to disprove the hypothesis as well as confirm it.
   await card.getByRole("button", { name: "Investigate" }).click();
@@ -55,7 +55,7 @@ test("an unadvertised opportunity: evidence, investigation that challenges itsel
   await expect(page.getByText(/budgeted £400,000/)).toHaveCount(0); // unquotable claim rejected
   await investigation.getByText(/finding\(s\) rejected/).click();
   await expect(investigation.getByText(/tried to give instructions to the AI/)).toBeVisible();
-  await investigation.screenshot({ path: `${SHOTS}/7-investigation-desktop.png` });
+  await investigation.screenshot({ animations: "disabled", path: `${SHOTS}/7-investigation-desktop.png` });
 
   // The people were found in the same investigation.
   const people = page.getByRole("region", { name: "Find the right people" });
@@ -93,7 +93,7 @@ test("an unadvertised opportunity: evidence, investigation that challenges itsel
   await results.getByRole("button", { name: /Anchor Housing/ }).first().click();
   await expect(card.getByText(/purchasing consortium/)).toBeVisible(); // owner inferred from a consortium notice, said as such
   await expect(card.getByRole("region", { name: "Evidence timeline" })).toContainText("Meldrum Group Limited");
-  await page.screenshot({ path: `${SHOTS}/8-shadow-real-lead-desktop.png` });
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/8-shadow-real-lead-desktop.png` });
   await card.getByRole("button", { name: "Not relevant" }).click();
   await card.getByLabel("Reason").selectOption("outside_territory");
   await card.getByRole("button", { name: "Record and hide" }).click();
@@ -119,6 +119,6 @@ test("the Shadow Radar card works on a phone", async ({ browser }) => {
   const sheet = page.getByRole("region", { name: "Selected opportunity details" });
   await expect(sheet.getByText("Corroborated by independent sources", { exact: true })).toBeVisible();
   await expect(sheet.getByRole("button", { name: "Investigate" })).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/9-shadow-card-mobile.png` });
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/9-shadow-card-mobile.png` });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

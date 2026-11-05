@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState, useRef } from "react";
-import { ArrowLeft, ArrowUpRight, Briefcase, Building2, CheckCircle2, CircleHelp, Eye, EyeOff, Globe, Link2, MailPlus, MapPin, Plus, Search, UserPlus } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpRight, Briefcase, Building2, CheckCircle2, CircleHelp, Eye, EyeOff, Globe, Link2, MailPlus, MapPin, Plus, Search, UserPlus } from "lucide-react";
 import { EmptyState, Pill } from "./ds";
 import { safeUrl } from "./radar-model";
 import { BASIS_LABEL, SERVICES, STAGE_LABEL, dayLabel, goto, param, si, type AccountRow, type AccountT } from "./si-api";
@@ -8,6 +8,13 @@ import { ActivityForm, Basis, ContactCard, PageHeader, Panel, TaskRow, Timeline,
 import { PeopleFinder, newKey } from "./si-people";
 import { DossierPanel } from "./si-shadow";
 import type { SharedProps } from "./types";
+import { initials } from "./fluid";
+
+type SortKey = "name" | "status" | "sources" | "contacts" | "open_deals" | "next_due" | "last_activity";
+const FILTERS: [string, string, (r: AccountRow) => boolean][] = [
+  ["all", "All", () => true], ["customer", "Customers", (r) => r.status === "customer"], ["opportunity", "Opportunities", (r) => r.status === "opportunity"],
+  ["deals", "With open deals", (r) => r.open_deals > 0], ["due", "Follow-up overdue", (r) => r.overdue], ["watched", "Watched", (r) => r.watched]];
+const since = (iso: string | null) => { if (!iso) return null; const d = Math.floor((Date.now() - Date.parse(iso)) / 86400000); return d <= 0 ? "Today" : d === 1 ? "Yesterday" : d < 30 ? `${d} days ago` : d < 365 ? `${Math.floor(d / 30)} mo ago` : `${Math.floor(d / 365)} yr ago`; };
 
 export function SiAccounts(props: SharedProps) {
   useUrl();
@@ -20,6 +27,8 @@ function AccountList({ notify }: SharedProps) {
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "last_activity", dir: -1 });
   useEffect(() => { si<{ items: AccountRow[] }>(`/accounts?q=${encodeURIComponent(q)}`).then((d) => setRows(d.items)).catch((e) => notify(e.message, true)); }, [q, notify]);
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -31,30 +40,74 @@ function AccountList({ notify }: SharedProps) {
   }
   return (
     <div className="ds-root space-y-5">
-      <PageHeader title="Accounts" actions={<button className="ds-btn primary" onClick={() => setAdding((v) => !v)}><Plus size={15} /> New account</button>}>
+      <PageHeader eyebrow="Relationships" title="Accounts" actions={<button className="ds-btn primary" onClick={() => setAdding((v) => !v)}><Plus size={15} /> New account</button>}>
         Every organisation you are working, with its evidence, people, history and next step in one place.
       </PageHeader>
       {adding && <form onSubmit={create} className="ds-card flex flex-wrap items-end gap-3 p-4">
         <label className="min-w-[260px] flex-1"><span className="ds-label">Organisation name</span><input className="mt-1 block h-10 w-full rounded-lg border border-ds-border-strong px-3 text-[14px]" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} autoFocus /></label>
         <button className="ds-btn primary">Create</button>
       </form>}
-      <div className="relative max-w-md"><Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-faint" />
-        <input className="ds-input" aria-label="Search accounts" placeholder="Search accounts" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full max-w-xs"><Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-muted" />
+          <input className="ds-input !pl-9" aria-label="Search accounts" placeholder="Search accounts" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+        {rows && !!rows.length && <div className="ds-tabs" role="group" aria-label="Show">
+          {FILTERS.map(([id, label, test]) => <button key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}<span>{rows.filter(test).length}</span></button>)}
+        </div>}
+      </div>
       {!rows && <div className="ds-skeleton h-40 rounded-xl" />}
       {rows && !rows.length && <div className="ds-card"><EmptyState icon={<Building2 size={20} />} title="No accounts yet" action={<button className="ds-btn primary" onClick={() => goto("find")}>Go to Discover</button>}>Accounts are created when you investigate an opportunity in Discover, or add one yourself.</EmptyState></div>}
-      {rows && !!rows.length && <div className="ds-card overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left text-[14px]">
-          <thead><tr className="border-b border-ds-border text-[12px] text-ds-muted"><th className="px-4 py-2.5 font-semibold">Account</th><th className="px-3 font-semibold">Status</th><th className="px-3 font-semibold">Evidence</th><th className="px-3 font-semibold">Contacts</th><th className="px-3 font-semibold">Open deals</th><th className="px-3 font-semibold">Next follow-up</th></tr></thead>
-          <tbody>{rows.map((r) => (
-            <tr key={r.id} className="cursor-pointer border-b border-ds-border last:border-0 hover:bg-ds-hover" onClick={() => goto("clients", { account: r.id })}>
-              <td className="px-4 py-3"><button className="text-left font-semibold text-ds-ink hover:text-ds-brand" onClick={(e) => { e.stopPropagation(); goto("clients", { account: r.id }); }}>{r.name}</button>
-                <span className="block text-[12px] text-ds-muted">{[r.kind === "public_body" ? "Public body" : r.kind === "private" ? "Private" : "", r.region].filter(Boolean).join(" · ")}</span></td>
-              <td className="px-3"><Pill tone={r.status === "customer" ? "green" : r.status === "opportunity" ? "brand" : "neutral"}>{r.status}</Pill>{r.watched && <Eye size={13} className="ml-1.5 inline text-ds-muted" aria-label="Watched" />}</td>
-              <td className="px-3 text-ds-ink-2">{r.sources}</td><td className="px-3 text-ds-ink-2">{r.contacts}</td><td className="px-3 text-ds-ink-2">{r.open_deals}</td>
-              <td className={`px-3 text-[13px] font-semibold ${r.overdue ? "text-ds-red" : "text-ds-muted"}`}>{r.next_due ? dayLabel(r.next_due) : "None"}</td>
-            </tr>))}</tbody>
-        </table>
-      </div>}
+      {rows && !!rows.length && <AccountTable rows={rows.filter(FILTERS.find((f) => f[0] === filter)![2])} sort={sort} setSort={setSort} />}
+    </div>
+  );
+}
+
+/** Every logged call, email, meeting and visit over the last 26 weeks, one cell per week. Counts only what was recorded. */
+function EngagementStrip({ items }: { items: { occurred_at: string; kind: string }[] }) {
+  const WEEKS = 26;
+  const week = 7 * 86400000;
+  const now = Date.now();
+  const counts = Array.from({ length: WEEKS }, () => 0);
+  for (const x of items) { const w = Math.floor((now - Date.parse(x.occurred_at)) / week); if (w >= 0 && w < WEEKS) counts[WEEKS - 1 - w] += 1; }
+  const total = counts.reduce((a, b) => a + b, 0);
+  const last = items.length ? Math.floor((now - Math.max(...items.map((x) => Date.parse(x.occurred_at)))) / 86400000) : null;
+  return (
+    <section aria-label="Engagement" className="ds-card flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
+      <div className="min-w-[150px]"><p className="text-[12px] text-ds-muted">Engagement, 26 weeks</p>
+        <p className="text-[13px] text-ds-ink"><span className="si-mono">{total}</span> interaction{total === 1 ? "" : "s"}{last !== null && <span className="text-ds-muted"> · last {last === 0 ? "today" : `${last}d ago`}</span>}</p></div>
+      <div className="si-strip min-w-[220px] flex-1" role="img" aria-label={`${total} interactions recorded in the last 26 weeks`}>
+        {counts.map((n, i) => <i key={i} data-l={n === 0 ? 0 : n === 1 ? 1 : n <= 3 ? 2 : 3} title={`${n} in week ${i + 1} of ${WEEKS}`} />)}</div>
+    </section>
+  );
+}
+
+function AccountTable({ rows, sort, setSort }: { rows: AccountRow[]; sort: { key: SortKey; dir: 1 | -1 }; setSort: (s: { key: SortKey; dir: 1 | -1 }) => void }) {
+  const value = (r: AccountRow, k: SortKey): string | number => k === "next_due" ? (r.next_due || "9999") : k === "last_activity" ? (r.last_activity || "") : k === "name" || k === "status" ? String(r[k]).toLowerCase() : Number(r[k]);
+  const sorted = [...rows].sort((a, b) => { const x = value(a, sort.key), y = value(b, sort.key); return (x < y ? -1 : x > y ? 1 : 0) * sort.dir; });
+  const Head = ({ k, label, className = "" }: { k: SortKey; label: string; className?: string }) => {
+    const on = sort.key === k;
+    return <th className={`px-3 py-2.5 font-medium ${className}`} aria-sort={on ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+      <button className={`inline-flex items-center gap-1 ${on ? "text-ds-ink" : "hover:text-ds-ink"}`} onClick={() => setSort({ key: k, dir: on ? (sort.dir === 1 ? -1 : 1) : k === "name" || k === "next_due" ? 1 : -1 })}>
+        {label}{on && (sort.dir === 1 ? <ArrowUp size={12} aria-hidden="true" /> : <ArrowDown size={12} aria-hidden="true" />)}</button></th>;
+  };
+  if (!rows.length) return <div className="ds-card px-4 py-10 text-center text-[13px] text-ds-muted">No accounts match this filter.</div>;
+  return (
+    <div className="ds-card overflow-x-auto">
+      <table className="w-full min-w-[820px] text-left text-[13px]">
+        <thead><tr className="border-b border-ds-border text-[12px] text-ds-muted">
+          <Head k="name" label="Account" className="pl-4" /><Head k="status" label="Status" /><Head k="sources" label="Evidence" /><Head k="contacts" label="Contacts" />
+          <Head k="open_deals" label="Open deals" /><Head k="last_activity" label="Last activity" /><Head k="next_due" label="Next follow-up" /></tr></thead>
+        <tbody>{sorted.map((r) => (
+          <tr key={r.id} className="si-row cursor-pointer border-b border-ds-border last:border-0" onClick={() => goto("clients", { account: r.id })}>
+            <td className="py-2.5 pl-4 pr-3"><span className="flex items-center gap-2.5"><span className="si-mono-mark !h-7 !w-7 !text-[10px]" aria-hidden="true">{initials(r.name)}</span>
+              <span className="min-w-0"><button className="block text-left font-semibold text-ds-ink hover:underline" onClick={(e) => { e.stopPropagation(); goto("clients", { account: r.id }); }}>{r.name}</button>
+              <span className="block text-[12px] text-ds-muted">{[r.kind === "public_body" ? "Public body" : r.kind === "private" ? "Private" : "", r.sector, r.region].filter(Boolean).join(" · ") || "Organisation"}</span></span></span></td>
+            <td className="px-3"><span className="inline-flex items-center gap-1.5 text-ds-ink-2"><i aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${r.status === "customer" ? "bg-ds-green" : r.status === "opportunity" ? "bg-[#c2410c]" : "bg-ds-border-strong"}`} />
+              {r.status[0].toUpperCase() + r.status.slice(1)}</span>{r.watched && <Eye size={13} className="ml-1.5 inline text-ds-muted" aria-label="Watched" />}</td>
+            <td className="si-mono px-3 text-ds-ink-2">{r.sources}</td><td className="si-mono px-3 text-ds-ink-2">{r.contacts}</td><td className="si-mono px-3 text-ds-ink-2">{r.open_deals}</td>
+            <td className="px-3 text-ds-muted">{since(r.last_activity) || "None yet"}</td>
+            <td className={`px-3 font-medium ${r.overdue ? "text-ds-red" : "text-ds-muted"}`}>{r.next_due ? dayLabel(r.next_due) : "None"}</td>
+          </tr>))}</tbody>
+      </table>
     </div>
   );
 }
@@ -92,6 +145,7 @@ function AccountRecord({ id, notify }: SharedProps & { id: number }) {
           <button className="ds-btn ghost" onClick={() => void call(`/accounts/${a.id}`, "PATCH", { watched: !a.watched }, a.watched ? "No longer watching." : "Watching. New intelligence will appear on Today.")}>{a.watched ? <><EyeOff size={15} /> Unwatch</> : <><Eye size={15} /> Watch</>}</button>
         </div>
       </header>
+      <EngagementStrip items={a.activities} />
 
       {panel === "deal" && <DealForm a={a} notify={notify} onDone={() => setPanel("")} />}
 

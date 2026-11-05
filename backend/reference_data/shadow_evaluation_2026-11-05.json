@@ -9,16 +9,16 @@
  "data_end": "2026-11-05",
  "arms": {
   "shadow": {
-   "flagged": 114,
-   "hits": 12,
-   "false_positives": 102,
-   "precision": 0.105,
+   "flagged": 109,
+   "hits": 11,
+   "false_positives": 98,
+   "precision": 0.101,
    "precision_95": [
-    0.061,
-    0.175
+    0.057,
+    0.172
    ],
-   "coverage_of_outcomes": 0.028,
-   "median_days_from_first_evidence_to_outcome": 98.0
+   "coverage_of_outcomes": 0.025,
+   "median_days_from_first_evidence_to_outcome": 98
   },
   "renewal": {
    "flagged": 225,
@@ -47,33 +47,33 @@
  },
  "by_sensor": {
   "estate_mobilisation": {
-   "flagged": 56,
+   "flagged": 53,
    "hits": 4,
    "corroborated": 0,
-   "precision": 0.071,
+   "precision": 0.075,
    "precision_95": [
-    0.028,
-    0.17
+    0.03,
+    0.179
    ]
   },
   "adjacent_package": {
-   "flagged": 57,
-   "hits": 10,
+   "flagged": 52,
+   "hits": 9,
    "corroborated": 0,
-   "precision": 0.175,
+   "precision": 0.173,
    "precision_95": [
-    0.098,
-    0.294
+    0.094,
+    0.297
    ]
   },
   "remediation": {
-   "flagged": 44,
-   "hits": 4,
+   "flagged": 32,
+   "hits": 2,
    "corroborated": 0,
-   "precision": 0.091,
+   "precision": 0.062,
    "precision_95": [
-    0.036,
-    0.212
+    0.017,
+    0.201
    ]
   },
   "supplier_transition": {

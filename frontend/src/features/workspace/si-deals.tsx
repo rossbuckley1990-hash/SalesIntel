@@ -171,6 +171,8 @@ function DealRecordView({ id, notify }: SharedProps & { id: number }) {
               <p className="text-[14px] font-medium leading-6 text-ds-ink">{origin.why_now}</p>
               <ul className="mt-2 space-y-1">{(origin.evidence || []).map((e, i) => { const href = safeUrl(e.url); return <li key={i} className="text-[13px]">{href ? <a className="inline-flex items-center gap-1 font-medium text-ds-brand hover:underline" href={href} target="_blank" rel="noreferrer">{e.label}<ArrowUpRight size={12} /></a> : e.label}</li>; })}</ul>
               {origin.captured_at && <p className="mt-2 text-[12px] text-ds-muted">Evidence kept as it was on {new Date(origin.captured_at).toLocaleDateString("en-GB")}.</p>}
+              {origin.dossier && <p className="mt-2 rounded-lg bg-ds-canvas px-3 py-2 text-[13px] text-ds-ink-2" aria-label="Investigation carried into this deal">
+                Investigation version {origin.dossier.version}: {origin.dossier.verdict === "weakened" ? "evidence was found against the original hypothesis" : origin.dossier.verdict === "strengthened" ? "the evidence supports the original hypothesis" : "the hypothesis was not settled"}. {origin.dossier.findings.length} sourced finding(s) kept.</p>}
             </>}
           </Panel>
           <Panel title="Follow-ups">{!d.tasks.length ? <p className="text-[13px] text-ds-muted">None for this deal.</p> : <ul className="divide-y divide-ds-border">{d.tasks.map((t) => <TaskRow key={t.id} t={t} onDone={async () => { await si(`/tasks/${t.id}/complete`, { method: "POST" }); void load(); }} />)}</ul>}</Panel>

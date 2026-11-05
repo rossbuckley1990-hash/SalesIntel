@@ -110,17 +110,22 @@ def feedback(payload: Feedback, db: Session = Depends(tenant_db), ctx: Context =
     def work():
         if payload.decision != 'relevant' and not payload.reason:
             raise ValueError('Say why it was not relevant, so the radar can be evaluated honestly.')
-        sensor = ''
+        targets = [(payload.lead_key, '')]
         if payload.lead_key.startswith('sh:'):
             row = db.get(ShadowHypothesis, int(payload.lead_key[3:]))
             if row is None:
                 raise LookupError('Lead not found')
-            sensor = row.sensor
-        db.add(LeadFeedback(lead_key=payload.lead_key, sensor=sensor, decision=payload.decision, reason=payload.reason, note=payload.note,
-                            created_by=ctx.user_id, created_at=datetime.now(UTC)))
-        if payload.decision in ('not_relevant', 'disproved'):
-            core.set_status(db, payload.lead_key, 'dismissed')
-        return {'recorded': True, 'lead_key': payload.lead_key, 'decision': payload.decision}
+            targets = [(payload.lead_key, row.sensor)]
+            if payload.decision != 'relevant':
+                # Competing hypotheses read from the same evidence share its fate: "outside our territory" is about the project.
+                evidence = row.key.split('|', 1)[1]
+                targets += [(f'sh:{x.id}', x.sensor) for x in db.scalars(select(ShadowHypothesis).where(ShadowHypothesis.key.like(f'%|{evidence}'), ShadowHypothesis.id != row.id))]
+        for key, sensor in targets:
+            db.add(LeadFeedback(lead_key=key, sensor=sensor, decision=payload.decision, reason=payload.reason, note=payload.note,
+                                created_by=ctx.user_id, created_at=datetime.now(UTC)))
+            if payload.decision in ('not_relevant', 'disproved'):
+                core.set_status(db, key, 'dismissed')
+        return {'recorded': True, 'lead_key': payload.lead_key, 'decision': payload.decision, 'also_applied_to': [k for k, _ in targets[1:]]}
     return run(db, work)
 
 

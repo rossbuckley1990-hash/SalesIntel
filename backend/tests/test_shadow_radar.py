@@ -173,15 +173,17 @@ def test_discovery_to_investigation_to_contacts_to_deal_and_isolation(hosted):
     assert deal['origin']['key'] == lead['key'] and deal['origin']['dossier']['verdict'] == 'weakened' and deal['value_total'] is None  # main contract value is not our value
     # Feedback needs a reason when negative, and the scorecard reports only what happened.
     assert alice.post('/api/si/radar/feedback', json={'lead_key': lead['key'], 'decision': 'not_relevant'}).status_code == 422
-    other = next(x for x in leads if x['key'] != lead['key'])
-    alice.post('/api/si/radar/feedback', json={'lead_key': other['key'], 'decision': 'not_relevant', 'reason': 'outside_territory'})
+    other = {'key': lead['shadow']['competing'][0]['key']}  # the competing reading of the same evidence (one row in Discover)
+    applied = alice.post('/api/si/radar/feedback', json={'lead_key': other['key'], 'decision': 'not_relevant', 'reason': 'outside_territory'}).json()
+    assert applied['also_applied_to'] == [lead['key']]  # a project-level reason covers every reading of that project
+    assert lead['key'] not in {x['key'] for x in alice.get('/api/si/discover', params={'source': 'shadow'}).json()['items']}
     card = alice.get('/api/si/radar/scorecard').json()['sensors']
     assert card['adjacent_package']['investigated'] == 1 and card['adjacent_package']['qualified'] == 1 and card['adjacent_package']['research_cents'] > 0
-    assert sum(s['dismissed'] for s in card.values()) == 1
+    assert sum(s['dismissed'] for s in card.values()) >= 1  # the project's competing hypotheses are dismissed together
     # Another company sees the shared public lead, but none of Alpha's investigation, contacts, feedback or status.
     bob, b_org = workspace(h, 'bob', 'Beta Security Ltd')
     bob_leads = {x['key']: x for x in bob.get('/api/si/discover', params={'source': 'shadow'}).json()['items']}
-    assert bob_leads[lead['key']]['status'] == 'new' and bob_leads[lead['key']]['account_id'] is None and other['key'] in bob_leads
+    assert bob_leads[lead['key']]['status'] == 'new' and bob_leads[lead['key']]['account_id'] is None  # Alpha's dismissal is Alpha's alone
     assert bob.get(f'/api/si/radar/accounts/{account}/dossier').status_code == 404
     assert bob.get(f"/api/si/research-jobs/{started['job']['id']}").status_code == 404
     assert all(v['investigated'] == 0 and v['dismissed'] == 0 for v in bob.get('/api/si/radar/scorecard').json()['sensors'].values())

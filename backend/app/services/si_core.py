@@ -178,7 +178,7 @@ def import_prospect_contacts(db: Session, account: Account, prospect: Prospect) 
 
 GENERIC = {"group", "housing", "association", "services", "service", "uk", "trust", "council", "city", "county", "borough", "district", "metropolitan",
            "nhs", "foundation", "university", "college", "school", "and", "of", "company", "holdings", "international", "property", "properties",
-           "care", "homes", "logistics", "estates", "management", "partnership", "for", "national", "royal", "new"}
+           "care", "homes", "logistics", "estates", "management", "partnership", "for", "national", "royal", "new", "health", "community"}
 
 
 def _distinctive(key: str) -> set[str]:
@@ -383,8 +383,16 @@ def _shadow_items(db: Session, links: dict, statuses: dict, routes: dict, prefs:
     from app.services import shadow
     reviewed = {r.entity_id: r.status for r in db.scalars(select(LeadState).where(LeadState.entity_type == "shadow_hypothesis"))}
     order = {"corroborated": 0, "indicated": 1, "surfaced": 2, "challenged": 3}
-    out = []
+    # One row per piece of evidence: competing readings of the same project are shown together, not as duplicates.
+    groups: dict[str, list] = {}
     for row, a in shadow.active(db):
+        groups.setdefault(a["key"].split("|", 1)[1], []).append((row, a))
+    primaries = []
+    for members in groups.values():
+        members.sort(key=lambda m: (order.get(m[1]["state"], 3), m[1]["sensor"] != "adjacent_package"))
+        primaries.append((members[0], [m for m in members[1:]]))
+    out = []
+    for (row, a), rivals in primaries:
         link = links.get(("shadow_hypothesis", row.id))
         start = date.fromisoformat(a["window"][0])
         item = {"key": f"sh:{row.id}", "type": "shadow", "source_label": "Shadow Radar", "organisation": display_name(a["entity_name"]),
@@ -392,7 +400,9 @@ def _shadow_items(db: Session, links: dict, statuses: dict, routes: dict, prefs:
                 "basis": "inferred", "timing": a["window"][0], "days": (start - today).days, "timing_label": "Possible investigation window opens",
                 "nation": None, "region": None, "tier": None, "services": a["services"], "supplier": a.get("main_contractor"), "value": None,
                 "status": reviewed.get(row.id, "new"), "account_id": link.account_id if link else None, "link_basis": link.basis if link else None,
-                "rank": (1 + order.get(a["state"], 3), max((start - today).days, 0)), "shadow": a}
+                "rank": (1 + order.get(a["state"], 3), max((start - today).days, 0)),
+                "shadow": {**a, "competing": [{"key": f"sh:{r.id}", "sensor_name": x["sensor_name"], "hypothesis": x["hypothesis"], "first_action": x["first_action"],
+                                               "state_label": x["state_label"], "window": x["window"]} for r, x in rivals]}}
         item["kind"] = "customer_expansion" if statuses.get(item["account_id"]) == "customer" else "shadow_signal"
         known = [{"text": f"{e['label']}: {e['statement']}", "source_url": e["source_url"], "date": e["published"], "basis": e["basis"]}
                  for e in a["timeline"] if e["role"] in ("anchor", "supports", "advertised")]

@@ -205,6 +205,8 @@ def create_dossier(db: Session, opportunity_id: int, post: Post | None = None, s
     if not version:
         raise LookupError("Opportunity not found")
     active = settings or get_settings()
+    if active.app_env == "demo":
+        raise DossierUnavailable("AI research is switched off in demo mode, so no API credit is used.")
     if post is None:
         if not active.anthropic_api_key:
             raise DossierUnavailable("Deep research needs ANTHROPIC_API_KEY in the .env file.")

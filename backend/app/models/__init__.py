@@ -18,6 +18,7 @@ from app.models.market_opportunity import MarketOpportunity, MarketOpportunityDo
 from app.models.market_contract import MarketContract, MarketContractLink
 from app.models.market_inference import MarketObservation, MarketHypothesis, MarketHypothesisRevision
 from app.models.prospect import Prospect, ProspectSearch
+from app.models.crm import Account, AccountLink, Activity, Contact, DealRecord, Draft, FunnelEvent, Preference, SavedView, Site, Task
 
 __all__ = [
     "BuyerProfile",

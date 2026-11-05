@@ -9,7 +9,7 @@ from app.db import get_db
 from app.models import MarketSignal, Opportunity
 from app.models.prospect import Prospect, ProspectSearch
 from app.services.market_signal_conversion import convert_market_signal_to_opportunity
-from app.services.prospect_research import SIGNALS, list_prospects, search_dict, start_search, view
+from app.services.prospect_research import SIGNALS, expire_interrupted, list_prospects, search_dict, start_search, view
 
 router = APIRouter(prefix='/api/prospects', tags=['prospects'])
 FAMILY_LABELS = {'fire_alarm': 'Fire alarm', 'cctv': 'CCTV', 'access_control': 'Access control', 'intruder': 'Intruder alarm',
@@ -49,12 +49,14 @@ def create_search(payload: SearchRequest, db: Session = Depends(get_db)):
 
 @router.get('/searches')
 def searches(db: Session = Depends(get_db)):
+    expire_interrupted(db)
     rows = db.scalars(select(ProspectSearch).order_by(ProspectSearch.id.desc()).limit(12)).all()
     return {'items': [search_dict(r) for r in rows]}
 
 
 @router.get('/searches/{search_id}')
 def search(search_id: int, db: Session = Depends(get_db)):
+    expire_interrupted(db)
     row = db.get(ProspectSearch, search_id)
     if not row:
         raise HTTPException(status_code=404, detail='Search not found')

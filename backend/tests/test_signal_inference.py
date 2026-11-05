@@ -390,3 +390,15 @@ def test_insolvency_on_a_published_number_links_and_one_late_filing_is_only_watc
     assert found['link'] == 'Matched on a published company number.' and found['decision'] == 'verify'
     late = seen('supplier_filing_overdue', 'companies_house', buyer=None, supplier='Different Trading Name Ltd', fams=[], company_number='01234567')
     assert contract_hypotheses([number], [late], TODAY)['stress:ocds-h6vhtk-000001:'][0]['decision'] == 'monitor'
+
+
+def test_prospective_outcomes_are_dated_by_publication_and_never_in_the_future():
+    made = [{'decision': 'verify', 'buyer': 'Example Trust', 'kind': 'hidden_requirement', 'first_seen': date(2026, 11, 4)}]
+    def notice(published, approach=None):
+        return {'id': published, 'buyer': 'Example Trust', 'title': 'Fire alarm maintenance', 'published': published, 'approach': approach, 'ocid': 'o-' + published, 'type': 'Planning'}
+    # Published before the claim with a later planned approach date: knowable at the time, so not an outcome.
+    assert prospective_scorecard(made, [notice('2026-10-01', '2026-11-13')], date(2026, 11, 20))['followed_by_a_notice'] == 0
+    # Published after the claim but after "today": not observable yet.
+    assert prospective_scorecard(made, [notice('2026-12-01')], date(2026, 11, 20))['followed_by_a_notice'] == 0
+    scored = prospective_scorecard(made, [notice('2026-11-10')], date(2026, 11, 20))
+    assert scored['followed_by_a_notice'] == 1 and scored['examples'][0]['first_notice_published'] == '2026-11-10'

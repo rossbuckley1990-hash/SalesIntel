@@ -246,7 +246,8 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
                 "value": None, "status": {"new": "new", "watching": "watching", "pipeline": "investigating", "dismissed": "dismissed"}.get(row.status, "new"),
                 "account_id": link.account_id if link else None, "link_basis": link.basis if link else None,
                 "people": len(v.get("people") or []), "contact_routes": len(v.get("contact_routes") or []),
-                "rank": (0 if phase == "engage_now" else 1 if phase == "prepare" else 2, 9999),
+                # Inferred timing never outranks a published deadline in the same bucket.
+                "rank": (1 if phase == "engage_now" else 2 if phase == "prepare" else 3, 9999),
             })
     items.sort(key=lambda x: (x["status"] == "dismissed", x["rank"], x["organisation"]))
     return items if limit is None else items[:limit]
@@ -280,6 +281,8 @@ def discover(db: Session, *, q: str = "", source: str = "all", nation: str = "",
             return False
         if nations and x["type"] == "public" and x.get("nation") not in nations:
             return False
+        if nations and x["type"] == "private" and not any(n.lower() in str(x.get("region") or "").lower() for n in nations):
+            return False  # research is located by free text, so match the nation there
         if services and not set(services) & set(x["services"]):
             return False
         hay = " ".join(str(x.get(k) or "") for k in ("organisation", "title", "why_now", "supplier", "region")).lower()
@@ -288,6 +291,8 @@ def discover(db: Session, *, q: str = "", source: str = "all", nation: str = "",
     gaps = []
     if meaning["regions"]:
         gaps.append(f"Public notices are located by nation, not region, so '{', '.join(meaning['regions'])}' is matched only where it appears in the text.")
+    if nations and source != "public":
+        gaps.append("Private research has no nation field, so it is matched on its location text.")
     if q and source != "public":
         gaps.append("Private matches come only from prospect research already run. Use “Research the web” to look further; it uses API credit.")
     if not found:
@@ -469,7 +474,7 @@ def today_queue(db: Session) -> dict:
                           "why": f"Updated {', '.join(sorted(set(changed)))} since you last looked."})
     queue.sort(key=lambda x: (x["priority"], x.get("due_on") or ""))
     upcoming = [task_dict(t) | {"account": names.get(t.account_id)} for t in db.scalars(select(Task).where(Task.status == "open", Task.due_on > today, Task.due_on <= today + timedelta(days=7)).order_by(Task.due_on))]
-    fresh = [x for x in discover_items(db, limit=None) if x["status"] == "new" and x["account_id"] is None and x["rank"][0] == 0][:6]
+    fresh = [x for x in discover_items(db, limit=None) if x["status"] == "new" and x["account_id"] is None and x["rank"][0] <= 1 and x["basis"] == "published"][:6]
     return {"queue": queue, "upcoming": upcoming, "new_leads": fresh, "as_of": today.isoformat()}
 
 

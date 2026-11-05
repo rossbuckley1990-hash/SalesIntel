@@ -29,7 +29,7 @@ NEWS = "https://news.example.co.uk/orbit-new-hub"
 
 
 def suggestion(customer="ORBIT GROUP LIMITED", title="Service and maintenance of fire alarm systems", supplier="Example Fire Ltd", value=None):
-    return {"category": "pre_tender", "category_label": "Pre-tender opportunity", "customer": customer, "title": title, "supplier": supplier,
+    return {"kind": "possible_renewal_window", "fit_reason": "title names both the system and the service", "unknowns": [], "category": "pre_tender", "category_label": "Pre-tender opportunity", "customer": customer, "title": title, "supplier": supplier,
             "timing": END, "timing_basis": "published award contract period", "end_estimated": False, "latest_end": None, "nation": "England", "fit": "core",
             "value": value or {"type": "unknown", "published_total": None, "estimated_annualised": None, "framework_ceiling": None, "basis": "No value is published.", "scope_note": ""},
             "priority": {"tier": 1, "reasons": ["Core fit"]}, "counter_evidence": [], "next_actions": ["Investigate"], "next_action": "Investigate", "extension": "",

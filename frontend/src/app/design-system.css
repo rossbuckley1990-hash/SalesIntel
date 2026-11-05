@@ -274,3 +274,9 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 .m-workspace .m-data-node.selected small { color: var(--ds-ink-2); }
 .m-workspace .m-score, .m-dialog .m-score { color: var(--ds-ink-2); }
 .m-workspace .m-field-layout .m-field-produce > .m-eyebrow { color: var(--ds-brand); }
+
+/* Small screens: the research spotlight stacks instead of forcing the page wider. */
+@media (max-width: 760px) {
+  .m-workspace .p-spotlight { grid-template-columns: minmax(0, 1fr); }
+  .m-workspace .p-spotlight-story { border-right: 0; border-bottom: 1px solid var(--ds-border); }
+}

@@ -12,6 +12,9 @@ import {
   Flag,
   House,
   Layers3,
+  MessagesSquare,
+  Compass,
+  Users,
   ListChecks,
   Menu,
   Orbit,
@@ -29,7 +32,8 @@ import { getApiBaseUrl } from "@/lib/api";
 import { request, mutate } from "./api";
 import { Button, Empty, Loading, Modal } from "./ui";
 import type { Navigate, SharedProps, View, Workspace } from "./types";
-import { Home } from "./home";
+import { SiToday } from "./si-today";
+import { SiDiscover } from "./si-discover";
 import { Opportunities } from "./opportunities";
 import { Discover } from "./discover";
 import { Inspector } from "./inspector";
@@ -56,6 +60,9 @@ const Accounts = dynamic(() => import("./accounts").then((m) => m.Accounts), {
 const RenewalRadar = dynamic(() => import("./renewal-radar").then((m) => m.RenewalRadar), {
   loading: () => <Loading />,
 });
+const SiAccounts = dynamic(() => import("./si-accounts").then((m) => m.SiAccounts), { loading: () => <Loading /> });
+const SiEngage = dynamic(() => import("./si-engage").then((m) => m.SiEngage), { loading: () => <Loading /> });
+const SiDeals = dynamic(() => import("./si-deals").then((m) => m.SiDeals), { loading: () => <Loading /> });
 const Prospects = dynamic(() => import("./prospects").then((m) => m.Prospects), {
   loading: () => <Loading />,
 });
@@ -64,26 +71,25 @@ const Imports = dynamic(() => import("./imports").then((m) => m.Imports), {
 });
 
 const navigation = [
-  { id: "today", label: "Home", icon: House, group: "Find" },
-  { id: "radar", label: "Opportunity Finder", icon: Radar, group: "Find" },
-  { id: "prospects", label: "Prospects", icon: Telescope, group: "Find" },
-  { id: "discover", label: "AI Research", icon: Sparkles, group: "Find" },
-  { id: "opportunities", label: "Pipeline", icon: BriefcaseBusiness, group: "Win" },
-  { id: "pursuits", label: "Pursuits", icon: Flag, group: "Win" },
-  { id: "accounts", label: "Accounts", icon: Building2, group: "Win" },
-  { id: "actions", label: "My Work", icon: ListChecks, group: "TOOLS" },
+  { id: "today", label: "Today", icon: House },
+  { id: "find", label: "Discover", icon: Compass },
+  { id: "clients", label: "Accounts", icon: Building2 },
+  { id: "engage", label: "Engage", icon: MessagesSquare },
+  { id: "deals", label: "Deals", icon: BriefcaseBusiness },
+  { id: "radar", label: "Opportunity Finder", icon: Radar },
+  { id: "prospects", label: "Prospects", icon: Telescope },
+  { id: "discover", label: "AI Research", icon: Sparkles },
+  { id: "opportunities", label: "Pipeline records", icon: Target },
+  { id: "pursuits", label: "Pursuits", icon: Flag },
+  { id: "accounts", label: "Buyer profiles", icon: Users },
+  { id: "actions", label: "My Work", icon: ListChecks },
   { id: "assets", label: "Asset Studio", icon: FileText },
   { id: "finance", label: "Finance", icon: CircleDollarSign },
   { id: "selfDelivery", label: "Self-Delivery", icon: Layers3 },
   { id: "field", label: "Intelligence Field", icon: Orbit },
   { id: "outcomes", label: "Outcomes", icon: CheckCheck },
 ] as const;
-const primaryViews: View[] = ["today", "radar", "prospects", "discover", "opportunities", "pursuits", "accounts"];
-const navGroups = ["Find", "Win"] as const;
-
-function navGroupOf(id: string) {
-  return ["today", "radar", "prospects", "discover"].includes(id) ? "Find" : "Win";
-}
+const primaryViews: View[] = ["today", "find", "clients", "engage", "deals"];
 
 export function LivingWorkspace() {
   const [data, setData] = useState<Workspace | null>(null);
@@ -129,9 +135,10 @@ export function LivingWorkspace() {
     if (id !== undefined) setSelectedId(id);
     setMobile(false);
     const url = new URL(window.location.href);
+    url.search = "";
     url.searchParams.set("view", next);
     if (id !== undefined) url.searchParams.set("opportunity", String(id));
-    window.history.replaceState({}, "", url);
+    window.history.pushState({}, "", url);
     window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
   useEffect(() => {
@@ -151,6 +158,15 @@ export function LivingWorkspace() {
         if (!abort.signal.aborted) setError(e.message);
       });
     return () => abort.abort();
+  }, []);
+  useEffect(() => {
+    // Workspaces link to each other through the URL; keep the shell in step.
+    const sync = () => {
+      const next = new URL(window.location.href).searchParams.get("view");
+      setView(next && [...navigation.map((n) => n.id), "imports"].includes(next as View) ? (next as View) : "today");
+    };
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
   }, []);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -210,7 +226,15 @@ export function LivingWorkspace() {
     if (!shared) return null;
     switch (view) {
       case "today":
-        return <Home {...shared} />;
+        return <SiToday {...shared} />;
+      case "find":
+        return <SiDiscover {...shared} />;
+      case "clients":
+        return <SiAccounts {...shared} />;
+      case "engage":
+        return <SiEngage {...shared} />;
+      case "deals":
+        return <SiDeals {...shared} />;
       case "field":
         return <IntelligenceField {...shared} />;
       case "discover":
@@ -258,23 +282,17 @@ export function LivingWorkspace() {
           </div>
         </div>
         <nav aria-label="Main navigation">
-          {navGroups.map((group) => (
-            <div key={group}>
-              <p className="m-nav-group">{group}</p>
-              {navigation.filter((item) => primaryViews.includes(item.id) && navGroupOf(item.id) === group).map((item) => (
-                <button
-                  key={item.id}
-                  aria-current={view === item.id ? "page" : undefined}
-                  onClick={() => navigate(item.id)}
-                  className={`m-nav-item ${view === item.id ? "active" : ""}`}
-                >
-                  <item.icon size={18} strokeWidth={1.75} />
-                  <span>{item.label}</span>
-                  {item.id === "radar" && readyCount > 0 && <span className="ds-nav-hint" aria-label={`${readyCount} ready to work`}>{readyCount}</span>}
-                  {item.id === "opportunities" && openPipeline > 0 && <span className="ds-nav-hint">{openPipeline}</span>}
-                </button>
-              ))}
-            </div>
+          {navigation.filter((item) => primaryViews.includes(item.id)).map((item) => (
+            <button
+              key={item.id}
+              aria-current={view === item.id ? "page" : undefined}
+              onClick={() => navigate(item.id)}
+              className={`m-nav-item ${view === item.id ? "active" : ""}`}
+            >
+              <item.icon size={18} strokeWidth={1.75} />
+              <span>{item.label}</span>
+              {item.id === "find" && readyCount > 0 && <span className="ds-nav-hint" aria-label={`${readyCount} high-priority leads`}>{readyCount}</span>}
+            </button>
           ))}
           <div className="m-nav-tools">
             <button className="m-nav-group-toggle" aria-expanded={toolsOpen} aria-controls="m-tools-navigation" onClick={() => setToolsOpen((open) => !open)}>

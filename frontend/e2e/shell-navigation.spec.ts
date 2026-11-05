@@ -29,7 +29,8 @@ test('mobile navigation opens, exposes tools and closes after navigation', async
   const toggle = page.getByRole('button', { name: 'Toggle navigation' });
   await toggle.click();
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
-  await expect(nav.getByRole('button', { name: 'AI Research' })).toBeVisible();
+  await expect(nav.getByRole('button', { name: 'Discover' })).toBeVisible();
+  await expect(nav.getByRole('button', { name: 'AI Research' })).toBeHidden();
   await nav.getByRole('button', { name: 'Tools' }).click();
   await expect(nav.getByRole('button', { name: 'Finance' })).toBeVisible();
   await nav.getByRole('button', { name: 'AI Research' }).click();

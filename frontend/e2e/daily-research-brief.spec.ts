@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const cors = { "access-control-allow-origin": "http://127.0.0.1:3100", "access-control-allow-methods": "GET,PATCH,OPTIONS", "access-control-allow-headers": "content-type" };
 
-test("Home shows the research briefing with due follow-ups and recent leads", async ({ page }) => {
+test("Today shows the research briefing with due follow-ups and recent leads", async ({ page }) => {
   const actions = [
     { id: 1, lead_id: 17, organisation: "Example Trust", headline: "Review maintenance", text: "Confirm current arrangements", status: "open", due_date: null },
     { id: 2, lead_id: 17, organisation: "Example Trust", headline: "Review maintenance", text: "Check published estate evidence", status: "open", due_date: "2026-11-03" },
@@ -25,7 +25,7 @@ test("Home shows the research briefing with due follow-ups and recent leads", as
   await expect(briefing.getByText("Estate changes may warrant a conversation.")).toBeVisible();
   await expect(briefing.getByText("Confirm the current service arrangement.")).toBeVisible();
   await expect(briefing.getByText(/not a ranking/)).toBeVisible();
-  await expect(page.getByRole("region", { name: "Act on these first" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Your queue" })).toBeVisible();
   await briefing.getByRole("button", { name: "Show 4 loaded follow-ups" }).click();
   await expect(briefing.getByText("Confirm current arrangements")).toBeVisible();
   await briefing.getByRole("article").filter({ hasText: "Review the source" }).getByRole("button", { name: "Mark done" }).click();

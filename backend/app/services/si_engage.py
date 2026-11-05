@@ -91,7 +91,7 @@ def prepare_introduction(db: Session, account_id: int, *, contact_id: int | None
         greeting = "Dear [name],"
         gaps.append("No contact selected: add the recipient's name.")
     if not prefs["company_name"]:
-        gaps.append("Set your company name in Settings.")
+        gaps.append("Add your name and company under Your details.")
     services = []
     evidence = []
     if source is None:

@@ -12,15 +12,17 @@ from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
+from app.models.tenancy import TenantScoped
 
 
-class Account(Base):
+class Account(TenantScoped, Base):
     __tablename__ = 'si_accounts'
+    __table_args__ = (UniqueConstraint('organisation_id', 'company_number', name='uq_si_account_company'),)
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     kind: Mapped[str] = mapped_column(String(24), nullable=False, default='unknown')  # public_body, private, unknown
-    company_number: Mapped[str | None] = mapped_column(String(16), unique=True)
+    company_number: Mapped[str | None] = mapped_column(String(16))  # unique per workspace (uq_si_account_company)
     website: Mapped[str | None] = mapped_column(String(512))
     sector: Mapped[str | None] = mapped_column(String(160))
     region: Mapped[str | None] = mapped_column(String(160))
@@ -28,14 +30,15 @@ class Account(Base):
     watched: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     watched_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str] = mapped_column(Text, nullable=False, default='')
+    owner_user_id: Mapped[int | None] = mapped_column(Integer, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class AccountLink(Base):
+class AccountLink(TenantScoped, Base):
     """Why a research or pipeline record belongs to an account."""
     __tablename__ = 'si_account_links'
-    __table_args__ = (UniqueConstraint('entity_type', 'entity_id', name='uq_si_account_link_entity'),)
+    __table_args__ = (UniqueConstraint('organisation_id', 'entity_type', 'entity_id', name='uq_si_account_link_entity'),)
     id: Mapped[int] = mapped_column(primary_key=True)
     account_id: Mapped[int] = mapped_column(ForeignKey('si_accounts.id', ondelete='CASCADE'), nullable=False, index=True)
     entity_type: Mapped[str] = mapped_column(String(32), nullable=False)  # market_opportunity, prospect, opportunity, market_contract
@@ -46,7 +49,7 @@ class AccountLink(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class Site(Base):
+class Site(TenantScoped, Base):
     __tablename__ = 'si_sites'
     id: Mapped[int] = mapped_column(primary_key=True)
     account_id: Mapped[int] = mapped_column(ForeignKey('si_accounts.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -60,7 +63,7 @@ class Site(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class Contact(Base):
+class Contact(TenantScoped, Base):
     __tablename__ = 'si_contacts'
     id: Mapped[int] = mapped_column(primary_key=True)
     account_id: Mapped[int] = mapped_column(ForeignKey('si_accounts.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -78,7 +81,7 @@ class Contact(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class Draft(Base):
+class Draft(TenantScoped, Base):
     """A message prepared in SalesIntel. A draft is never sent by SalesIntel."""
     __tablename__ = 'si_drafts'
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -96,7 +99,7 @@ class Draft(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class Activity(Base):
+class Activity(TenantScoped, Base):
     """Something the salesperson did or learned, recorded by them."""
     __tablename__ = 'si_activities'
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -115,7 +118,7 @@ class Activity(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class Task(Base):
+class Task(TenantScoped, Base):
     __tablename__ = 'si_tasks'
     id: Mapped[int] = mapped_column(primary_key=True)
     account_id: Mapped[int] = mapped_column(ForeignKey('si_accounts.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -124,15 +127,17 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     due_on: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(12), nullable=False, default='open')  # open, done, cancelled
+    assignee_user_id: Mapped[int | None] = mapped_column(Integer, index=True)
     done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class DealRecord(Base):
+class DealRecord(TenantScoped, Base):
     """SalesIntel's view of a pipeline opportunity: where it came from and how it is progressing."""
     __tablename__ = 'si_deals'
     id: Mapped[int] = mapped_column(primary_key=True)
-    opportunity_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    # The legacy single-user pipeline record. Hosted workspaces do not use it, so it is optional.
+    opportunity_id: Mapped[int | None] = mapped_column(Integer, unique=True)
     account_id: Mapped[int] = mapped_column(ForeignKey('si_accounts.id', ondelete='CASCADE'), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     stage: Mapped[str] = mapped_column(String(24), nullable=False, default='qualify')
@@ -150,11 +155,13 @@ class DealRecord(Base):
     quote: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     handover: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     outcome_reason: Mapped[str] = mapped_column(Text, nullable=False, default='')
+    owner_user_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    seller_confidence: Mapped[str | None] = mapped_column(String(12))  # the seller's own view: low, medium, high
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class SavedView(Base):
+class SavedView(TenantScoped, Base):
     __tablename__ = 'si_saved_views'
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -162,13 +169,14 @@ class SavedView(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class Preference(Base):
+class Preference(TenantScoped, Base):
     __tablename__ = 'si_preferences'
+    organisation_id: Mapped[int] = mapped_column(ForeignKey('organisations.id', ondelete='CASCADE'), primary_key=True)
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     value: Mapped[Any] = mapped_column(JSON, nullable=False)
 
 
-class FunnelEvent(Base):
+class FunnelEvent(TenantScoped, Base):
     """Aggregate pilot measurement: an event name and day only, no people or content."""
     __tablename__ = 'si_funnel_events'
     id: Mapped[int] = mapped_column(primary_key=True)

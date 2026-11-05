@@ -19,7 +19,9 @@ from app.intelligence.renewal_radar import families
 from app.models.crm import Account, AccountLink, Activity, Contact, DealRecord, Draft, FunnelEvent, Preference, Site, Task
 from app.models.market_opportunity import MarketOpportunity, MarketOpportunityRevision
 from app.models.prospect import Prospect
+from app.models.tenancy import LeadState
 from app.services.prospect_research import view as prospect_view
+from app.tenancy import hosted
 
 LEGAL = re.compile(r"\b(limited|ltd|plc|llp|lp|cic|incorporated|inc|the)\b")
 FAMILY_SERVICE = {"fire_alarm": "fire_alarm", "cctv": "cctv", "access": "access_control", "access_control": "access_control", "intruder": "intruder",
@@ -224,6 +226,8 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
     links = {(x.entity_type, x.entity_id): x for x in db.scalars(select(AccountLink))}
     items: list[dict] = []
     if include_public:
+        # This workspace's own review of each shared notice; another company's review is never seen.
+        reviewed = {r.entity_id: r.status for r in db.scalars(select(LeadState).where(LeadState.entity_type == "market_opportunity"))}
         rows = db.execute(select(MarketOpportunity, MarketOpportunityRevision).join(MarketOpportunityRevision, MarketOpportunity.current_revision_id == MarketOpportunityRevision.id)
                           .where(MarketOpportunity.state == "suggested")).all()
         for item, version in rows:
@@ -237,7 +241,7 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
                 "basis": "inferred" if s.get("category") == "inferred_signal" else "published", "timing": s.get("timing"), "days": days,
                 "timing_label": s.get("timing_basis") or "", "nation": s.get("nation"), "tier": (s.get("priority") or {}).get("tier"),
                 "services": _services_from_title(s.get("title") or ""), "supplier": s.get("supplier"), "value": s.get("value"),
-                "status": {"unreviewed": "new", "investigate": "investigating", "defer": "watching", "dismiss": "dismissed"}.get(item.review_state, "new"),
+                "status": reviewed.get(item.id) or ("new" if hosted() else {"unreviewed": "new", "investigate": "investigating", "defer": "watching", "dismiss": "dismissed"}.get(item.review_state, "new")),
                 "account_id": link.account_id if link else None, "link_basis": link.basis if link else None,
                 "rank": (0 if urgent and (s.get("priority") or {}).get("tier") == 1 else 1 if urgent else 2, days if days is not None and days >= 0 else 9999),
             })
@@ -317,7 +321,13 @@ def set_status(db: Session, key: str, status: str) -> None:
         item = db.get(MarketOpportunity, entity_id)
         if not item:
             raise LookupError("Record not found")
-        item.review_state = {"new": "unreviewed", "watching": "defer", "dismissed": "dismiss", "investigating": "investigate"}[status]
+        state = db.scalar(select(LeadState).where(LeadState.entity_type == "market_opportunity", LeadState.entity_id == entity_id))
+        if state is None:
+            db.add(LeadState(entity_type="market_opportunity", entity_id=entity_id, status=status, updated_at=now(), updated_by=db.info.get("user_id")))
+        else:
+            state.status, state.updated_at, state.updated_by = status, now(), db.info.get("user_id")
+        if not hosted():  # the single-user classic workspace reads the shared review state
+            item.review_state = {"new": "unreviewed", "watching": "defer", "dismissed": "dismiss", "investigating": "investigate"}[status]
     elif kind == "pr":
         row = db.get(Prospect, entity_id)
         if not row:
@@ -495,7 +505,7 @@ def preferences(db: Session) -> dict:
 def set_preferences(db: Session, values: dict) -> dict:
     for key in ("territory", "services", "company_name", "sender_name"):
         if key in values:
-            row = db.get(Preference, key)
+            row = db.scalar(select(Preference).where(Preference.key == key))  # scoped to the workspace
             if row is None:
                 db.add(Preference(key=key, value=values[key]))
             else:

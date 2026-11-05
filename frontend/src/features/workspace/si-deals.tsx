@@ -5,6 +5,7 @@ import { EmptyState, Pill } from "./ds";
 import { safeUrl } from "./radar-model";
 import { SERVICES, SERVICE_NAME, STAGE_LABEL, goto, param, pounds, si, type DealCard, type DealT } from "./si-api";
 import { ActivityForm, Basis, PageHeader, Panel, TaskRow, Timeline, useUrl } from "./si-shared";
+import { WinAssessment } from "./si-assessment";
 import type { SharedProps } from "./types";
 
 const money = pounds;
@@ -160,6 +161,7 @@ function DealRecordView({ id, notify }: SharedProps & { id: number }) {
           <Panel title="History"><Timeline items={d.activities} /></Panel>
         </div>
         <div className="space-y-5">
+          <WinAssessment dealId={d.id} version={`${d.stage}|${d.quote?.status}|${d.quote?.version}|${d.activities.length}|${d.tasks.length}|${JSON.stringify(d.qualification)}`} notify={notify} />
           <Panel title="Qualification">
             <dl className="space-y-2 text-[13px]">{[["requirement", "Requirement"], ["decision_maker", "Decision maker"], ["timing", "Timing"], ["budget", "Budget"], ["incumbent", "Current provider"]].map(([k, l]) => <div key={k}>
               <dt className="text-[12px] text-ds-muted">{l}</dt><dd className={d.qualification[k] ? "text-ds-ink" : "text-ds-amber"}>{d.qualification[k] || "Not confirmed"}</dd></div>)}</dl>

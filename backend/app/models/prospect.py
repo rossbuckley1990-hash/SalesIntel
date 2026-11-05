@@ -1,12 +1,13 @@
 """Private-sector prospects found by web research, and the searches that found them."""
 from datetime import datetime
 from typing import Any
-from sqlalchemy import DateTime, Integer, JSON, String, Text
+from sqlalchemy import DateTime, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
+from app.models.tenancy import TenantScoped
 
 
-class ProspectSearch(Base):
+class ProspectSearch(TenantScoped, Base):
     __tablename__ = 'prospect_searches'
     id: Mapped[int] = mapped_column(primary_key=True)
     query: Mapped[str] = mapped_column(Text, nullable=False)
@@ -21,10 +22,11 @@ class ProspectSearch(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-class Prospect(Base):
+class Prospect(TenantScoped, Base):
     __tablename__ = 'prospects'
+    __table_args__ = (UniqueConstraint('organisation_id', 'dedup_key', name='uq_prospects_dedup'),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    dedup_key: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
+    dedup_key: Mapped[str] = mapped_column(String(200), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default='new')
     data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)

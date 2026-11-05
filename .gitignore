@@ -44,3 +44,4 @@ yarn-error.log*
 .runtime/
 test-results/
 playwright-report/
+playwright-report-hosted/

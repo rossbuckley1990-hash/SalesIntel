@@ -18,6 +18,17 @@ class Settings(BaseSettings):
     # SalesIntel has no sign-in: it answers only local hosts and loopback clients.
     allowed_hosts: str = "127.0.0.1,localhost,[::1],testserver"
     allow_remote_clients: bool = False
+    # Identity. local: one person on this machine, no sign-in, loopback only.
+    # oidc: a managed identity provider (Microsoft Entra ID, Auth0, Clerk, WorkOS...) issues signed tokens.
+    # dev: locally signed tokens for automated tests and demos only; refused outside demo and test.
+    auth_mode: Literal["local", "oidc", "dev"] = "local"
+    oidc_issuer: str | None = None
+    oidc_audience: str | None = None
+    oidc_jwks_url: str | None = None
+    oidc_algorithms: str = "RS256"
+    dev_auth_key_file: str | None = None  # PEM private key for dev tokens; generated per run when unset
+    # Paid research is off in hosted workspaces until a daily allowance is configured.
+    research_daily_limit_per_workspace: int = 0
     max_upload_bytes: int = 5 * 1024 * 1024
     openai_api_key: str | None = Field(default=None, repr=False)
     openai_model: str = "gpt-6.1-terra"
@@ -76,6 +87,21 @@ class Settings(BaseSettings):
         if value > 120:
             raise ValueError("OPENAI_REQUEST_TIMEOUT_SECONDS must not exceed 120 seconds.")
         return value
+
+    def check_safe_to_serve(self) -> None:
+        """Refuse configurations that would expose records or accept forged identities."""
+        if self.auth_mode == "dev" and self.app_env not in {"demo", "test"}:
+            raise RuntimeError("AUTH_MODE=dev signs its own tokens and is only allowed with APP_ENV=demo or test.")
+        if self.auth_mode == "oidc":
+            missing = [n for n in ("oidc_issuer", "oidc_audience", "oidc_jwks_url") if not getattr(self, n)]
+            if missing:
+                raise RuntimeError(f"AUTH_MODE=oidc needs {', '.join(m.upper() for m in missing)}.")
+            if not self.oidc_jwks_url.startswith("https://"):
+                raise RuntimeError("OIDC_JWKS_URL must use https.")
+            if {a.strip() for a in self.oidc_algorithms.split(",")} - {"RS256", "RS384", "RS512", "ES256", "ES384", "PS256"}:
+                raise RuntimeError("OIDC_ALGORITHMS must be asymmetric signature algorithms.")
+        if self.allow_remote_clients and self.auth_mode == "local":
+            raise RuntimeError("ALLOW_REMOTE_CLIENTS requires sign-in (AUTH_MODE=oidc). A local install has no sign-in.")
 
     @property
     def cors_origin_list(self) -> list[str]:

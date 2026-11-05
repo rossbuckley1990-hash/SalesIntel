@@ -335,9 +335,13 @@ def start_search(db: Session, query: str, mode: str, runner: Callable[[int], Non
 def _background(search_id: int) -> None:
     def work() -> None:
         from app.db import SessionLocal
+        from app.tenancy import ORG, SYSTEM
         with SessionLocal() as session:
+            session.info[SYSTEM] = True  # only to find which workspace started the search
             search = session.get(ProspectSearch, search_id)
             if search is not None:
+                session.info.pop(SYSTEM)
+                session.info[ORG] = search.organisation_id  # everything the research writes belongs to that workspace
                 try:
                     run_search(session, search)
                 except Exception:  # never leave a search spinning

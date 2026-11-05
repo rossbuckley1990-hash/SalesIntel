@@ -40,7 +40,7 @@ On the live database:
 
 Stamping is left as a recorded decision for you. A verified backup is at `.runtime/backups/false-alarm-pilot-v2-20261105T092340Z.db`.
 
-## 4. Background collectors after the folder move: needs action
+## 4. Background collectors after the folder move: resolved with authorisation
 
 Read-only checks found:
 - Four collectors are still running processes started on 4 November from `/Users/ross/Documents/MiSi - Mitie Sales Intelligence`. The fifth, contracts finder, cannot start (exit 78).
@@ -49,7 +49,15 @@ Read-only checks found:
 - SQLite places its rollback journal next to the path it was *opened* with. A crash during a write would leave the recovery journal in a different directory from the database, which **risks corruption**.
 - Any new connection they make would create an empty database at the old path. None exists yet, and the live database passed its integrity check at 09:23.
 
-Fix (needs your authorisation; it replaces only the paths, which I checked):
+**Resolved at 09:51 on 5 November, with your authorisation.**
+- A verified backup was taken first (`false-alarm-pilot-v2-20261105T095122Z.db`).
+- All five launch agents were reinstalled from `/Users/ross/Documents/SalesIntel`. Their files differ from the previous ones only in the folder path.
+- All five processes now run from the new folder and hold the database and its journal in the same directory.
+- Find a Tender, Contracts Finder, Public Contracts Scotland and the renewal radar each recorded a successful run within a minute, and the integrity check still passes.
+
+The old folder now holds only stale logs, lock and report files, and a build cache. It can be deleted once you no longer want them.
+
+The command used:
 
 ```bash
 cd /Users/ross/Documents/SalesIntel && for f in .runtime/launch-agents/com.misi.market.*.plist; do n=$(basename "$f" .plist); launchctl bootout gui/$(id -u)/$n 2>/dev/null; cp "$f" ~/Library/LaunchAgents/; launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/$n.plist; done
@@ -90,7 +98,6 @@ None of these can be securely built and tested without an identity provider and 
 
 ## 7. Remaining risks for local development
 
-- The collectors issue in section 4 until the agents are reinstalled.
 - No sign-in, so the app must stay local; the guard enforces this.
 - The legacy pipeline and finance tools still use floating-point money.
 - Draft and quotation approval have no second-person control.

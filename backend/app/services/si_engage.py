@@ -322,9 +322,15 @@ def create_deal(db: Session, account_id: int, data: dict) -> DealRecord:
                 value_total, value_basis = float(value["published_total"]), "published"
             elif value.get("type") == "estimated_annualised" and value.get("estimated_annualised"):
                 value_annual, value_basis = float(value["estimated_annualised"]), "published_derived"
-        elif not hosted():
+        elif entity_type == "prospect" and not hosted():
             from app.routers.prospects import promote
             opportunity_id = promote(entity_id, db)["opportunity_id"]
+        # A building contract's value is the main contract's, never the fire and security package's: it is not used as the deal value.
+    from app.models.shadow import Dossier
+    latest = db.scalar(select(Dossier).where(Dossier.account_id == account_id).order_by(Dossier.version.desc()))
+    if latest is not None:  # the investigation travels with the deal
+        origin["dossier"] = {"version": latest.version, "verdict": latest.verdict, "created_at": latest.created_at.isoformat(),
+                             "findings": [x for section in latest.sections.values() for x in section][:12], "challenge": latest.challenge}
     if opportunity_id:
         existing = db.scalar(select(DealRecord).where(DealRecord.opportunity_id == opportunity_id))
     elif source_key:  # one deal per source record in this workspace

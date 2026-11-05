@@ -10,19 +10,28 @@ export function si<T>(path: string, init: RequestInit & { json?: unknown } = {})
 }
 
 export type LeadStatus = "new" | "watching" | "investigating" | "dismissed";
+export type TimelineEntry = { role: "anchor" | "supports" | "challenges" | "advertised" | "related"; type: string; label: string; statement: string; event_date: string;
+  published: string; first_seen: string | null; retrieved: string | null; source_url: string; source_group: string; basis: "published" | "derived" };
+export type ShadowA = {
+  key: string; sensor: string; sensor_name: string; entity_name: string; site: string | null; postcode: string | null; state: string; state_label: string; hypothesis: string;
+  opportunity_type: string; independent_sources: number; first_published_on: string; first_seen: string | null; first_advertised_on: string | null; window: [string, string];
+  services: string[]; timeline: TimelineEntry[]; verified: string[]; inferred: string[]; unknown: string[]; alternatives: { explanation: string; test: string }[];
+  disconfirming: string[]; first_action: string; main_contractor: string | null; value: number | null; building_type: string | null; works_type: string | null; rule_version: string;
+  competing?: { key: string; sensor_name: string; hypothesis: string; first_action: string; state_label: string; window: [string, string] }[];
+};
 export type Lead = {
-  key: string; type: "public" | "private"; source_label: string; organisation: string; title: string; why_now: string; category: string; category_label: string;
+  key: string; type: "public" | "private" | "shadow"; shadow?: ShadowA; source_label: string; organisation: string; title: string; why_now: string; category: string; category_label: string;
   basis: "published" | "inferred"; timing: string | null; days: number | null; timing_label: string; light?: "green" | "amber" | "red" | "grey";
   nation: string | null; region?: string | null; tier: number | null; services: string[]; supplier: string | null; value: Value | null;
   status: LeadStatus; account_id: number | null; link_basis: string | null; people?: number; contact_routes?: number;
-  kind: "published_procurement" | "contract_ending" | "private_signal" | "customer_expansion" | "unverified_candidate"; kind_label: string; brief: Brief;
+  kind: "published_procurement" | "contract_ending" | "private_signal" | "customer_expansion" | "unverified_candidate" | "shadow_signal"; kind_label: string; brief: Brief;
 };
 export type Brief = {
   why_customer: string[]; fit: { matched: string[]; gaps: string[]; unknown: string[] }; why_now: string; why_now_basis: string; inferred_timing: string;
   known: { text: string; source_url: string | null; date: string; basis: string }[]; unknown: string[];
   who: { roles: string[]; routes_saved: number; people_in_research: number; summary: string }; next: string;
 };
-export type DiscoverResult = { items: Lead[]; total: number; counts: { public: number; private: number }; interpreted: { nations: string[]; services: string[]; regions: string[]; keywords: string[] }; gaps: string[] };
+export type DiscoverResult = { items: Lead[]; total: number; counts: { public: number; private: number; shadow?: number }; interpreted: { nations: string[]; services: string[]; regions: string[]; keywords: string[] }; gaps: string[] };
 export type Evidence = { label: string; url: string; date?: string; basis?: string };
 export type SourceSummary = {
   key: string; type: "public" | "private"; title: string; why_now: string; category_label: string; light?: string; timing: string | null; supplier: string | null;
@@ -46,7 +55,8 @@ export type ScopeItem = { service: string; field: string; question: string; unit
 export type QuoteLine = { key: string; description: string; quantity: number | null; quantity_basis: string | null; unit: string; rate: string | null; total: string | null; warning: string };
 export type Approval = { version: number; reviewer: string; approved_at: string; subtotal: string | null; superseded_at?: string; superseded_reason?: string };
 export type DealT = {
-  id: number; title: string; stage: string; stages: string[]; account_id: number; account: string; opportunity_id: number; origin_type: string | null; origin: Partial<SourceSummary> & { captured_at?: string };
+  id: number; title: string; stage: string; stages: string[]; account_id: number; account: string; opportunity_id: number; origin_type: string | null;
+  origin: Partial<SourceSummary> & { captured_at?: string; dossier?: { version: number; verdict: string; findings: unknown[] } };
   services: string[]; work_type: string; work_types: Record<string, string>; qualification: Record<string, string>; value_annual: number | null; value_total: number | null; value_basis: string;
   next_step: string; scope: ScopeItem[]; quote: { status?: "draft" | "approved" | "superseded"; version?: number; lines?: QuoteLine[]; rates?: Record<string, string>; missing?: string[]; subtotal?: string | null; partial_total?: string | null; approved_by?: string | null; terms_note?: string; approvals?: Approval[]; superseded_reason?: string | null };
   handover: Record<string, unknown>; outcome_reason: string; activities: ActivityT[]; tasks: TaskT[]; service_labels: Record<string, string>;

@@ -6,6 +6,7 @@ import { safeUrl } from "./radar-model";
 import { BASIS_LABEL, SERVICES, STAGE_LABEL, dayLabel, goto, param, si, type AccountRow, type AccountT } from "./si-api";
 import { ActivityForm, Basis, ContactCard, PageHeader, Panel, TaskRow, Timeline, useUrl } from "./si-shared";
 import { PeopleFinder, newKey } from "./si-people";
+import { DossierPanel } from "./si-shadow";
 import type { SharedProps } from "./types";
 
 export function SiAccounts(props: SharedProps) {
@@ -115,7 +116,8 @@ function AccountRecord({ id, notify }: SharedProps & { id: number }) {
               <ul className="space-y-1.5">{a.to_confirm.map((k) => <li key={k} className="flex gap-2 text-[13px] leading-5 text-ds-ink-2"><span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-ds-amber" />{k}</li>)}</ul>
             </Panel>
           </div>
-          <PeopleFinder accountId={a.id} notify={notify} onChanged={() => void load()} />
+          <DossierPanel accountId={a.id} notify={notify} onChanged={() => void load()} />
+          <PeopleFinder key={`${a.id}-${a.contacts.map((c) => `${c.id}:${c.status}`).join(",")}`} accountId={a.id} notify={notify} onChanged={() => void load()} />
           <Panel title="Log an interaction"><ActivityForm accountId={a.id} contacts={a.contacts} notify={notify} onSaved={() => void load()} /></Panel>
           <Panel title={`History (${a.activities.length})`}><Timeline items={a.activities} contacts={a.contacts} /></Panel>
         </div>

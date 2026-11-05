@@ -8,6 +8,7 @@ import { useUrl } from "./si-shared";
 import type { SharedProps } from "./types";
 import { authMode } from "@/lib/session";
 import { JobStatus, newKey, useJob, type JobT } from "./si-people";
+import { ShadowCard } from "./si-shadow";
 
 const KIND_SHORT: Record<string, string> = { published_procurement: "Live tender", contract_ending: "Contract ending", private_signal: "Signal", customer_expansion: "Customer", unverified_candidate: "Unverified" };
 const KIND_TONE: Record<string, "green" | "blue" | "amber" | "violet" | "neutral" | "brand"> = { published_procurement: "green", contract_ending: "blue", private_signal: "violet", customer_expansion: "brand", unverified_candidate: "amber" };
@@ -46,7 +47,7 @@ export function SiDiscover({ notify }: SharedProps) {
   useUrl();
   const [q, setQ] = useState(param("q") || "");
   const [applied, setApplied] = useState(param("q") || "");
-  const [source, setSource] = useState<"all" | "public" | "private">("all");
+  const [source, setSource] = useState<"all" | "public" | "private" | "shadow">("all");
   const [nation, setNation] = useState("");
   const [service, setService] = useState("");
   const [status, setStatus] = useState("active");
@@ -153,7 +154,7 @@ export function SiDiscover({ notify }: SharedProps) {
         </form>
         <div className="flex flex-wrap items-center gap-2">
           <div className="ds-tabs" role="group" aria-label="Source">
-            {([["all", "All"], ["public", "Public procurement"], ["private", "Private research"]] as const).map(([id, label]) => (
+            {([["all", "All"], ["shadow", "Shadow Radar"], ["public", "Public procurement"], ["private", "Private research"]] as const).map(([id, label]) => (
               <button key={id} aria-pressed={source === id} onClick={() => setSource(id)}>{label}{result && id !== "all" && <span>{result.counts[id]}</span>}</button>))}
           </div>
           <select className="ds-select !h-9" aria-label="Nation" value={nation} onChange={(e) => setNation(e.target.value)}><option value="">All of the UK</option>{NATIONS.map((n) => <option key={n} value={n}>{n}</option>)}</select>
@@ -178,10 +179,11 @@ export function SiDiscover({ notify }: SharedProps) {
           </ul>
         </section>
         <aside aria-label="Selected opportunity" className="ds-card sticky top-[76px] hidden max-h-[calc(100vh-96px)] overflow-y-auto xl:block">
-          {current ? <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} /> : <EmptyState icon={<MousePointerClick size={20} />} title="Select a result">See why it is worth your time, what is known and what to do next.</EmptyState>}
+          {current ? (current.type === "shadow" ? <ShadowCard key={current.key} lead={current} notify={notify} onChanged={() => void load()} /> : <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} />) : <EmptyState icon={<MousePointerClick size={20} />} title="Select a result">See why it is worth your time, what is known and what to do next.</EmptyState>}
         </aside>
         {current && <div className="fixed inset-x-0 bottom-0 z-40 max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-ds-border bg-white shadow-ds-lg xl:hidden" role="region" aria-label="Selected opportunity details">
-          <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} onClose={() => setSelected(null)} />
+          {current.type === "shadow" ? <><button className="ds-btn ghost sm m-3 mb-0" onClick={() => setSelected(null)}><X size={14} /> Close</button><ShadowCard key={current.key} lead={current} notify={notify} onChanged={() => void load()} /></>
+            : <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} onClose={() => setSelected(null)} />}
         </div>}
       </div>
     </div>
@@ -196,17 +198,19 @@ function LeadRow({ lead, active, onClick }: { lead: Lead; active: boolean; onCli
       className={`w-full rounded-xl border bg-white px-4 py-3 text-left transition ${active ? "border-ds-brand shadow-ds-sm ring-4 ring-[rgba(59,79,216,.10)]" : "border-ds-border shadow-ds-xs hover:border-ds-border-strong"} ${lead.status === "dismissed" ? "opacity-60" : ""}`}>
       <span className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <Pill tone={lead.type === "public" ? "blue" : "violet"}>{lead.type === "public" ? (meta?.short || "Public") : "Private"}</Pill>
-          <Pill tone={KIND_TONE[lead.kind] || "neutral"}>{KIND_SHORT[lead.kind] || lead.kind_label}</Pill>
+          <Pill tone={lead.type === "public" ? "blue" : lead.type === "shadow" ? "amber" : "violet"}>{lead.type === "public" ? (meta?.short || "Public") : lead.type === "shadow" ? "Shadow Radar" : "Private"}</Pill>
+          {lead.type === "shadow" && lead.shadow ? <><Pill>{lead.shadow.state_label}</Pill><Pill tone="violet">{lead.shadow.sensor_name}{lead.shadow.competing?.length ? ` +${lead.shadow.competing.length}` : ""}</Pill></>
+            : <Pill tone={KIND_TONE[lead.kind] || "neutral"}>{KIND_SHORT[lead.kind] || lead.kind_label}</Pill>}
           {lead.type === "private" && lead.light && <Pill tone={lead.light === "green" ? "green" : lead.light === "amber" ? "amber" : lead.light === "red" ? "red" : "neutral"} dot>{lead.category_label}</Pill>}
-          {lead.basis === "inferred" && <Pill tone="amber">Inferred</Pill>}
+          {lead.basis === "inferred" && lead.type !== "shadow" && <Pill tone="amber">Inferred</Pill>}
           {lead.account_id && <Pill tone="green">Account</Pill>}
           {lead.status === "watching" && <Pill>Watching</Pill>}
         </span>
         {lead.timing && lead.type === "public" && <span className={`flex-none text-[12px] font-semibold ${urgent ? "text-ds-red" : "text-ds-muted"}`}>{lead.days !== null && lead.days < 0 ? relative(lead.timing) : dayLabel(lead.timing)}</span>}
       </span>
       <span className="mt-1.5 block truncate text-[14px] font-semibold text-ds-ink">{lead.organisation}</span>
-      <span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-ds-ink-2"><strong className="font-semibold">Why now: </strong>{lead.why_now}</span>
+      {lead.type === "shadow" && lead.shadow?.site && <span className="mt-0.5 block truncate text-[13px] text-ds-ink-2">{lead.shadow.site}</span>}
+      <span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-ds-ink-2"><strong className="font-semibold">Why now: </strong>{lead.type === "shadow" ? lead.shadow?.timeline.find((e) => e.role === "anchor")?.statement : lead.why_now}</span>
     </button>
   );
 }

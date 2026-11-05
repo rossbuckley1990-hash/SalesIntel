@@ -27,6 +27,19 @@ def contact_navigator(run: Run) -> dict:
     return result
 
 
+@handler('deep_investigation')
+def deep_investigation(run: Run) -> dict:
+    from app.services import investigator
+    settings = get_settings()
+    meter = research_provider(settings)
+    run.attach(meter)
+    result = investigator.run(run.db, run.job.account_id, meter, hypothesis_key=run.job.params.get('hypothesis_key'), seller=_seller(run),
+                              job_id=run.job.id, step=run.step)
+    if meter is None:
+        result['note'] = 'Web research is not available here, so only saved evidence and official notices were used.'
+    return result
+
+
 @handler('prospect_search')
 def prospect_search(run: Run) -> dict:
     from app.services.prospect_research import run_search

@@ -87,6 +87,15 @@ def source_identity(db: Session, entity_type: str, entity_id: int) -> dict | Non
         number = str(row.data.get("company_number") or "").strip().upper() or None
         return {"name": row.name, "company_number": number if number and re.fullmatch(r"[0-9A-Z]{8}", number) else None, "kind": "private",
                 "region": row.data.get("location"), "sector": row.data.get("sector"), "website": row.data.get("website")}
+    if entity_type == "shadow_hypothesis":
+        from app.services import shadow
+        found = shadow.current(db, entity_id)
+        if not found:
+            return None
+        a = found[1]
+        public = bool(re.search(r"\b(council|nhs|trust|borough|college|university|academy|school|police|fire|department|office|agency|authority|housing)\b", a["entity_name"], re.I))
+        return {"name": a["entity_name"], "company_number": a.get("company_number"), "kind": "public_body" if public else "unknown", "region": None,
+                "sector": "Public sector" if public else None}
     return None
 
 
@@ -169,7 +178,7 @@ def import_prospect_contacts(db: Session, account: Account, prospect: Prospect) 
 
 GENERIC = {"group", "housing", "association", "services", "service", "uk", "trust", "council", "city", "county", "borough", "district", "metropolitan",
            "nhs", "foundation", "university", "college", "school", "and", "of", "company", "holdings", "international", "property", "properties",
-           "care", "homes", "logistics", "estates", "management", "partnership", "for", "national", "royal", "new"}
+           "care", "homes", "logistics", "estates", "management", "partnership", "for", "national", "royal", "new", "health", "community"}
 
 
 def _distinctive(key: str) -> set[str]:
@@ -221,7 +230,7 @@ def _why_public(s: dict) -> str:
     return (s.get("brief") or {}).get("why_it_matters") or "Public signal worth checking."
 
 
-def discover_items(db: Session, *, include_private: bool = True, include_public: bool = True, limit: int | None = 200) -> list[dict]:
+def discover_items(db: Session, *, include_private: bool = True, include_public: bool = True, limit: int | None = 200, include_shadow: bool = True) -> list[dict]:
     today = uk_today()
     links = {(x.entity_type, x.entity_id): x for x in db.scalars(select(AccountLink))}
     items: list[dict] = []
@@ -287,6 +296,8 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
             it["brief"] = _brief(it, it["kind"], prefs, v.get("sector") or "", known, v.get("unknowns") or [], routes.get(it["account_id"], 0), len(v.get("people") or []),
                                  why_now=(v.get("headline") or stated.get("title")) if stated else None, inferred_timing=it["why_now"] if stated else "")
             it["kind_label"] = KIND_LABEL[it["kind"]]
+    if include_shadow:
+        items += _shadow_items(db, links, statuses, routes, prefs, today)
     # Published deadlines first, then by how much of the recorded fit matches; never by an invented score.
     items.sort(key=lambda x: (x["status"] == "dismissed", x["kind"] == "unverified_candidate", x["rank"], -len(x["brief"]["fit"]["matched"]), x["organisation"]))
     return items if limit is None else items[:limit]
@@ -294,8 +305,8 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
 
 KIND_LABEL = {"published_procurement": "Published procurement opportunity", "contract_ending": "Existing contract approaching a reported end date",
               "private_signal": "Private organisation with an observable signal", "customer_expansion": "Existing customer: expansion opportunity",
-              "unverified_candidate": "Unverified research candidate"}
-WHO = {"public": ["Procurement or category manager", "Estates, property or facilities manager", "Fire safety or health and safety manager"],
+              "unverified_candidate": "Unverified research candidate", "shadow_signal": "Unadvertised: inferred from indirect public signals"}
+WHO = {"shadow": ["Estates, property or facilities manager", "Main contractor supply chain", "Procurement or category manager"], "public": ["Procurement or category manager", "Estates, property or facilities manager", "Fire safety or health and safety manager"],
        "private": ["Estates, property or facilities manager", "Operations or managing director", "Fire safety or health and safety manager"]}
 
 
@@ -361,6 +372,49 @@ def _brief(item: dict, kind: str, prefs: dict, sector: str, known: list[dict], u
                     "summary": (f"{routes} saved contact route(s)" if routes else "No contact routes saved yet")}, "next": nxt}
 
 
+def shadow_why(a: dict) -> str:
+    anchor = next((e for e in a["timeline"] if e["role"] == "anchor"), None)
+    if not anchor:
+        return a["hypothesis"]
+    return f"{anchor['statement']} {a['hypothesis']}"
+
+
+def _shadow_items(db: Session, links: dict, statuses: dict, routes: dict, prefs: dict, today: date) -> list[dict]:
+    from app.services import shadow
+    reviewed = {r.entity_id: r.status for r in db.scalars(select(LeadState).where(LeadState.entity_type == "shadow_hypothesis"))}
+    order = {"corroborated": 0, "indicated": 1, "surfaced": 2, "challenged": 3}
+    # One row per piece of evidence: competing readings of the same project are shown together, not as duplicates.
+    groups: dict[str, list] = {}
+    for row, a in shadow.active(db):
+        groups.setdefault(a["key"].split("|", 1)[1], []).append((row, a))
+    primaries = []
+    for members in groups.values():
+        members.sort(key=lambda m: (order.get(m[1]["state"], 3), m[1]["sensor"] != "adjacent_package"))
+        primaries.append((members[0], [m for m in members[1:]]))
+    out = []
+    for (row, a), rivals in primaries:
+        link = links.get(("shadow_hypothesis", row.id))
+        start = date.fromisoformat(a["window"][0])
+        item = {"key": f"sh:{row.id}", "type": "shadow", "source_label": "Shadow Radar", "organisation": display_name(a["entity_name"]),
+                "title": f"{a['sensor_name']}: {a.get('site') or a['hypothesis']}", "why_now": shadow_why(a), "category": a["sensor"], "category_label": a["sensor_name"],
+                "basis": "inferred", "timing": a["window"][0], "days": (start - today).days, "timing_label": "Possible investigation window opens",
+                "nation": None, "region": None, "tier": None, "services": a["services"], "supplier": a.get("main_contractor"), "value": None,
+                "status": reviewed.get(row.id, "new"), "account_id": link.account_id if link else None, "link_basis": link.basis if link else None,
+                "rank": (1 + order.get(a["state"], 3), max((start - today).days, 0)),
+                "shadow": {**a, "competing": [{"key": f"sh:{r.id}", "sensor_name": x["sensor_name"], "hypothesis": x["hypothesis"], "first_action": x["first_action"],
+                                               "state_label": x["state_label"], "window": x["window"]} for r, x in rivals]}}
+        item["kind"] = "customer_expansion" if statuses.get(item["account_id"]) == "customer" else "shadow_signal"
+        known = [{"text": f"{e['label']}: {e['statement']}", "source_url": e["source_url"], "date": e["published"], "basis": e["basis"]}
+                 for e in a["timeline"] if e["role"] in ("anchor", "supports", "advertised")]
+        unknown = list(a["unknown"]) + [f"Alternative: {x['explanation']}" for x in a["alternatives"]]
+        item["brief"] = _brief(item, item["kind"], prefs, "", known, unknown, routes.get(item["account_id"], 0), 0, why_now=shadow_why(a))
+        if item["account_id"] is None:
+            item["brief"]["next"] = a["first_action"]
+        item["kind_label"] = KIND_LABEL[item["kind"]]
+        out.append(item)
+    return out
+
+
 def interpret(q: str) -> dict:
     text = (q or "").lower()
     nations = [v for k, v in NATIONS.items() if k in text]
@@ -377,7 +431,8 @@ def interpret(q: str) -> dict:
 def discover(db: Session, *, q: str = "", source: str = "all", nation: str = "", service: str = "", status: str = "active", category: str = "",
              limit: int = 50, offset: int = 0) -> dict:
     meaning = interpret(q)
-    items = discover_items(db, include_public=source in ("all", "public"), include_private=source in ("all", "private"), limit=None)
+    items = discover_items(db, include_public=source in ("all", "public"), include_private=source in ("all", "private"), limit=None,
+                           include_shadow=source in ("all", "public", "shadow"))
     nations = [nation] if nation else meaning["nations"]
     services = [service] if service else meaning["services"]
     def keep(x: dict) -> bool:
@@ -405,7 +460,8 @@ def discover(db: Session, *, q: str = "", source: str = "all", nation: str = "",
         gaps.append("Private matches come only from prospect research already run. Use “Research the web” to look further; it uses API credit.")
     if not found:
         gaps.append("No captured record matches. This does not mean no opportunity exists.")
-    counts = {"public": sum(1 for x in found if x["type"] == "public"), "private": sum(1 for x in found if x["type"] == "private")}
+    counts = {"public": sum(1 for x in found if x["type"] == "public"), "private": sum(1 for x in found if x["type"] == "private"),
+              "shadow": sum(1 for x in found if x["type"] == "shadow")}
     return {"items": found[offset:offset + limit], "total": len(found), "counts": counts, "interpreted": meaning, "gaps": gaps}
 
 
@@ -423,6 +479,15 @@ def set_status(db: Session, key: str, status: str) -> None:
             state.status, state.updated_at, state.updated_by = status, now(), db.info.get("user_id")
         if not hosted():  # the single-user classic workspace reads the shared review state
             item.review_state = {"new": "unreviewed", "watching": "defer", "dismissed": "dismiss", "investigating": "investigate"}[status]
+    elif kind == "sh":
+        from app.models.shadow import ShadowHypothesis
+        if db.get(ShadowHypothesis, entity_id) is None:
+            raise LookupError("Record not found")
+        state = db.scalar(select(LeadState).where(LeadState.entity_type == "shadow_hypothesis", LeadState.entity_id == entity_id))
+        if state is None:
+            db.add(LeadState(entity_type="shadow_hypothesis", entity_id=entity_id, status=status, updated_at=now(), updated_by=db.info.get("user_id")))
+        else:
+            state.status, state.updated_at, state.updated_by = status, now(), db.info.get("user_id")
     elif kind == "pr":
         row = db.get(Prospect, entity_id)
         if not row:
@@ -436,9 +501,9 @@ def set_status(db: Session, key: str, status: str) -> None:
 
 def parse_key(key: str) -> tuple[str, int]:
     kind, _, raw = key.partition(":")
-    if kind not in ("mo", "pr") or not raw.isdigit():
+    if kind not in ("mo", "pr", "sh") or not raw.isdigit():
         raise LookupError("Unknown record")
-    return ("market_opportunity" if kind == "mo" else "prospect"), int(raw)
+    return {"mo": "market_opportunity", "pr": "prospect", "sh": "shadow_hypothesis"}[kind], int(raw)
 
 
 # ---------------------------------------------------------------- accounts
@@ -453,6 +518,17 @@ def linked_summary(db: Session, link: AccountLink) -> dict | None:
                 "timing": s.get("timing"), "supplier": s.get("supplier"), "value": s.get("value"), "basis": "published",
                 "evidence": [{"label": f"{e.get('source')} notice {e.get('record_key')}", "url": e.get("source_url"), "date": (e.get("published_at") or "")[:10]} for e in s.get("evidence") or []][:4],
                 "missing": (s.get("brief") or {}).get("missing_information") or [], "link_basis": link.basis, "confirmed": link.confirmed, "name_seen": link.name_seen}
+    if link.entity_type == "shadow_hypothesis":
+        from app.services import shadow
+        found = shadow.current(db, link.entity_id)
+        if not found:
+            return None
+        a = found[1]
+        return {"key": f"sh:{link.entity_id}", "type": "shadow", "title": f"{a['sensor_name']}: {a.get('site') or a['entity_name']}", "why_now": shadow_why(a),
+                "category_label": a["state_label"], "timing": a["window"][0], "supplier": a.get("main_contractor"), "value": None, "basis": "inferred",
+                "evidence": [{"label": e["label"], "url": e["source_url"], "date": e["published"], "basis": e["basis"]} for e in a["timeline"] if e["role"] in ("anchor", "supports")][:6],
+                "missing": a["unknown"], "hypothesis": a["hypothesis"], "alternatives": a["alternatives"], "link_basis": link.basis, "confirmed": link.confirmed,
+                "name_seen": link.name_seen}
     if link.entity_type == "prospect":
         row = db.get(Prospect, link.entity_id)
         if not row:

@@ -36,6 +36,9 @@ class MarketObservation(Base):
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     retracted_on: Mapped[date | None] = mapped_column(Date)
+    # Shadow Radar provenance: when the source was read, and which publication this repeats (republished copies share one origin).
+    retrieved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    origin_key: Mapped[str | None] = mapped_column(String(200), index=True)
 
 
 class MarketHypothesis(Base):

@@ -29,6 +29,7 @@ def test_models_create_against_sqlite() -> None:
         "shadow_hypothesis_revisions",
         "si_dossiers",
         "si_lead_feedback",
+        "si_gap_requests",
         "competitor_profiles",
         "enrichment_runs",
         "evidence_observations",

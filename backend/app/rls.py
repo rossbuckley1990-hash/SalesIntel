@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 TENANT_TABLES = ('si_accounts', 'si_account_links', 'si_sites', 'si_contacts', 'si_drafts', 'si_activities', 'si_tasks', 'si_deals', 'si_saved_views',
                  'si_funnel_events', 'si_preferences', 'si_lead_states', 'prospects', 'prospect_searches', 'si_audit_events', 'si_research_jobs',
-                 'si_spend_budgets', 'si_idempotency', 'si_suppressions', 'si_dossiers', 'si_lead_feedback')
+                 'si_spend_budgets', 'si_idempotency', 'si_suppressions', 'si_dossiers', 'si_lead_feedback', 'si_gap_requests')
 CONDITION = ("current_setting('salesintel.bypass', true) = 'on' OR "
              "organisation_id = NULLIF(current_setting('salesintel.organisation_id', true), '')::integer")
 

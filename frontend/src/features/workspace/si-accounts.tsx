@@ -7,6 +7,8 @@ import { BASIS_LABEL, SERVICES, STAGE_LABEL, dayLabel, goto, param, si, type Acc
 import { ActivityForm, Basis, ContactCard, PageHeader, Panel, TaskRow, Timeline, useUrl } from "./si-shared";
 import { PeopleFinder, newKey } from "./si-people";
 import { DossierPanel } from "./si-shadow";
+import { CommitteePanel, GapsPanel, PlayPanel, usePlay } from "./si-intel";
+import { newKey as freshKey } from "./si-people";
 import type { SharedProps } from "./types";
 import { initials } from "./fluid";
 
@@ -117,13 +119,33 @@ function AccountRecord({ id, notify }: SharedProps & { id: number }) {
   const [error, setError] = useState("");
   const [panel, setPanel] = useState<"" | "contact" | "site" | "deal">("");
   const [suggest, setSuggest] = useState<{ source: string; name: string; why: string }[]>([]);
+  const [investigations, setInvestigations] = useState(0);
+  const [play, reloadPlay] = usePlay(id);
   const load = useCallback(async () => {
     try { setA(await si<AccountT>(`/accounts/${id}`)); setError(""); } catch (e) { setError((e as Error).message); }
   }, [id]);
+  useEffect(() => { if (a) void reloadPlay(); }, [a, reloadPlay]); // every recorded change can move the play on
   useEffect(() => { void load(); si<{ items: typeof suggest }>(`/accounts/${id}/suggestions`).then((d) => setSuggest(d.items)).catch(() => {}); }, [id, load]);
   if (error) return <div className="ds-root"><button className="ds-btn ghost sm" onClick={() => goto("clients")}><ArrowLeft size={14} /> Accounts</button><p role="alert" className="mt-4 text-ds-red">{error}</p></div>;
   if (!a) return <div className="ds-root space-y-3"><div className="ds-skeleton h-24 rounded-xl" /><div className="ds-skeleton h-64 rounded-xl" /></div>;
   const site = safeUrl(a.website);
+
+  // The play's next step, done from where it is shown.
+  async function act(action: string) {
+    const scroll = (selector: string) => document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (action === "investigate") {
+      try {
+        const r = await si<{ job: { reused: boolean } }>(`/accounts/${id}/investigate`, { method: "POST", json: {}, headers: { "Idempotency-Key": freshKey() } });
+        notify(r.job.reused ? "Opening the investigation already saved for this account." : "Investigation started. It keeps running if you leave this page.");
+        setInvestigations((n) => n + 1);
+        setTimeout(() => scroll('[aria-label="Investigation"]'), 300);
+      } catch (e) { notify((e as Error).message, true); }
+    } else if (action === "people") scroll('[aria-label="Find the right people"]');
+    else if (action === "gaps") scroll("#si-gaps");
+    else if (action === "engage") goto("engage", { account: id });
+    else if (action === "log") scroll('form[aria-label="Log an interaction"]');
+    else if (action === "qualify") { setPanel("deal"); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  }
 
   async function call(path: string, method: string, json?: unknown, done?: string) {
     try { await si(path, { method, json }); if (done) notify(done); await load(); return true; } catch (e) { notify((e as Error).message, true); return false; }
@@ -146,6 +168,7 @@ function AccountRecord({ id, notify }: SharedProps & { id: number }) {
         </div>
       </header>
       <EngagementStrip items={a.activities} />
+      {play && <PlayPanel play={play} onAction={(action) => void act(action)} />}
 
       {panel === "deal" && <DealForm a={a} notify={notify} onDone={() => setPanel("")} />}
 
@@ -170,7 +193,9 @@ function AccountRecord({ id, notify }: SharedProps & { id: number }) {
               <ul className="space-y-1.5">{a.to_confirm.map((k) => <li key={k} className="flex gap-2 text-[13px] leading-5 text-ds-ink-2"><span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-ds-amber" />{k}</li>)}</ul>
             </Panel>
           </div>
-          <DossierPanel accountId={a.id} notify={notify} onChanged={() => void load()} />
+          <DossierPanel key={`dossier-${investigations}`} accountId={a.id} notify={notify} onChanged={() => void load()} />
+          {play && <GapsPanel play={play} notify={notify} onChanged={() => { void load(); void reloadPlay(); }} />}
+          {play && <CommitteePanel play={play} notify={notify} onChanged={() => { void load(); void reloadPlay(); }} />}
           <PeopleFinder key={`${a.id}-${a.contacts.map((c) => `${c.id}:${c.status}`).join(",")}`} accountId={a.id} notify={notify} onChanged={() => void load()} />
           <Panel title="Log an interaction"><ActivityForm accountId={a.id} contacts={a.contacts} notify={notify} onSaved={() => void load()} /></Panel>
           <Panel title={`History (${a.activities.length})`}><Timeline items={a.activities} contacts={a.contacts} /></Panel>

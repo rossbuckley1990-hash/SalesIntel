@@ -80,6 +80,8 @@ def investigate(hypothesis_id: int, payload: Investigate, request: Request, db: 
         except SpendLimitReached as exc:
             raise HTTPException(status_code=429, detail='This would exceed today\'s AI spending limit, so nothing was started or charged.') from exc
         core.set_status(db, f'sh:{hypothesis_id}', 'investigating')
+        if new:
+            core.track(db, 'investigation_started', account_id=account.id, ref=f'job:{job.id}')
         return {'account_id': account.id, 'account_created': created, 'job': jobs.job_dict(job) | {'reused': not new}}
     return run(db, lambda: idempotent(db, request.headers.get('idempotency-key'), f'investigate.{hypothesis_id}', payload.model_dump(), work))
 

@@ -58,3 +58,16 @@ def prospect_search(run: Run) -> dict:
         return {'status': 'failed', 'stage': 'Research did not complete', 'message': search.error or 'The research did not complete.', 'prospect_ids': []}
     return {'status': 'succeeded', 'stage': 'Complete', 'prospect_ids': search.prospect_ids, 'search_id': search.id,
             'message': f"{len(search.prospect_ids)} organisation(s) found, each with its sources. Signals are reasons to investigate, not confirmed requirements."}
+
+
+@handler('gap_research')
+def gap_research(run: Run) -> dict:
+    """Research on demand: one missing piece of account intelligence, answered only from what sources say."""
+    from app.models.gaps import GapRequest
+    from app.services import gaps
+    row = run.db.get(GapRequest, run.job.params['gap_request_id'])
+    if row is None:
+        raise LookupError('That research request no longer exists.')
+    meter = research_provider(get_settings()) if run.job.params.get('use_ai', True) else None
+    run.attach(meter)
+    return gaps.run(run.db, row, meter, seller=_seller(run), step=run.step)

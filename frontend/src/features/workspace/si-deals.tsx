@@ -7,6 +7,7 @@ import { SERVICES, SERVICE_NAME, STAGE_LABEL, goto, param, pounds, si, type Deal
 import { ActivityForm, Basis, PageHeader, Panel, TaskRow, Timeline, useUrl } from "./si-shared";
 import { WinAssessment } from "./si-assessment";
 import type { SharedProps } from "./types";
+import { ResultsView } from "./si-intel";
 
 const money = pounds;
 const OPEN = ["qualify", "engage", "survey", "proposal", "bid_review", "negotiation", "approval"];
@@ -29,6 +30,7 @@ function Board({ notify }: SharedProps) {
   const [moved, setMoved] = useState<number | null>(null);
   const [closing, setClosing] = useState<{ deal: DealCard; stage: "won" | "lost" } | null>(null);
   const [reason, setReason] = useState("");
+  const [tab, setTab] = useState<"pipeline" | "results">(param("tab") === "results" ? "results" : "pipeline");
   const load = useCallback(async () => {
     try { setItems((await si<{ items: DealCard[] }>("/deals")).items); } catch (e) { notify((e as Error).message, true); }
   }, [notify]);
@@ -69,6 +71,12 @@ function Board({ notify }: SharedProps) {
         <p className="mt-1 text-[12px] text-ds-muted">Total contract value of {priced.length} priced of {open.length} open deal{open.length === 1 ? "" : "s"}</p></div> : undefined}>
         Drag a deal to move it on. Stage rules still apply: approval needs a quotation, and won needs an approved one.
       </PageHeader>
+      <div className="ds-tabs w-fit" role="group" aria-label="Deals view">
+        <button aria-pressed={tab === "pipeline"} onClick={() => setTab("pipeline")}>Pipeline</button>
+        <button aria-pressed={tab === "results"} onClick={() => setTab("results")}>Results from discovery</button>
+      </div>
+      {tab === "results" && <ResultsView />}
+      {tab === "pipeline" && <>
       {!items && <div className="ds-skeleton h-72 rounded-xl" />}
       {items && !items.length && <div className="ds-card"><EmptyState icon={<Briefcase size={20} />} title="No deals yet" action={<button className="ds-btn primary" onClick={() => goto("clients")}>Open Accounts</button>}>Qualify an account into a deal once you have confirmed what the customer needs.</EmptyState></div>}
       {items && !!items.length && <>
@@ -115,6 +123,7 @@ function Board({ notify }: SharedProps) {
         </form>}
         {!!closed.length && <Panel title="Closed"><ul className="divide-y divide-ds-border">{closed.map((d) => <li key={d.id}><button className="flex w-full items-center justify-between gap-2 py-2 text-left" onClick={() => goto("deals", { deal: d.id })}>
           <span className="text-[13px] font-semibold text-ds-ink">{d.title} <span className="font-normal text-ds-muted">· {d.account}</span></span><Pill tone={d.stage === "won" ? "green" : "neutral"}>{STAGE_LABEL[d.stage]}</Pill></button></li>)}</ul></Panel>}
+      </>}
       </>}
     </div>
   );

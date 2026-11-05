@@ -51,9 +51,10 @@ def job_dict(job: ResearchJob) -> dict[str, Any]:
 
 
 def enqueue(db: Session, kind: str, *, account_id: int | None, params: dict, estimated_cents: int, user_id: int | None, reuse_days: int = 30,
-            refresh: bool = False) -> tuple[ResearchJob, bool]:
-    """Create a job, or return the active or recent one for the same subject. Reserves its cost first."""
-    same = select(ResearchJob).where(ResearchJob.kind == kind, ResearchJob.account_id == account_id) if account_id is not None else None
+            refresh: bool = False, per_account: bool = True) -> tuple[ResearchJob, bool]:
+    """Create a job, or return the active or recent one for the same subject. Reserves its cost first.
+    per_account=False is for jobs that answer one narrower question each (gap research): the caller keeps them idempotent."""
+    same = select(ResearchJob).where(ResearchJob.kind == kind, ResearchJob.account_id == account_id) if account_id is not None and per_account else None
     if same is not None:
         active = db.scalar(same.where(ResearchJob.status.in_(ACTIVE)).order_by(ResearchJob.id.desc()))
         if active:

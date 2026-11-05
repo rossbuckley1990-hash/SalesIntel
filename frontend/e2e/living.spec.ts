@@ -285,7 +285,7 @@ test("GPU lifecycle: repeated navigation, resize, live morph and context loss", 
         path: resolve("../.runtime/field-desktop.png"),
         fullPage: true,
       });
-    await page.getByRole("button", { name: "Home", exact: true }).click();
+    await page.getByRole("button", { name: "Today", exact: true }).click();
     await page.waitForFunction(
       () => window.__MISI_FIELD_DIAGNOSTICS__?.activeEngines === 0,
     );

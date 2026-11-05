@@ -30,6 +30,7 @@ from app.routers.evidence_graph import router as evidence_graph_router
 from app.routers.research_investigations import router as research_investigations_router
 from app.routers.market_opportunities import router as market_opportunities_router
 from app.routers.prospects import router as prospects_router
+from app.routers.salesintel import router as salesintel_router
 from app.routers.market_cross_source import router as market_cross_source_router
 from app.routers.market_network import router as market_network_router
 
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
     application.include_router(research_investigations_router)
     application.include_router(market_opportunities_router)
     application.include_router(prospects_router)
+    application.include_router(salesintel_router)
     application.include_router(market_cross_source_router)
     application.include_router(market_network_router)
     application.include_router(public_sources_router)

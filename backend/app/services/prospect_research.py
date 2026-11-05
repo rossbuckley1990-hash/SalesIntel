@@ -299,6 +299,8 @@ def run_search(db: Session, search: ProspectSearch, post: Post | None = None, se
                now: datetime | None = None, limit: int = 5) -> ProspectSearch:
     active = settings or get_settings()
     try:
+        if active.app_env == "demo":
+            raise DossierUnavailable("AI research is switched off in demo mode, so no API credit is used.")
         if post is None:
             if not active.anthropic_api_key:
                 raise DossierUnavailable("Prospect research needs ANTHROPIC_API_KEY in the .env file.")
@@ -344,6 +346,23 @@ def _background(search_id: int) -> None:
                     search.status, search.error, search.finished_at = "failed", "Research stopped unexpectedly. Try again.", datetime.now(UTC)
                     session.commit()
     threading.Thread(target=work, daemon=True, name=f"prospect-search-{search_id}").start()
+
+
+STALE_AFTER_MINUTES = 20
+
+
+def expire_interrupted(db: Session, now: datetime | None = None) -> int:
+    """Research runs in a thread that does not survive a restart; say so instead of spinning forever."""
+    now = now or datetime.now(UTC)
+    count = 0
+    for search in db.scalars(select(ProspectSearch).where(ProspectSearch.status == "running")):
+        started = search.created_at if search.created_at.tzinfo else search.created_at.replace(tzinfo=UTC)
+        if (now - started).total_seconds() > STALE_AFTER_MINUTES * 60:
+            search.status, search.error, search.finished_at = "failed", "Interrupted, probably by a restart. Run it again.", now
+            count += 1
+    if count:
+        db.commit()
+    return count
 
 
 def search_dict(search: ProspectSearch) -> dict:

@@ -1,0 +1,215 @@
+"use client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowUpRight, Bookmark, Building2, Eye, Globe, Inbox, Loader2, MailPlus, MousePointerClick, Search, Sparkles, X, XCircle } from "lucide-react";
+import { EmptyState, Pill } from "./ds";
+import { CATEGORY, NATIONS, relative, valueLine } from "./radar-model";
+import { BASIS_LABEL, SERVICES, SERVICE_NAME, dayLabel, goto, param, si, type DiscoverResult, type Lead } from "./si-api";
+import { useUrl } from "./si-shared";
+import type { SharedProps } from "./types";
+
+type View = { id: number; name: string; filters: Record<string, string> };
+const STATUS: [string, string][] = [["active", "Active"], ["new", "New"], ["watching", "Watching"], ["investigating", "Investigating"], ["dismissed", "Dismissed"]];
+
+export function SiDiscover({ notify }: SharedProps) {
+  useUrl();
+  const [q, setQ] = useState(param("q") || "");
+  const [applied, setApplied] = useState(param("q") || "");
+  const [source, setSource] = useState<"all" | "public" | "private">("all");
+  const [nation, setNation] = useState("");
+  const [service, setService] = useState("");
+  const [status, setStatus] = useState("active");
+  const [result, setResult] = useState<DiscoverResult | null>(null);
+  const [selected, setSelected] = useState<string | null>(param("lead"));
+  const [views, setViews] = useState<View[]>([]);
+  const [researching, setResearching] = useState("");
+  const [loading, setLoading] = useState(true);
+  const search = useRef<HTMLInputElement>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ q: applied, source, nation, service, status, limit: "100" });
+    try { setResult(await si<DiscoverResult>(`/discover?${params}`)); } catch (e) { notify((e as Error).message, true); } finally { setLoading(false); }
+  }, [applied, source, nation, service, status, notify]);
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { si<{ items: View[] }>("/saved-views").then((d) => setViews(d.items)).catch(() => {}); }, []);
+  useEffect(() => {
+    if (result?.items.length && !result.items.some((x) => x.key === selected)) setSelected(result.items[0].key);
+  }, [result, selected]);
+
+  // Keyboard: / to search, j and k to move, o to open the account.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = ["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement).tagName);
+      if (e.key === "/" && !typing) { e.preventDefault(); search.current?.focus(); return; }
+      if (typing || !result?.items.length || e.metaKey || e.ctrlKey) return;
+      const index = result.items.findIndex((x) => x.key === selected);
+      if (e.key === "j" || e.key === "ArrowDown") { e.preventDefault(); setSelected(result.items[Math.min(index + 1, result.items.length - 1)].key); }
+      if (e.key === "k" || e.key === "ArrowUp") { e.preventDefault(); setSelected(result.items[Math.max(index - 1, 0)].key); }
+      if (e.key === "o" && current) void openAccount(current);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const current = useMemo(() => result?.items.find((x) => x.key === selected) || null, [result, selected]);
+
+  async function setLeadStatus(lead: Lead, next: Lead["status"]) {
+    setResult((r) => r && { ...r, items: r.items.map((x) => (x.key === lead.key ? { ...x, status: next } : x)) });
+    try {
+      await si(`/discover/${lead.key}/status`, { method: "POST", json: { status: next } });
+      notify(next === "dismissed" ? "Dismissed." : next === "watching" ? "Watching." : "Updated.");
+      if (next === "dismissed" && status === "active") setResult((r) => r && { ...r, items: r.items.filter((x) => x.key !== lead.key), total: r.total - 1 });
+    } catch (e) { notify((e as Error).message, true); void load(); }
+  }
+  async function openAccount(lead: Lead, then: "clients" | "engage" = "clients") {
+    try {
+      const linked = await si<{ account_id: number; created: boolean; basis: string }>(`/discover/${lead.key}/account`, { method: "POST", json: {} });
+      if (linked.created) notify(`Account created for ${lead.organisation}.`);
+      else if (linked.basis === "same_name") notify(`Linked to the existing ${lead.organisation} account by name. Confirm it is the same organisation.`);
+      goto(then, { account: linked.account_id, source: lead.key });
+    } catch (e) { notify((e as Error).message, true); }
+  }
+  async function webResearch() {
+    const text = applied || q;
+    if (text.trim().length < 3) return notify("Describe what to look for first.", true);
+    try {
+      await si("/discover/research", { method: "POST", json: { query: text } });
+      setResearching(text);
+      notify("Web research started. Results land in Discover in three to six minutes.");
+    } catch (e) { notify((e as Error).message, true); }
+  }
+  async function saveView() {
+    const name = window.prompt("Name this view", applied || "My territory");
+    if (!name) return;
+    try {
+      const view = await si<View>("/saved-views", { method: "POST", json: { name, filters: { q: applied, source, nation, service, status } } });
+      setViews((v) => [...v, view]);
+      notify("View saved.");
+    } catch (e) { notify((e as Error).message, true); }
+  }
+  function applyView(v: View) {
+    setQ(v.filters.q || ""); setApplied(v.filters.q || ""); setSource((v.filters.source as typeof source) || "all");
+    setNation(v.filters.nation || ""); setService(v.filters.service || ""); setStatus(v.filters.status || "active");
+  }
+  const filtered = !!(applied || nation || service || source !== "all" || status !== "active");
+
+  return (
+    <div className="ds-root">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ds-ink">Discover</h1>
+          <p className="mt-1 text-[14px] text-ds-muted">Public tenders, contract renewals and private-sector research in one list, most time-sensitive first.</p>
+        </div>
+        {!!views.length && <div className="flex flex-wrap items-center gap-1.5"><Bookmark size={14} className="text-ds-muted" />{views.map((v) => <button key={v.id} className="rounded-full border border-ds-border bg-white px-2.5 py-1 text-[12px] font-medium text-ds-ink-2 hover:border-ds-brand-line hover:text-ds-brand" onClick={() => applyView(v)}>{v.name}</button>)}</div>}
+      </header>
+
+      <section aria-label="Search and filters" className="mt-4 space-y-2.5">
+        <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(e) => { e.preventDefault(); setApplied(q.trim()); }} role="search">
+          <div className="relative flex-1">
+            <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ds-faint" />
+            <input ref={search} className="ds-input !h-11 !pl-10 !pr-9" aria-label="Search opportunities" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. care homes in Yorkshire with fire alarm maintenance    ( / )" />
+            {q && <button type="button" aria-label="Clear search" className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-ds-faint hover:bg-ds-subtle" onClick={() => { setQ(""); setApplied(""); }}><X size={15} /></button>}
+          </div>
+          <button className="ds-btn primary !h-11">Search</button>
+          <button type="button" className="ds-btn !h-11" onClick={() => void webResearch()} title="Ask Claude to search the web for private-sector companies. Uses API credit."><Globe size={15} /> Research the web</button>
+        </form>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="ds-tabs" role="group" aria-label="Source">
+            {([["all", "All"], ["public", "Public procurement"], ["private", "Private research"]] as const).map(([id, label]) => (
+              <button key={id} aria-pressed={source === id} onClick={() => setSource(id)}>{label}{result && id !== "all" && <span>{result.counts[id]}</span>}</button>))}
+          </div>
+          <select className="ds-select !h-9" aria-label="Nation" value={nation} onChange={(e) => setNation(e.target.value)}><option value="">All of the UK</option>{NATIONS.map((n) => <option key={n} value={n}>{n}</option>)}</select>
+          <select className="ds-select !h-9" aria-label="Service" value={service} onChange={(e) => setService(e.target.value)}><option value="">Any service</option>{SERVICES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+          <select className="ds-select !h-9" aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>{STATUS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+          {filtered && <><button className="ds-btn ghost sm" onClick={() => { setQ(""); setApplied(""); setSource("all"); setNation(""); setService(""); setStatus("active"); }}>Clear</button>
+            <button className="ds-btn ghost sm" onClick={() => void saveView()}><Bookmark size={14} /> Save view</button></>}
+        </div>
+        {result && applied && (result.interpreted.nations.length + result.interpreted.services.length + result.interpreted.regions.length > 0) && <p className="text-[12px] text-ds-muted">
+          Understood: {[...result.interpreted.nations, ...result.interpreted.services.map((s) => SERVICE_NAME[s] || s), ...result.interpreted.regions].join(", ")}{result.interpreted.keywords.length ? `; matching “${result.interpreted.keywords.join(" ")}”` : ""}.</p>}
+        {result?.gaps.map((g) => <p key={g} className="rounded-lg bg-ds-amber-soft px-3 py-2 text-[12px] text-ds-ink-2">{g}</p>)}
+        {researching && <p role="status" className="flex items-center gap-2 rounded-lg bg-ds-brand-soft px-3 py-2 text-[12px] text-ds-brand"><Loader2 size={13} className="ds-spin" /> Researching “{researching}” on the web. Refresh Discover in a few minutes.</p>}
+      </section>
+
+      <div className="mt-4 grid items-start gap-5 xl:grid-cols-[minmax(340px,440px)_minmax(0,1fr)]">
+        <section aria-label="Results" className="min-w-0">
+          <p className="mb-2 px-1 text-[12px] font-medium text-ds-muted" aria-live="polite">{result ? `${result.total} result${result.total === 1 ? "" : "s"}` : "Loading…"}{result && result.total > 0 && " · j/k to move, o to open"}</p>
+          {!result && loading && <div className="space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="ds-skeleton h-[104px] rounded-xl" />)}</div>}
+          {result && !result.items.length && <div className="ds-card"><EmptyState icon={<Inbox size={20} />} title="No matches">{result.gaps[result.gaps.length - 1]}</EmptyState></div>}
+          <ul className={`space-y-2 ${loading ? "opacity-60" : ""}`}>
+            {result?.items.map((lead) => <li key={lead.key}><LeadRow lead={lead} active={lead.key === selected} onClick={() => setSelected(lead.key)} /></li>)}
+          </ul>
+        </section>
+        <aside aria-label="Selected opportunity" className="ds-card sticky top-[76px] hidden max-h-[calc(100vh-96px)] overflow-y-auto xl:block">
+          {current ? <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} /> : <EmptyState icon={<MousePointerClick size={20} />} title="Select a result">See why it is worth your time, what is known and what to do next.</EmptyState>}
+        </aside>
+        {current && <div className="fixed inset-x-0 bottom-0 z-40 max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-ds-border bg-white shadow-ds-lg xl:hidden" role="region" aria-label="Selected opportunity details">
+          <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} onClose={() => setSelected(null)} />
+        </div>}
+      </div>
+    </div>
+  );
+}
+
+function LeadRow({ lead, active, onClick }: { lead: Lead; active: boolean; onClick: () => void }) {
+  const meta = CATEGORY[lead.category];
+  const urgent = lead.days !== null && lead.days >= 0 && lead.days <= 30;
+  return (
+    <button onClick={onClick} aria-current={active ? "true" : undefined}
+      className={`w-full rounded-xl border bg-white px-4 py-3 text-left transition ${active ? "border-ds-brand shadow-ds-sm ring-4 ring-[rgba(59,79,216,.10)]" : "border-ds-border shadow-ds-xs hover:border-ds-border-strong"} ${lead.status === "dismissed" ? "opacity-60" : ""}`}>
+      <span className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <Pill tone={lead.type === "public" ? "blue" : "violet"}>{lead.type === "public" ? (meta?.short || "Public") : "Private"}</Pill>
+          {lead.type === "private" && lead.light && <Pill tone={lead.light === "green" ? "green" : lead.light === "amber" ? "amber" : lead.light === "red" ? "red" : "neutral"} dot>{lead.category_label}</Pill>}
+          {lead.basis === "inferred" && <Pill tone="amber">Inferred</Pill>}
+          {lead.account_id && <Pill tone="green">Account</Pill>}
+          {lead.status === "watching" && <Pill>Watching</Pill>}
+        </span>
+        {lead.timing && lead.type === "public" && <span className={`flex-none text-[12px] font-semibold ${urgent ? "text-ds-red" : "text-ds-muted"}`}>{lead.days !== null && lead.days < 0 ? relative(lead.timing) : dayLabel(lead.timing)}</span>}
+      </span>
+      <span className="mt-1.5 block truncate text-[14px] font-semibold text-ds-ink">{lead.organisation}</span>
+      <span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-ds-ink-2"><strong className="font-semibold">Why now: </strong>{lead.why_now}</span>
+    </button>
+  );
+}
+
+function LeadDetail({ lead, onStatus, onOpen, onClose }: { lead: Lead; onStatus: (l: Lead, s: Lead["status"]) => void; onOpen: (l: Lead, then?: "clients" | "engage") => void; onClose?: () => void }) {
+  const legacy = lead.type === "public" ? { view: "radar", key: "lead", id: lead.key.slice(3) } : { view: "prospects", key: "prospect", id: lead.key.slice(3) };
+  const value = lead.value ? valueLine(lead.value) : "Not published";
+  return (
+    <article className="p-5" aria-label={lead.organisation}>
+      {onClose && <button className="ds-btn ghost sm -ml-2 mb-2" onClick={onClose}><X size={14} /> Close</button>}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Pill tone={lead.type === "public" ? "blue" : "violet"}>{lead.source_label}</Pill>
+        <Pill tone={lead.basis === "published" ? "green" : "amber"}>{lead.basis === "published" ? "Published evidence" : "Inferred: verify"}</Pill>
+        {lead.account_id && <Pill tone="green">{BASIS_LABEL[lead.link_basis || ""] || "Linked"}</Pill>}
+      </div>
+      <h2 className="mt-3 text-[20px] font-semibold leading-tight tracking-[-0.02em] text-ds-ink">{lead.organisation}</h2>
+      <p className="mt-1 text-[14px] leading-6 text-ds-ink-2">{lead.title}</p>
+
+      <div className="mt-4 rounded-xl border border-ds-brand-line bg-ds-brand-soft p-4">
+        <p className="text-[12px] font-semibold uppercase tracking-wide text-ds-brand">Why now?</p>
+        <p className="mt-1 text-[15px] font-medium leading-6 text-ds-ink">{lead.why_now}</p>
+      </div>
+
+      <dl className="mt-4 grid gap-2.5 sm:grid-cols-2">
+        <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">{lead.type === "public" ? (lead.timing_label ? lead.timing_label[0].toUpperCase() + lead.timing_label.slice(1) : "Timing") : "Timing"}</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.type === "public" ? (lead.timing ? new Date(lead.timing).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Not published") : lead.category_label}</dd></div>
+        <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Value</dt><dd className="text-[14px] font-semibold text-ds-ink">{value}</dd></div>
+        <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Supplier named</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.supplier || "Unknown"}</dd>{lead.supplier && <dd className="text-[12px] text-ds-muted">Reported, not necessarily today's incumbent</dd>}</div>
+        <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Where</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.nation || lead.region || "Not stated"}</dd></div>
+      </dl>
+      {!!lead.services.length && <div className="mt-3 flex flex-wrap gap-1.5">{lead.services.map((s) => <Pill key={s} tone="brand">{SERVICE_NAME[s] || s}</Pill>)}</div>}
+      {lead.type === "private" && <p className="mt-3 text-[13px] text-ds-muted">{lead.people || 0} named people and {lead.contact_routes || 0} published contact routes found by research.</p>}
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className="ds-btn primary" onClick={() => onOpen(lead)}><Building2 size={15} /> {lead.account_id ? "Open account" : "Investigate as account"}</button>
+        <button className="ds-btn" onClick={() => onOpen(lead, "engage")}><MailPlus size={15} /> Prepare introduction</button>
+        {lead.status !== "watching" && <button className="ds-btn ghost" onClick={() => onStatus(lead, "watching")}><Eye size={15} /> Watch</button>}
+        {lead.status !== "dismissed" ? <button className="ds-btn ghost" onClick={() => onStatus(lead, "dismissed")}><XCircle size={15} /> Dismiss</button>
+          : <button className="ds-btn ghost" onClick={() => onStatus(lead, "new")}>Restore</button>}
+      </div>
+      <button className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-ds-brand hover:underline" onClick={() => goto(legacy.view, { [legacy.key]: legacy.id })}>
+        {lead.type === "public" ? "Full record, evidence and deep research" : "Full research: signals, timing, people"} <ArrowUpRight size={13} /></button>
+      {lead.type === "private" && <p className="mt-3 flex items-center gap-1.5 text-[12px] text-ds-muted"><Sparkles size={12} /> Found by AI web research. Check the sources before relying on it.</p>}
+    </article>
+  );
+}

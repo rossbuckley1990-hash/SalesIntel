@@ -46,8 +46,10 @@ def _market_events(notices: list[dict]) -> dict:
     for notice in notices:
         if not notice.get('published') or not families(notice['title']):
             continue
-        day = _day(notice.get('approach')) or _day(notice['published'])
-        events[_buyer_key(notice['buyer'])].append({'day': day, 'tokens': _title_tokens(notice['title']), 'fams': families(notice['title']), 'id': notice['id'], 'ocid': notice.get('ocid'), 'kind': notice.get('type')})
+        # An outcome is dated by when the notice became observable (its publication),
+        # never by a planned approach date, which can precede or follow publication.
+        day = _day(notice['published'])
+        events[_buyer_key(notice['buyer'])].append({'day': day, 'approach': _day(notice.get('approach')), 'tokens': _title_tokens(notice['title']), 'fams': families(notice['title']), 'id': notice['id'], 'ocid': notice.get('ocid'), 'kind': notice.get('type')})
     return events
 
 
@@ -130,9 +132,10 @@ def prospective_scorecard(hypotheses: list[dict], notices: list[dict], today: da
         if item['decision'] not in {'pursue', 'verify'} or not item['buyer']:
             continue
         made += 1
-        later = [x for x in events.get(_buyer_key(item['buyer']), []) if x['day'] > item['first_seen']]
+        # Only notices first published after the claim and no later than today count.
+        later = [x for x in events.get(_buyer_key(item['buyer']), []) if item['first_seen'] < x['day'] <= today]
         if later:
-            followed.append({'buyer': item['buyer'], 'kind': item['kind'], 'made_on': str(item['first_seen']), 'first_notice': str(min(x['day'] for x in later))})
+            followed.append({'buyer': item['buyer'], 'kind': item['kind'], 'made_on': str(item['first_seen']), 'first_notice_published': str(min(x['day'] for x in later))})
         elif (today - item['first_seen']).days < 365:
             waiting += 1
     return {'hypotheses_on_record': made, 'followed_by_a_notice': len(followed), 'still_within_12_months': waiting, 'examples': followed[:8]}

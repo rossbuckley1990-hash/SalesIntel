@@ -51,6 +51,7 @@ def test_seed_script_inserts_sample_records(tmp_path: Path) -> None:
     env = {
         **os.environ,
         "DATABASE_URL": f"sqlite:///{db_path}",
+        "APP_ENV": "test",
         "PYTHONPATH": str(backend_dir),
     }
 
@@ -82,6 +83,7 @@ def test_reset_empty_script_creates_empty_tables_without_demo_data(tmp_path: Pat
     env = {
         **os.environ,
         "DATABASE_URL": f"sqlite:///{db_path}",
+        "APP_ENV": "test",
         "PYTHONPATH": str(backend_dir),
     }
 

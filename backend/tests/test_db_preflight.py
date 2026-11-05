@@ -49,3 +49,20 @@ def test_inspect_is_read_only(tmp_path):
     make(live)
     before = tool.sha256(live)
     assert tool.inspect(live)["integrity"] == "ok" and tool.sha256(live) == before
+
+
+def test_reset_db_refuses_to_erase_a_real_workspace(monkeypatch, tmp_path):
+    from sqlalchemy import create_engine
+    import app.db as db_module
+    from app.config import Settings
+    live = tmp_path / "false-alarm-pilot-v2.db"
+    make(live)
+    monkeypatch.setattr(db_module, "engine", create_engine(f"sqlite:///{live}"))
+    monkeypatch.setattr(db_module, "get_settings", lambda: Settings(app_env="local"))
+    monkeypatch.delenv("SALESINTEL_CONFIRM_RESET", raising=False)
+    with pytest.raises(RuntimeError, match="Refusing to erase"):
+        db_module.reset_db()
+    with sqlite3.connect(live) as c:
+        assert c.execute("select count(*) from accounts").fetchone()[0] == 2  # untouched
+    monkeypatch.setenv("SALESINTEL_CONFIRM_RESET", "false-alarm-pilot-v2.db")
+    db_module.reset_db()  # an explicit, named confirmation is honoured

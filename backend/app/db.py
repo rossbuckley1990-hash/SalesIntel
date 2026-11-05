@@ -64,8 +64,16 @@ def init_db() -> None:
 
 
 def reset_db() -> None:
+    """Drop and recreate every table. Refused against a real workspace unless explicitly confirmed."""
+    import os
+    from pathlib import Path
+
     import app.models  # noqa: F401
 
+    target = engine.url.database or ""
+    confirmed = os.environ.get("SALESINTEL_CONFIRM_RESET", "") == Path(target).name and bool(target)
+    if get_settings().app_env not in {"demo", "test"} and target not in ("", ":memory:") and not confirmed:
+        raise RuntimeError(f"Refusing to erase {target}. Set SALESINTEL_CONFIRM_RESET={Path(target).name} to confirm, after taking a backup.")
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 

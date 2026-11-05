@@ -91,6 +91,17 @@ def test_unsafe_configurations_refuse_to_start():
         Settings(_env_file=None, allow_remote_clients=True).check_safe_to_serve()
 
 
+def test_development_sign_in_exists_only_in_dev_mode(hosted, monkeypatch):
+    token = hosted.anonymous().post("/api/dev/session", json={"email": "Dana@Alpha.example", "name": "Dana"}).json()["token"]
+    assert hosted.anonymous().get("/api/me", headers={"Authorization": f"Bearer {token}"}).json()["user"]["email"] == "dana@alpha.example"
+    from app.config import get_settings
+    from app.main import create_app
+    monkeypatch.setenv("AUTH_MODE", "local")
+    get_settings.cache_clear()
+    assert "/api/dev/session" not in create_app().openapi()["paths"]
+    get_settings.cache_clear()
+
+
 def test_hosted_mode_exposes_only_tenant_scoped_routes(hosted):
     paths = set(hosted.app.openapi()["paths"])
     assert "/api/si/today" in paths and "/api/workspaces" in paths

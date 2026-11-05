@@ -65,6 +65,9 @@ def create_app() -> FastAPI:
     application.include_router(version_router)
     application.include_router(workspaces_router)
     application.include_router(salesintel_router)
+    if settings.auth_mode == "dev":
+        from app.routers.dev_auth import router as dev_auth_router
+        application.include_router(dev_auth_router)
     if settings.auth_mode != "local":
         # A hosted workspace gets only the tenant-scoped SalesIntel API. The single-user tools below
         # keep records without a workspace, so they are not reachable until each one is scoped.

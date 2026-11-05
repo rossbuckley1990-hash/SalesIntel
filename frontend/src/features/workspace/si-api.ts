@@ -1,22 +1,12 @@
 import { getApiBaseUrl } from "@/lib/api";
+import { api } from "@/lib/session";
 import type { Value } from "./radar-model";
 
 export const siBase = () => `${getApiBaseUrl()}/api/si`;
 
-export async function si<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
-  const { json, ...rest } = init;
-  const response = await fetch(`${siBase()}${path}`, {
-    cache: "no-store",
-    ...rest,
-    headers: json !== undefined ? { "content-type": "application/json", ...(rest.headers || {}) } : rest.headers,
-    body: json !== undefined ? JSON.stringify(json) : rest.body,
-  });
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const detail = payload?.detail;
-    throw new Error(typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((d: { msg: string }) => d.msg).join(" · ") : `Request failed (${response.status})`);
-  }
-  return payload as T;
+/** Every SalesIntel call goes through the shared client, which adds the signed-in session in hosted mode. */
+export function si<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
+  return api<T>(`/api/si${path}`, init);
 }
 
 export type LeadStatus = "new" | "watching" | "investigating" | "dismissed";

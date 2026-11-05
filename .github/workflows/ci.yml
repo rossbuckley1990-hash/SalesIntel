@@ -21,9 +21,23 @@ env:
 
 jobs:
   backend:
-    name: Backend tests
+    name: Backend tests (SQLite and PostgreSQL)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # A throwaway PostgreSQL for the hosted-platform tests. Each test creates and drops its own database.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: salesintel
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U salesintel" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SALESINTEL_TEST_POSTGRES_URL: postgresql://salesintel:ci-only-not-a-secret@127.0.0.1:5432/postgres
+      SALESINTEL_REQUIRE_POSTGRES: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -36,11 +50,13 @@ jobs:
           python -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/python -m pip install -e "backend[dev]"
-      - name: Migrations build the schema from scratch
+      - name: Migrations build the schema from scratch (SQLite and PostgreSQL)
         run: |
           cd backend
           DATABASE_URL="sqlite:///$RUNNER_TEMP/migrations.db" ../.venv/bin/python -m alembic -c alembic.ini upgrade head
-      - name: Tests
+          PGPASSWORD=ci-only-not-a-secret psql -h 127.0.0.1 -U salesintel -d postgres -c "CREATE DATABASE migrations_check"
+          DATABASE_URL="postgresql://salesintel:ci-only-not-a-secret@127.0.0.1:5432/migrations_check" ../.venv/bin/python -m alembic -c alembic.ini upgrade head
+      - name: Tests (tenant isolation runs on both databases; PostgreSQL is mandatory here)
         run: PYTHONPATH=backend .venv/bin/python -m pytest backend/tests -q
 
   frontend:
@@ -84,6 +100,8 @@ jobs:
           pnpm --dir frontend exec playwright install --with-deps chromium
       - name: Acceptance tests (demo database, synthetic fixtures)
         run: pnpm --dir frontend test:e2e
+      - name: Hosted acceptance tests (signed-in teams, two companies, development tokens)
+        run: pnpm --dir frontend test:e2e:hosted
       - name: Keep the report when tests fail
         if: failure()
         uses: actions/upload-artifact@v4
@@ -91,5 +109,6 @@ jobs:
           name: playwright-report
           path: |
             frontend/playwright-report
+            frontend/playwright-report-hosted
             frontend/test-results
           retention-days: 7

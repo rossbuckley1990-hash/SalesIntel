@@ -7,7 +7,7 @@ import { SERVICES, SERVICE_NAME, STAGE_LABEL, goto, param, si, type DealCard, ty
 import { ActivityForm, Basis, PageHeader, Panel, TaskRow, Timeline, useUrl } from "./si-shared";
 import type { SharedProps } from "./types";
 
-const money = (v: number | null | undefined) => (v === null || v === undefined ? "Unknown" : `£${Math.round(v).toLocaleString("en-GB")}`);
+const money = (v: number | null | undefined) => (v === null || v === undefined ? "Unknown" : `£${v.toLocaleString("en-GB", { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 })}`);
 const OPEN = ["qualify", "engage", "survey", "proposal", "bid_review", "negotiation", "approval"];
 
 export function SiDeals(props: SharedProps) {

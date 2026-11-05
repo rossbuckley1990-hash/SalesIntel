@@ -60,7 +60,8 @@ function Composer({ accountId, notify, onChange }: { accountId: number; notify: 
   const load = useCallback(async () => {
     const account = await si<AccountT>(`/accounts/${accountId}`);
     setA(account);
-    const draft = account.drafts.find((d) => d.id === draftId) || account.drafts.find((d) => d.status !== "logged" && !draftId);
+    // Reopen the draft asked for; otherwise only a draft that can still be used.
+    const draft = account.drafts.find((d) => d.id === draftId) || (!draftId ? account.drafts.find((d) => d.status === "draft" || d.status === "approved") : undefined);
     if (draft) {
       setDraftId(draft.id); setSubject(draft.subject); setBody(draft.body); setGaps(draft.gaps); setEvidence(draft.evidence); setStatus(draft.status);
       setContactId(draft.contact_id ? String(draft.contact_id) : "");

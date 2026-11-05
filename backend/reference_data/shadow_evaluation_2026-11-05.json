@@ -1,0 +1,104 @@
+{
+ "horizon_days": 120,
+ "decision_dates": [
+  "2026-05-21",
+  "2026-06-20",
+  "2026-07-20",
+  "2026-08-19"
+ ],
+ "data_end": "2026-11-05",
+ "arms": {
+  "shadow": {
+   "flagged": 114,
+   "hits": 12,
+   "false_positives": 102,
+   "precision": 0.105,
+   "precision_95": [
+    0.061,
+    0.175
+   ],
+   "coverage_of_outcomes": 0.028,
+   "median_days_from_first_evidence_to_outcome": 98.0
+  },
+  "renewal": {
+   "flagged": 225,
+   "hits": 31,
+   "false_positives": 194,
+   "precision": 0.138,
+   "precision_95": [
+    0.099,
+    0.189
+   ],
+   "coverage_of_outcomes": 0.072,
+   "median_days_from_first_evidence_to_outcome": 828
+  },
+  "keyword": {
+   "flagged": 201,
+   "hits": 24,
+   "false_positives": 177,
+   "precision": 0.119,
+   "precision_95": [
+    0.082,
+    0.172
+   ],
+   "coverage_of_outcomes": 0.055,
+   "median_days_from_first_evidence_to_outcome": 205.0
+  }
+ },
+ "by_sensor": {
+  "estate_mobilisation": {
+   "flagged": 56,
+   "hits": 4,
+   "corroborated": 0,
+   "precision": 0.071,
+   "precision_95": [
+    0.028,
+    0.17
+   ]
+  },
+  "adjacent_package": {
+   "flagged": 57,
+   "hits": 10,
+   "corroborated": 0,
+   "precision": 0.175,
+   "precision_95": [
+    0.098,
+    0.294
+   ]
+  },
+  "remediation": {
+   "flagged": 44,
+   "hits": 4,
+   "corroborated": 0,
+   "precision": 0.091,
+   "precision_95": [
+    0.036,
+    0.212
+   ]
+  },
+  "supplier_transition": {
+   "flagged": 1,
+   "hits": 0,
+   "corroborated": 0,
+   "precision": 0.0,
+   "precision_95": [
+    0.0,
+    0.793
+   ]
+  }
+ },
+ "outcomes_in_window": 433,
+ "inputs": {
+  "observations": 507,
+  "works_observations": 97,
+  "contracts": 1683,
+  "works_capture_starts": "2026-04-21"
+ },
+ "limitations": [
+  "The adjacent-works capture covers only about six months, so outcome windows are short and partly censored at the data end.",
+  "Regulator pages hold only the current judgement, so older regulator evidence is missing (inherited from the existing backtest).",
+  "Observations were back-filled: their publication dates are real, but SalesIntel did not hold them on those dates. The test assumes it would have.",
+  "A hit is entity-level (the organisation bought relevant work), not proof that the specific hypothesis was right.",
+  "Small numbers: read the 95% intervals, not the point estimates."
+ ]
+}

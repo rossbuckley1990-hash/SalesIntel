@@ -62,6 +62,9 @@ TAXONOMY = {
     'market_engagement': {'category': 'F', 'label': 'Official market engagement'},
     'competitor_acquisition': {'category': 'G', 'label': 'Published acquisition'},
     'issue_resolved': {'category': 'X', 'label': 'Published resolution'},
+    # Shadow Radar adjacent-works observations: read by the Shadow Radar only, ignored by contract inference.
+    'works_awarded': {'category': 'W', 'label': 'Building contract awarded'},
+    'works_planned': {'category': 'W', 'label': 'Building work planned or out to tender'},
     'attribution_elsewhere': {'category': 'X', 'label': 'Published cause other than the contractor'},
 }
 # Rival explanations, what supports each, and the question that would separate them.

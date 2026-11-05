@@ -67,7 +67,7 @@ def today(db: Session = Depends(tenant_db)):
 
 
 @router.get('/discover')
-def discover(q: str = Query('', max_length=300), source: Literal['all', 'public', 'private'] = 'all', nation: str = Query('', max_length=40),
+def discover(q: str = Query('', max_length=300), source: Literal['all', 'public', 'private', 'shadow'] = 'all', nation: str = Query('', max_length=40),
              service: str = Query('', max_length=40), status: Literal['active', 'all', 'new', 'watching', 'investigating', 'dismissed'] = 'active',
              category: str = Query('', max_length=40), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), db: Session = Depends(tenant_db)):
     return core.discover(db, q=q, source=source, nation=nation, service=service, status=status, category=category, limit=limit, offset=offset)

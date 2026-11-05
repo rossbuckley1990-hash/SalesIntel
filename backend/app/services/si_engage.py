@@ -646,7 +646,7 @@ def deal_view(db: Session, deal_id: int) -> dict:
     return {"id": deal.id, "title": deal.title, "stage": deal.stage, "stages": STAGES, "account_id": deal.account_id, "account": account.name if account else "",
             "opportunity_id": deal.opportunity_id, "origin_type": deal.origin_type, "origin": deal.origin, "services": deal.services, "work_type": deal.work_type,
             "work_types": WORK_TYPES, "qualification": deal.qualification, "value_annual": deal.value_annual, "value_total": deal.value_total, "value_basis": deal.value_basis,
-            "next_step": deal.next_step, "scope": scope_requirements(deal), "quote": deal.quote, "handover": deal.handover, "outcome_reason": deal.outcome_reason,
+            "next_step": deal.next_step, "seller_confidence": deal.seller_confidence, "scope": scope_requirements(deal), "quote": deal.quote, "handover": deal.handover, "outcome_reason": deal.outcome_reason,
             "activities": [activity_dict(a) for a in activities], "tasks": [task_dict(t) for t in tasks], "service_labels": SERVICE_LABEL,
             "created_at": deal.created_at.isoformat(), "updated_at": deal.updated_at.isoformat()}
 

@@ -419,6 +419,14 @@ class DealUpdate(Strict):
     work_type: str | None = Field(None, max_length=32)
     next_step: str | None = Field(None, max_length=1000)
     value_total: StrictStr | StrictInt | StrictFloat | None = None
+    seller_confidence: Literal['low', 'medium', 'high'] | None = None
+
+
+@router.get('/deals/{deal_id}/assessment')
+def deal_assessment(deal_id: int, db: Session = Depends(tenant_db)):
+    """Can we win this? Fit, readiness and the seller's view, and a win rate only when history supports one."""
+    from app.services.si_assess import assessment
+    return run(db, lambda: assessment(db, deal_id))
 
 
 @router.patch('/deals/{deal_id}')
@@ -431,6 +439,8 @@ def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(tenant_
         engage.update_terms(db, deal_id, services=payload.services, work_type=payload.work_type)
         if payload.next_step is not None:
             row.next_step = payload.next_step
+        if payload.seller_confidence is not None:
+            row.seller_confidence = payload.seller_confidence
         if payload.value_total is not None:
             row.value_total, row.value_basis = float(engage.money(payload.value_total, 'Deal value')), 'user_estimate'
         if payload.stage:

@@ -471,6 +471,9 @@ def save(db: Session, account: Account, accepted: list[tuple[Candidate, str, lis
     for row in db.scalars(select(Contact).where(Contact.account_id == account.id, Contact.name.is_not(None), Contact.email.is_not(None))):
         if len(emails.get(row.name.lower(), ())) > 1 and 'conflict' not in row.flags:
             row.flags = [*row.flags, 'conflict']
+    if added:
+        from app.services.si_core import track
+        track(db, 'contacts_found', account_id=account.id, ref=f'job:{job_id}')
     return {'added': added, 'updated': updated, 'suppressed': held_back}
 
 

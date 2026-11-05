@@ -91,7 +91,7 @@ def lead_account(key: str, payload: LinkRequest, db: Session = Depends(tenant_db
     def work():
         entity_type, entity_id = core.parse_key(key)
         account, link, created = core.link_source(db, entity_type, entity_id, payload.account_id)
-        core.track(db, 'lead_investigated')
+        core.track(db, 'lead_investigated', account_id=account.id, ref=key)
         return {'account_id': account.id, 'created': created, 'basis': link.basis, 'confirmed': link.confirmed}
     return run(db, work)
 
@@ -211,7 +211,7 @@ def create_account(payload: NewAccount, request: Request, db: Session = Depends(
                           status='prospect', watched=False, notes='', created_at=moment, updated_at=moment)
         db.add(account)
         db.flush()
-        core.track(db, 'account_created')
+        core.track(db, 'account_created', account_id=account.id)
         return {'account_id': account.id, 'created': True, 'basis': 'user_entered'}
     return run(db, work)
 
@@ -308,6 +308,8 @@ def contact_status(contact_id: int, payload: ContactStatus, db: Session = Depend
         before = db.get(Contact, contact_id)
         was_suppressed = before is not None and before.status == 'do_not_contact'
         contact = engage.update_contact(db, contact_id, payload.status)
+        if payload.status == 'verified' and before is not None:
+            core.track(db, 'contact_verified', account_id=contact.account_id, ref=f'contact:{contact.id}')
         if payload.status == 'do_not_contact':
             navigator.suppress(db, contact, ctx.user_id)  # survives repeated research and new sources
         elif was_suppressed:

@@ -71,4 +71,4 @@ def research_provider(settings: Settings) -> Meter | None:
 # Estimated maximum cost reserved before a job may call a provider, and the ceiling it stops at.
 # Sized for live web research with search results counted as input: a Navigator run is about 100-150k input
 # tokens, 8 searches and two calls; a prospect search allows up to 20 searches and longer output.
-ESTIMATE_CENTS = {'contact_navigator': 150, 'prospect_search': 300, 'deep_investigation': 400}  # investigation includes the Navigator
+ESTIMATE_CENTS = {'contact_navigator': 150, 'prospect_search': 300, 'deep_investigation': 400, 'gap_research': 120}  # investigation includes the Navigator

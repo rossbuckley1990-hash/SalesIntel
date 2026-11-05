@@ -181,7 +181,8 @@ def save_draft(db: Session, account_id: int, data: dict, draft_id: int | None = 
                       subject=data.get("subject") or "", body=data["body"], evidence=data.get("evidence") or [], gaps=data.get("gaps") or [],
                       status="draft", created_at=moment, updated_at=moment)
         db.add(draft)
-        track(db, "draft_saved")
+        db.flush()
+        track(db, "draft_saved", account_id=account_id, deal_id=data.get("deal_id"), ref=f"draft:{draft.id}")
     db.flush()
     return draft
 
@@ -245,9 +246,17 @@ def log_activity(db: Session, account_id: int, data: dict, follow_up: dict | Non
                         occurred_at=datetime.fromisoformat(occurred) if occurred else moment, created_at=moment)
     db.add(activity)
     db.flush()
-    track(db, "activity_logged")
-    if data.get("outcome") == "meeting_booked":
-        track(db, "meeting_booked")
+    where = {"account_id": account_id, "deal_id": data.get("deal_id"), "ref": f"activity:{activity.id}"}
+    track(db, "activity_logged", **where)
+    outcome, direction = data.get("outcome") or "", data.get("direction") or "outbound"
+    if direction == "outbound" and data["kind"] in ("call", "email", "meeting", "site_visit"):
+        track(db, "outreach_recorded", **where)
+    if outcome in ("connected", "interested", "call_back", "meeting_booked", "requirement_captured") or direction == "inbound":
+        track(db, "customer_response", **where)
+    if outcome == "meeting_booked":
+        track(db, "meeting_booked", **where)
+    if outcome == "requirement_captured" or (data.get("requirements") or "").strip():
+        track(db, "requirement_confirmed", **where)
     task = None
     if follow_up and follow_up.get("due_on"):
         task = add_task(db, account_id, {"title": follow_up.get("title") or f"Follow up with {account.name}", "due_on": follow_up["due_on"],
@@ -270,7 +279,7 @@ def add_task(db: Session, account_id: int, data: dict) -> Task:
                 status="open", created_at=now())
     db.add(task)
     db.flush()
-    track(db, "follow_up_scheduled")
+    track(db, "follow_up_scheduled", account_id=account_id, deal_id=data.get("deal_id"), ref=f"task:{task.id}")
     return task
 
 
@@ -360,7 +369,7 @@ def create_deal(db: Session, account_id: int, data: dict) -> DealRecord:
         act.deal_id = deal.id  # the conversation that qualified it belongs to the deal
     account.status, account.updated_at = "opportunity", moment
     _sync_legacy(db, deal)
-    track(db, "deal_created")
+    track(db, "deal_created", account_id=account_id, deal_id=deal.id, ref=f"deal:{deal.id}")
     return deal
 
 
@@ -569,7 +578,7 @@ def build_quote(db: Session, deal_id: int, rates: dict | None = None) -> DealRec
                   "approved_by": previous.get("approved_by") if still_approved else None, "approved_at": previous.get("approved_at") if still_approved else None,
                   "built_at": now().isoformat(), "terms_note": "Draft for internal review. Not an offer. Quantities and rates must be confirmed before issue."}
     deal.updated_at = now()
-    track(db, "quote_drafted")
+    track(db, "quote_drafted", account_id=deal.account_id, deal_id=deal.id, ref=f"deal:{deal.id}")
     return deal
 
 
@@ -596,7 +605,7 @@ def approve_quote(db: Session, deal_id: int, reviewer: str) -> DealRecord:
     deal.quote = {**quote, "status": "approved", "version": version, "approvals": approvals, "approved_by": reviewer.strip(), "approved_at": stamp,
                   "approved_fingerprint": quote["inputs_fingerprint"], "superseded_reason": None}
     deal.updated_at = now()
-    track(db, "quote_approved")
+    track(db, "quote_approved", account_id=deal.account_id, deal_id=deal.id, ref=f"deal:{deal.id}")
     return deal
 
 
@@ -630,7 +639,10 @@ def move_stage(db: Session, deal_id: int, stage: str, reason: str = "") -> DealR
         if stage == "won":
             deal.handover = build_handover(db, deal)
     _sync_legacy(db, deal)
-    track(db, f"deal_{stage}")
+    won = stage == "won"
+    track(db, f"deal_{stage}", account_id=deal.account_id, deal_id=deal.id, ref=f"deal:{deal.id}",
+          amount=(deal.value_total if deal.value_total is not None else deal.value_annual) if won else None,
+          amount_basis=("total_contract_value" if deal.value_total is not None else "annual_contract_value" if deal.value_annual is not None else None) if won else None)
     return deal
 
 

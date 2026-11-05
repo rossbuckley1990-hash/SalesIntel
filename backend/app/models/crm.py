@@ -187,8 +187,18 @@ class Preference(TenantScoped, Base):
 
 
 class FunnelEvent(TenantScoped, Base):
-    """Aggregate pilot measurement: an event name and day only, no people or content."""
+    """The acquisition-to-revenue record: what happened, when, on which account, and which discovery the account
+    came from. No people or message content. `origin` is fixed when the event is written, so re-linking an account
+    later never rewrites how earlier work was attributed. Earlier events (before attribution) carry only name and day."""
     __tablename__ = 'si_funnel_events'
     id: Mapped[int] = mapped_column(primary_key=True)
     event: Mapped[str] = mapped_column(String(48), nullable=False, index=True)
     day: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    account_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    deal_id: Mapped[int | None] = mapped_column(Integer)
+    ref: Mapped[str | None] = mapped_column(String(48))  # the lead, contact or job the event concerns
+    origin: Mapped[str | None] = mapped_column(String(48))  # the discovery record the account came from, e.g. sh:12
+    source_type: Mapped[str | None] = mapped_column(String(16))  # shadow, public, private, manual
+    amount: Mapped[float | None] = mapped_column(Float)  # only on a won deal: the recorded value, with its basis
+    amount_basis: Mapped[str | None] = mapped_column(String(32))

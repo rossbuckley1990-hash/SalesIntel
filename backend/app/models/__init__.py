@@ -21,6 +21,7 @@ from app.models.tenancy import Invitation, LeadState, Membership, Organisation, 
 from app.models.prospect import Prospect, ProspectSearch
 from app.models.acquisition import IdempotencyRecord, ResearchJob, SpendBudget, Suppression
 from app.models.shadow import Dossier, LeadFeedback, ShadowHypothesis, ShadowHypothesisRevision
+from app.models.gaps import GapRequest
 from app.models.crm import Account, AccountLink, Activity, Contact, DealRecord, Draft, FunnelEvent, Preference, SavedView, Site, Task
 
 __all__ = [

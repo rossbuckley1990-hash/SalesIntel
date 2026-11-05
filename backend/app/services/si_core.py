@@ -62,8 +62,28 @@ def display_name(name: str) -> str:
     return " ".join(w.upper() if w in keep else w.capitalize() for w in words)
 
 
-def track(db: Session, event: str) -> None:
-    db.add(FunnelEvent(event=event[:48], day=now().date()))
+ORIGIN = {"shadow_hypothesis": ("sh", "shadow"), "market_opportunity": ("mo", "public"), "prospect": ("pr", "private")}
+
+
+def origin_of(db: Session, account_id: int) -> tuple[str | None, str]:
+    """The discovery record an account came from (its first link), or manual when it was added by hand."""
+    link = db.scalar(select(AccountLink).where(AccountLink.account_id == account_id).order_by(AccountLink.id))
+    if link is None:
+        return None, "manual"
+    prefix, kind = ORIGIN.get(link.entity_type, (link.entity_type[:12], "manual"))
+    return f"{prefix}:{link.entity_id}", kind
+
+
+def track(db: Session, event: str, *, account_id: int | None = None, deal_id: int | None = None, ref: str | None = None,
+          origin: str | None = None, amount: float | None = None, amount_basis: str | None = None) -> None:
+    """Record one step of the acquisition journey. The origin is fixed now, so attribution never shifts afterwards."""
+    source_type = None
+    if origin:
+        source_type = next((kind for prefix, kind in ORIGIN.values() if origin.startswith(prefix + ":")), "manual")
+    elif account_id is not None:
+        origin, source_type = origin_of(db, account_id)
+    db.add(FunnelEvent(event=event[:48], day=now().date(), at=now(), account_id=account_id, deal_id=deal_id, ref=(ref or None) and ref[:48],
+                       origin=origin, source_type=source_type, amount=amount, amount_basis=amount_basis))
 
 
 # ---------------------------------------------------------------- source records
@@ -139,7 +159,8 @@ def link_source(db: Session, entity_type: str, entity_id: int, account_id: int |
             db.add(account)
             db.flush()
             basis, confirmed, created = "created_from", True, True
-            track(db, "account_created")
+            prefix = ORIGIN.get(entity_type, (entity_type[:12], "manual"))[0]
+            track(db, "account_created", account_id=account.id, origin=f"{prefix}:{entity_id}")
     if identity.get("company_number") and not account.company_number and basis != "same_name":
         account.company_number = identity["company_number"]
     link = AccountLink(account_id=account.id, entity_type=entity_type, entity_id=entity_id, name_seen=identity["name"][:255],
@@ -251,7 +272,7 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
             items.append({
                 "key": f"mo:{item.id}", "type": "public", "source_label": "Public procurement", "organisation": display_name(s.get("customer") or ""),
                 "title": s.get("title") or "", "why_now": _why_public(s), "category": s.get("category"), "category_label": s.get("category_label"),
-                "basis": "inferred" if s.get("category") == "inferred_signal" else "published", "timing": s.get("timing"), "days": days,
+                "basis": "inferred" if s.get("category") == "inferred_signal" else "published", "timing": s.get("timing"), "days": days, "sector": s.get("sector"),
                 "timing_label": s.get("timing_basis") or "", "nation": s.get("nation"), "tier": (s.get("priority") or {}).get("tier"),
                 "services": _services_from_title(s.get("title") or ""), "supplier": s.get("supplier"), "value": s.get("value"),
                 "status": reviewed.get(item.id) or ("new" if hosted() else {"unreviewed": "new", "investigate": "investigating", "defer": "watching", "dismiss": "dismissed"}.get(item.review_state, "new")),
@@ -280,6 +301,7 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
                 "basis": "published" if any(s.get("basis") == "stated" for s in v.get("signals") or []) else "inferred",
                 "timing": (v["timing"].get("window") or {}).get("start"), "days": None, "timing_label": v["timing"]["label"], "light": v["timing"]["light"],
                 "nation": None, "region": v.get("location"), "tier": None, "services": v.get("services") or [], "supplier": (v.get("incumbent") or {}).get("name") or None,
+                "sector": v.get("sector"),
                 "value": None, "status": {"new": "new", "watching": "watching", "pipeline": "investigating", "dismissed": "dismissed"}.get(row.status, "new"),
                 "account_id": link.account_id if link else None, "link_basis": link.basis if link else None,
                 "people": len(v.get("people") or []), "contact_routes": len(v.get("contact_routes") or []),
@@ -496,7 +518,7 @@ def set_status(db: Session, key: str, status: str) -> None:
             row.status = {"new": "new", "watching": "watching", "dismissed": "dismissed", "investigating": "watching"}[status]
     else:
         raise LookupError("Unknown record type")
-    track(db, f"lead_{status}")
+    track(db, f"lead_{status}", ref=key)
 
 
 def parse_key(key: str) -> tuple[str, int]:

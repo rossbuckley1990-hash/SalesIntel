@@ -8,6 +8,7 @@ import { relative } from "./radar-model";
 import { ActivityForm, Panel, TaskRow } from "./si-shared";
 import { STAGE_LABEL, dayLabel, goto, inDays, si, type DealCard, type DiscoverResult, type Lead, type QueueItem, type TodayT } from "./si-api";
 import { Runway } from "./si-runway";
+import { BestOpportunities } from "./si-intel";
 import type { SharedProps } from "./types";
 import { ViewerContext, useCountUp } from "./fluid";
 
@@ -99,6 +100,8 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
         <button className="ds-btn primary !h-[42px] !px-4">Discover <ArrowRight size={14} /></button>
       </form>
 
+      <BestOpportunities notify={notify} />
+
       {ahead && !!ahead.length && <section aria-label="Opening soon">
         <div className="si-section-head"><h2>Opening in the next six weeks</h2>
           <button className="text-[12px] font-medium text-ds-ink-2 hover:text-ds-ink hover:underline" onClick={() => goto("find", { layout: "runway" })}>Full runway</button></div>
@@ -152,15 +155,6 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
           <Panel title="Coming up this week">
             {!today?.upcoming.length ? <p className="text-[13px] text-ds-muted">No follow-ups in the next seven days.</p>
               : <ul className="divide-y divide-ds-border">{today.upcoming.map((t) => <TaskRow key={t.id} t={t} account />)}</ul>}
-          </Panel>
-          <Panel title="New leads worth a look" action={<button className="text-[13px] font-semibold text-ds-brand hover:underline" onClick={() => goto("find")}>All</button>}>
-            {!today?.new_leads.length ? <p className="text-[13px] text-ds-muted">No new urgent leads. Discover has the full list.</p> : <ul className="space-y-3">
-              {today.new_leads.map((l) => <li key={l.key}><button className="group w-full text-left" onClick={() => goto("find", { lead: l.key })}>
-                <span className="flex items-center gap-1.5"><Pill tone={l.type === "public" ? "blue" : "violet"}>{l.type === "public" ? "Public" : "Private"}</Pill>{l.timing && l.type === "public" && <span className="text-[12px] font-semibold text-ds-amber">{l.days !== null && l.days < 0 ? relative(l.timing) : dayLabel(l.timing)}</span>}</span>
-                <span className="mt-1 block truncate text-[14px] font-semibold text-ds-ink group-hover:text-ds-brand">{l.organisation}</span>
-                <span className="line-clamp-2 block text-[12px] leading-[18px] text-ds-muted">{l.why_now}</span>
-              </button></li>)}
-            </ul>}
           </Panel>
           <Panel title="Deals" action={<button className="text-[13px] font-semibold text-ds-brand hover:underline" onClick={() => goto("deals")}>Board</button>}>
             {!openDeals.length ? <p className="text-[13px] text-ds-muted">No open deals yet. Qualify an opportunity to create one.</p> : <ul className="space-y-2">

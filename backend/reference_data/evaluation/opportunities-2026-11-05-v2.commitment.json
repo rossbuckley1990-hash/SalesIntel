@@ -1,0 +1,67 @@
+{
+ "set_key": "opportunities-2026-11-05-v2",
+ "as_of": "2026-11-05",
+ "items_served": 44,
+ "dataset_sha256": "7fb9bffb7a4f9f79e1a7c145986d75c972347236ed07ae9703058efcfa1fb8e5",
+ "key_sha256": "64f116b30ea52aa2b91b79f9f2315335dc56703f4edd33cfbe30939bb8894e39",
+ "hash": "SHA-256 of canonical JSON: keys sorted, no whitespace, UTF-8",
+ "protocol": {
+  "version": 2,
+  "arms": {
+   "qualified": "SalesIntel's daily list (act now and this week): an evidenced requirement for a service the profile sells, or an existing relationship",
+   "exploratory": "SalesIntel's exploratory list: a sourced organisation, site or commercial change; need not confirmed",
+   "pr8": "The daily list as PR #8 built it",
+   "renewal": "Published contract ends within 120 days",
+   "keyword": "Leads whose own source text names a fire or security system"
+  },
+  "reference_profile": {
+   "services": [
+    "fire_alarm",
+    "access_control",
+    "cctv",
+    "intruder",
+    "emergency_lighting"
+   ],
+   "territory": [
+    "England",
+    "Scotland",
+    "Wales"
+   ]
+  },
+  "sampling": "A simple random sample of up to 10 leads per arm from its own list, with a seed fixed in the sealed key. A lead sampled by two arms is judged once and counts in both. Excluded from every frame: leads in the withdrawn v1 set, and leads that v1's published documents or screenshots show with the method that found them.",
+  "blinding": "Reviewers see only the source records: no arm, rank, tier, reasons, summary, service list or inferences. Order and ids use a secret salt.",
+  "completion": "At least two independent complete reviews per item; every disagreement on relevance, reason or pursue adjudicated with a recorded method (consensus or an independent third reviewer) and rationale; then the set is locked before the key is revealed.",
+  "measures": {
+   "relevant": "Genuine fire or security opportunity",
+   "relevant_or_possible": "Genuine or possible opportunity",
+   "actionable": "Worth pursuing this week or month",
+   "worth_investigating": "A reason to contact, worth pursuing at some point",
+   "noise": "Not relevant, or not worth pursuing"
+  },
+  "primary_comparisons": [
+   "qualified vs renewal: relevant",
+   "qualified vs renewal: actionable",
+   "qualified vs keyword: relevant",
+   "qualified vs keyword: actionable"
+  ],
+  "secondary_comparisons": [
+   "qualified vs pr8: relevant",
+   "qualified vs pr8: noise",
+   "exploratory vs keyword: worth_investigating",
+   "exploratory vs keyword: noise"
+  ],
+  "statistics": "Wilson 95% intervals per arm; Newcombe intervals for differences at z = 2.4977 (Bonferroni over each family of four). Shared leads make arms positively correlated, so these intervals are conservative. A difference is claimed only if the adjusted interval excludes zero.",
+  "exploratory_rule": "The exploratory pathway is supported as useful if at least 30% of its sampled leads are judged worth investigating.",
+  "withdrawn": [
+   {
+    "set_key": "opportunities-2026-11-05",
+    "reason": "Its key was published in a public repository before any judgement; it was never reviewed."
+   }
+  ]
+ },
+ "created_at": "2026-11-05T23:11:56+00:00",
+ "code": {
+  "commit": "22e7cd764260b5e57f079ede31893f02ecc18e48",
+  "tracked_changes": false
+ }
+}

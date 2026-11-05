@@ -9,27 +9,27 @@
     },
     {
       "step": "Start an investigation",
-      "seconds": 0.7,
+      "seconds": 1.4,
       "clicks": 2
     },
     {
       "step": "Review the critical findings",
-      "seconds": 2.5,
+      "seconds": 3.3,
       "clicks": 2
     },
     {
       "step": "Identify a usable contact route",
-      "seconds": 2.5,
+      "seconds": 3.3,
       "clicks": 2
     },
     {
       "step": "Prepare first contact",
-      "seconds": 6.5,
+      "seconds": 7.4,
       "clicks": 5
     },
     {
       "step": "Set the next commercial action",
-      "seconds": 7,
+      "seconds": 8,
       "clicks": 7
     },
     {

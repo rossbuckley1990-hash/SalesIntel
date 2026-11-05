@@ -1,24 +1,80 @@
 # PR #9: The Real Opportunity Challenge (quality gate)
 
-Branch `feat/opportunity-quality`, stacked on PR #8 (`feat/best-opportunities`), which sits on #7 → #6 → #5 → #4 → `main`. Written on 5 November 2026.
+Branch `feat/opportunity-quality`, stacked on PR #8 (`feat/best-opportunities`), which sits on #7 → #6 → #5 → #4 → `main`. Written on 5 November 2026, with the evaluation-integrity corrections added the same day.
 
 - Nothing is merged or deployed.
-- The live installation, database, collectors and launch agents were not touched. The evaluation ran on an isolated copy of a copy.
+- The live installation, database, collectors and launch agents were not touched. The evaluation was built from an isolated copy of a copy.
 - No paid research was run.
 
 **Release blockers, unchanged:** employer IP and ownership, data licensing, and the product name. Do not deploy or commercialise.
 
 ## Verdict in one paragraph
 
-**The engineering is a VERIFIED PASS.** That covers the five suspected defects, plus two more found by the evaluation, the paid-research gate, and the review workflow.
+**The engineering is a VERIFIED PASS.** It covers:
+- the five suspected defects, and two more found by the first evaluation;
+- the paid-research budget gate;
+- the evaluation-integrity corrections below, each with a test that failed first;
+- the separation of qualified and exploratory discovery.
 
-**The claim that SalesIntel finds better opportunities is a NO-GO.** It is not yet proven. The blind human review is built and frozen, but no salesperson has judged it yet, and I will not stand in for them.
+**The evaluation method is now independently defensible.**
+- The key is sealed outside the repository, under a published commitment.
+- Every item needs two independent reviews, and every disagreement an adjudication.
+- The server refuses to unblind before the review is complete, locked and the key verified.
+- Reviewers see only source records.
+- Every method is a random sample of its own list, with conservative intervals.
 
-What the objective measures do show:
-- PR #8's daily list was over half (53%) leads whose record named no service a typical installer sells. This PR removes them.
-- The evidence on the list is far fresher than the renewal and keyword baselines: a median of 66 days, against 835 and 610.
+**The claim that SalesIntel finds better opportunities is still a NO-GO.** The new frozen set has 44 items and none has been judged. Two salespeople need to complete it, and I will not stand in for them.
 
-**On real data, Shadow Radar contributes nothing to the daily list.** Its leads rest on one line of evidence, or are contradicted. This is reported, not tuned around.
+**Exploratory private-sector discovery is no longer hidden.**
+- Credible changes that never mention fire or security now have their own labelled list, separate from the qualified list.
+- Whether they are worth a salesperson's time is one of the things the review measures.
+
+## Evaluation integrity corrections
+
+Each was first reproduced by a test that failed. The recorded run is `docs/saas/evaluation/integrity-before-fix.txt`: 15 failed and 2 errors, out of 17 tests. Tests are in `backend/tests/test_evaluation_integrity.py` and `backend/tests/test_discovery_pathways.py`.
+
+| # | Issue | What was wrong | Correction |
+|---|---|---|---|
+| 1 | The sealed key was in a public repository | The v1 key mapping each item to its method was committed in `1b37e42`, and this repository is public. v1's screenshots and documents also showed how 18 other real leads were found: SalesIntel's real-data daily list, and 8 Shadow Radar leads | v1 is **withdrawn unjudged**. The v2 key is written outside the repository (`~/.salesintel/evaluation`, mode 600). Only a commitment is published: the dataset's SHA-256, and the SHA-256 of the key with a 256-bit random salt. Every v1 lead, and every lead published with its method, is excluded from v2. A first v2 draw that predated the screenshot check was discarded before anyone saw it. The showcase now skips reviewed organisations, and screenshots mask real leads on SalesIntel's lists. History was not rewritten and nothing was force-pushed |
+| 2 | Precision came from the first reviewer | `results()` used each item's first decision, and called one review "complete" | Every measure now comes from final labels. An item needs complete reviews from at least two independent reviewers. A disagreement on relevance, reason to contact or pursue needs a recorded adjudication: consensus of the reviewers, or an independent third reviewer who did not review it, always with a rationale. Kappa is measured on the reviewers' own answers, before adjudication |
+| 3 | Unblinding relied on a confirmation dialog | Any administrator could see results at any time | The server refuses results (409) until three things hold: every item has two complete reviews and every disagreement is resolved; the review is locked, after which answers cannot change; and the private key is supplied and matches the commitment |
+| 4 | What reviewers saw revealed the method | "Company research" appeared only on SalesIntel items (5 of 5) and "Building works record (indirect)" only on baseline items (3 of 3). Every summary was SalesIntel's own generated reasoning ("Window open until April 2027"). The service list for private leads was the AI's guess. Evidence lines carried internal names ("radar:") | Reviewers now see only the source records: organisation, site, location, the record's own title, the kind of record, and dated facts with links. There is no summary, service list, inference or internal name. Dates SalesIntel calculated are labelled "Calculated from published records". Item order and ids use the secret salt |
+| 5 | Shared leads and sampling were miscounted | "Missed by SalesIntel" checked SalesIntel's sample, not its list. The SalesIntel estimate pooled a stratified sample (every private lead, but 6 of 28 public) without weighting | Each method is now a simple random sample of its own list. A lead sampled by two methods is judged once and counts in each. Membership of a list is kept separately from sampling, so "missed" means "not on the list". Results report n, frame and list sizes, Wilson intervals and pairwise overlap. Differences use Newcombe intervals, Bonferroni-adjusted, and are conservative given shared leads. **A difference is claimed only if the adjusted interval excludes zero** |
+| 6 | *Found:* the keyword baseline read SalesIntel's text | It searched SalesIntel's own "why now" sentence, which for private leads always mentions fire and security | It now searches only the record's own words |
+| 7 | *Found:* private leads qualified on the AI's guesses | The research model's guessed service list, and its "engage now" timing, put private leads on the daily list | See the pathways below |
+
+**What blinding cannot hide.** The kind of record differs by method by design: SalesIntel's qualified list favours open tenders, and the renewal baseline is award records. The kind of record is material evidence, so it stays visible. To account for that, results are also shown by kind of record. The blinding audit is kept in the sealed key, so it cannot become a clue.
+
+## Two discovery pathways
+
+**Qualified discovery** is an evidenced requirement for a service you sell. The evidence can be:
+- a notice whose own title names the service; or
+- a company's current, sourced, stated requirement, finding or incident whose words name it.
+
+An existing relationship also qualifies. Indirect evidence never qualifies, and nor do the AI's guessed services or timing.
+
+**Exploratory discovery** is a credible change at an organisation or site that may justify investigation: a new site, a move, an expansion, a new facilities leader, a supplier problem, or a building project. It needs:
+- a stated, sourced signal (or published indirect records that have not been contradicted);
+- dated within a year;
+- inside your territory.
+
+Strategy statements, funding rounds and competitor news are excluded as too weak. Each exploratory lead is shown separately, under "Worth investigating":
+- it is marked **Need not confirmed**, with its other uncertainties (single source, indirect records);
+- its next step is an investigation that ends in "confirm there is a need before any pitch";
+- at most five are shown a day; the rest are in Discover.
+
+It never pads, reorders or joins the qualified list. A test checks that the qualified list is identical with the exploratory pathway switched off.
+
+**On the real data** (the reference installer, 5 November 2026):
+- **Qualified: 28 leads, all public notices.** The 5 private leads that PR #9 first listed qualified only on the AI's guesses. The 2 with genuine fire-enforcement evidence are over a year old, so they are kept in view, not listed.
+- **Exploratory: 72 credible changes,** 13 private and 59 from indirect public records. PR #9 first counted all of these as "kept in view", never shown.
+
+Whether they help, without adding noise, is measured by the review: exploratory is its own arm, with a rule fixed in advance. It is supported as useful if at least 30% of its sample is judged worth investigating. Its noise rate is reported against the keyword baseline.
+
+**Tests changed, with the reason.**
+- PR #8's fixture tests expected a corroborated Shadow Radar lead on the qualified list.
+- It now appears on the exploratory list, and the tests check the same reasons and cautions there, plus its uncertainty label.
+- An existing customer's new site still qualifies, through the relationship.
 
 ## Phase 1: actual state
 
@@ -29,237 +85,151 @@ What the objective measures do show:
 | #6 | `feat/shadow-radar` → #5 | Open | Green |
 | #7 | `feat/fluid-ui` → #6 | Open | Green |
 | #8 | `feat/best-opportunities` → #7 | Open | Green (backend, frontend, Playwright) |
+| #9 | `feat/opportunity-quality` → #8 | Open | Green at `1b37e42` (run 42110829987), before these corrections |
 
 **Migrations:**
-- Run up to `0024` before this PR.
-- This PR adds `0025_blind_review`, which is additive: `si_review_decisions`, with row-level security.
-- Migrate any copy before running it.
+- `0025_blind_review` added review decisions.
+- `0026_review_integrity` adds reviewer identity and channel, adjudications, and each set's open, locked or revealed state, all with row-level security.
+- Both are additive. Migrate any copy before running it.
 
 **Verdict: VERIFIED PASS.**
 
 ## Phase 2: adversarial product-correctness review
 
-Every defect was first reproduced by a test that failed: the recorded failing run is in `docs/saas/evaluation/defects-before-fix.txt`, 7 of 7 failing. Then the smallest fix was made. Tests are in `backend/tests/test_opportunity_quality.py`.
+Every defect was first reproduced by a test that failed. The recorded failing run is `docs/saas/evaluation/defects-before-fix.txt`, 7 of 7 failing. Then the smallest fix was made. Tests are in `backend/tests/test_opportunity_quality.py`.
 
 | # | Suspected defect | Reproduced? | Smallest fix | Verdict |
 |---|---|---|---|---|
 | 1 | Private prospects assigned a New Site play without new-site evidence | **Yes.** Every prospect link returned `new_site`, including a leadership change and an unsourced "rumoured depot" | New site only with a **sourced, stated** signal (new site, relocation or planning application). A documented supplier problem becomes Supplier review; anything else is Account development, whose description no longer claims "added by your team" | VERIFIED PASS |
 | 2 | Contact details treated as verified without proving the person–role association | **Yes, in three places.** (a) The Navigator copied the model's person name onto an email route whose own quote does not name them. (b) "Verify contact" marked a named person's address current when the page published the address without the name. (c) A named contact whose source quote does not name them still showed as "Publicly sourced" | (a) A route keeps a person's name only if its own quoted source names them, otherwise it stays a role route. (b) The official page must name the person and state the role, otherwise the result is "partial" and the contact is not upgraded. (c) Such a contact is level 4, and says why | VERIFIED PASS |
 | 3 | Distinct organisations grouped on normalised names | **Yes.** A public trust and a private firm with the same name became one row | Rows merge only through a confirmed account link, or an identical published buyer name. Otherwise each lead is its own row | VERIFIED PASS |
-| 4 | Lead-presented metrics recorded from API reads | **Yes.** Every `GET /best` recorded "presented" | Reads record nothing. The interface reports a lead only after its card has been at least half on screen for a second (`POST /best/seen`, validated keys, once a day). PR #8's test, which encoded the defect, was corrected | VERIFIED PASS |
-| 5 | Golf-course irrigation false positive | **Yes** | `irrigation` added to the classifier's exclusions. The real capture now keeps 96 of 631 notices (was 97); the test now asserts it as noise | VERIFIED PASS |
-| 6 | *Found by the evaluation:* adjacent fire work counted as "what you sell", or as "not stated" | **Yes.** "Fire risk assessment" mapped to no service, so it counted as "services not stated" and a near deadline made it "act now". "Extinguishers" and "sprinklers" never matched their codes (plural against singular), and passive fire counted as fire alarm | Adjacent work is its own service: fire risk assessment, extinguishers, passive fire protection, smoke control, with settings options. The daily list now needs a positive match to a service you sell, or an existing relationship | VERIFIED PASS |
-| 7 | *Found by the evaluation:* free-text locations judged outside your territory | **Yes.** "Selby, North Yorkshire" was "outside" a territory of England, because the text does not contain "England", and tenders in Northern Ireland reached "act now" for a Great Britain profile | An English region means England; another named nation means outside; anything else is "not confirmed", never outside. Leads outside your stated territory are kept in view, not on today's list | VERIFIED PASS |
+| 4 | Lead-presented metrics recorded from API reads | **Yes.** Every `GET /best` recorded "presented" | Reads record nothing. The interface reports a lead only after its card has been at least half on screen for a second (`POST /best/seen`, validated keys, once a day), on either list | VERIFIED PASS |
+| 5 | Golf-course irrigation false positive | **Yes** | `irrigation` added to the classifier's exclusions. The real capture now keeps 96 of 631 notices (was 97) | VERIFIED PASS |
+| 6 | *Found by the evaluation:* adjacent fire work counted as "what you sell", or as "not stated" | **Yes** | Adjacent work is its own service: fire risk assessment, extinguishers, passive fire protection, smoke control | VERIFIED PASS |
+| 7 | *Found by the evaluation:* free-text locations judged outside your territory | **Yes** | An English region means England; another named nation means outside; anything else is "not confirmed", never outside | VERIFIED PASS |
 
-**Also verified:**
-- tenant isolation of review decisions and the budget;
-- provenance (quotes must be on retrieved pages);
-- suppression (an opted-out contact is refused for research);
-- recovery (existing lease tests);
-- cost limits (below).
-
-## Live paid research needs an approved budget, with a hard ceiling
-
-- An administrator approves (or tops up) a **research budget** (Team → Research budget, `POST /api/si/research-budget`), between $1 and $1,000 per approval.
-- The approval is written to the audit trail.
-- With a live, paid provider, **every** job must reserve against that budget as well as the daily limits, in the same conditional update, so concurrent requests cannot overrun it.
-- No budget gives "Live web research needs a research budget approved by an administrator". A used-up budget gives "used up". In both cases nothing is queued or charged.
-- Jobs settle to their measured cost.
-- Replayed (simulated) research never needs a budget.
-- Tested: refusal, administrator-only approval, the audit record, the ceiling holding against a second reservation, and settlement.
-- The 8041 test instance, which uses your real Anthropic key, now refuses any live research until a budget is approved there.
+**Live paid research needs an approved budget, with a hard ceiling.**
+- An administrator approves the budget, between $1 and $1,000 per approval, and each approval is audited.
+- With a live provider, every job reserves against it, in the same conditional update as the daily limits.
+- With no budget, or a used-up one, the request is refused and nothing is queued or charged.
 
 **Verdict: VERIFIED PASS.**
 
-## Phase 3: blinded evaluation
+## Phase 3: the blinded evaluation (protocol v2)
 
-### Protocol
+Fixed in `backend/app/intelligence/opportunity_review.py`, and committed publicly in `backend/reference_data/evaluation/opportunities-2026-11-05-v2.commitment.json` before any judgement.
 
-Fixed in `backend/app/intelligence/opportunity_review.py` before sampling:
+- **Date and profile:** as of 5 November 2026. One reference profile for every arm: a UK installer of fire alarms, access control, CCTV, intruder and emergency lighting, in England, Scotland and Wales.
+- **Arms:** each a simple random sample of up to 10 from its own list. The seed and salt are random, and sealed in the key.
 
-- **Date:** as of 5 November 2026. Only evidence published by then is used; 3 later-dated items were dropped and counted.
-- **Reference profile:** one for every arm, a UK installer of fire alarms, access control, CCTV, intruder and emergency lighting, in England, Scotland and Wales.
-- **Arms**, each sampled with seed `20261105`:
+| Arm | What it is | List | Frame (published leads excluded) | Sampled |
+|---|---|---:|---:|---:|
+| Qualified | SalesIntel's daily list | 28 | 11 | 10 |
+| Exploratory | SalesIntel's exploratory list | 72 | 59 | 10 |
+| PR #8 rules | The list as PR #8 built it | 74 | 43 | 10 |
+| Renewal | Published contract ends within 120 days | 41 | 24 | 10 |
+| Keyword | The record's own words name a fire or security system | 385 | 351 | 10 |
 
-| Arm | What it is | Pool | Sampled |
-|---|---|---:|---:|
-| SalesIntel (this PR) | The focused daily list | 33 | 11 (6 public, 5 private; no Shadow Radar lead qualified) |
-| SalesIntel (PR #8 rules) | The same list, built with PR #8's mapping and no service match required | 74 | 11 |
-| Renewal dates | Published contract ends within 120 days | 41 | 12 |
-| Keywords | Titles naming a fire or security system | 400 | 12 |
+- **The frozen set:**
+  - **Size:** 44 distinct items from 50 draws. Two leads were sampled by qualified, PR #8 and renewal, one by qualified and PR #8, and one by PR #8 and renewal. At about two minutes each, that is roughly 90 minutes per reviewer.
+  - **Personal data:** named individuals removed, and no contact details.
+  - **Licence:** public records are Open Government Licence.
+- **Reproducibility:** the private key and the database snapshot beside it reproduce the set exactly (`backend/scripts/build_review_set.py`). After the review, anyone can check the key against the commitment with `--verify`.
+- **Primary comparisons:**
+  - qualified against renewal, and against keyword;
+  - on two measures: relevant, and actionable (worth pursuing this week or month).
+- **Secondary comparisons:**
+  - qualified against PR #8, on relevant and noise;
+  - exploratory against keyword, on worth investigating and noise.
 
-- **Blinding:**
-  - Reviewers see neutral evidence only: organisation, site, title, kind of source, summary, dated evidence with links, services mentioned.
-  - They never see the arm, rank, tier, reasons, fit or next action. The protocol (arms, windows, sizes, seed) is in a sealed key that is not served, and a test checks exactly which fields are served.
-  - Each reviewer's decisions are stored separately, and a reviewer starts with no one else's answers.
-  - Results unblind the arms, so they are for administrators only, after reviewers finish.
-- **Rubric** (9 questions):
-  - genuine fire or security relevance;
-  - correct organisation and site;
-  - requirement confirmed or hypothesised;
-  - already advertised;
-  - a legitimate reason to contact;
-  - who to speak to;
-  - a reliable route;
-  - evidence strength and freshness;
-  - worth pursuing (this week, this month, later, no);
-  - plus minutes spent, and a note.
-- **Agreement:** percent agreement and Cohen's kappa on relevance, with disagreements listed.
-- **Missed opportunities:** items judged relevant that SalesIntel's list did not contain.
-- **The AI that produced the leads judges nothing.**
-- **Dataset:**
-  - `backend/reference_data/evaluation/opportunities-2026-11-05.json`: 37 blinded items, served to reviewers.
-  - `opportunities-2026-11-05.key.json`: sealed.
-  - Reproducible with `backend/scripts/build_review_set.py` on an isolated copy.
-  - Named individuals are removed (counts only) and no contact details are included; a test checks this.
-  - Public records are Open Government Licence. Company research appears as short summaries, titles and source links, not page text.
+### How two salespeople do it safely
+
+- They receive an **offline review pack**: one HTML file each, downloaded from the local evaluation server.
+  - It holds only the blinded items and the rubric.
+  - Its content security policy forbids every network request, which the browser test confirms.
+  - It contains no key, and gives each reviewer their own order.
+- Each reviewer confirms they will work alone and not look for how items were found. They then judge every item; answers save as they go.
+- They send back one answers file. It is checked against the set's fingerprint and the rubric before import.
+- The evaluation owner then resolves disagreements, locks the review and reveals the key, all on their own Mac.
+- `docs/saas/evaluation/REVIEWER_GUIDE.md` is for the reviewers; `docs/saas/evaluation/RUNBOOK.md` is for the owner. `scripts/evaluation-server.sh` runs the app on 127.0.0.1, on a fresh database, with no credentials and no paid calls.
 
 ### Results so far
 
-**Adjudicated:** not yet, with **0 of 37 items judged by humans**. Precision, actionable yield, reason to contact, identity and route availability are all pending. **No improvement is claimed.**
+**0 of 44 items judged. No improvement is claimed.**
 
-**Objective measures** (facts from the records, over each whole pool):
+Objective facts about each whole list:
 
-| | SalesIntel (this PR) | SalesIntel (PR #8 rules) | Renewal | Keywords |
-|---|---:|---:|---:|---:|
-| Names a service the reference installer sells | 100%¹ | 47% | 34% | 70% |
-| Adjacent or unidentified service | 0%¹ | **53%** | 66% | 30% |
-| Already advertised (open tender) | 45% | 42% | 0% | 12% |
-| Median evidence age (days) | **66** | 140 | 835 | 610 |
-| Sources represented | public 28, private 5 | public 69, private 5 | public 41 | public 337, Shadow Radar 57, private 6 |
+| | Qualified | Exploratory | PR #8 rules | Renewal | Keyword |
+|---|---:|---:|---:|---:|---:|
+| The record names a service the profile sells | 100%¹ | 1%² | 41% | 34% | 57% |
+| Already advertised (open tender) | 54% | 0% | 42% | 0% | 12% |
+| Median evidence age (days) | 27 | 101 | 140 | 835 | 638 |
 
-¹ By construction of the new rule. This shows the rule is applied, not that relevance improved: the human review decides that, including whether the rule now drops good leads.
+¹ By construction of the qualified rule. This shows the rule is applied, not that relevance improved.
 
-**Within the samples, a business route is on record for:**
-- SalesIntel: 7 of 11 (all public notices give an official route; 1 of 5 private leads has one).
-- Renewal: 12 of 12.
-- Keywords: 9 of 12.
+² The exploratory list holds changes, not requirements. One of its 72 records names a service, but not as a requirement.
 
 **Verdict:**
-- The evaluation framework, dataset and blinding are a **VERIFIED PASS**.
-- Proof of improvement is a **NO-GO**, pending human judgement.
+- The method, dataset, blinding and safeguards are a **VERIFIED PASS**.
+- Proof of improvement is a **NO-GO** until both reviewers finish.
 
 ## Phase 4: improvements to the acquisition experience
 
-- **Best opportunities is a focused day:**
-  - only "act now" and "this week" leads (up to 10);
-  - each needs a positive service match or an existing relationship;
-  - everything else is counted ("N more kept in view in Discover"), not listed;
-  - on a quiet day, at most 3 in-view leads are shown, labelled as such.
-- **One specific next step**, built from the lead's own evidence and your stated capabilities:
-
-| Lead | Next step |
-|---|---|
-| Tender | The deadline date, mandatory requirements against your stated accreditations, questions only through the buyer's portal |
-| Renewal | The named supplier and end date; ask how they will replace it |
-| Leadership change | Introduce yourself to the new leader |
-| New site | Who will specify and maintain fire and security |
-| Published finding | Who is accountable, and by when |
-| Overdue promise or stated requirement | Comes first |
-
-  It is deterministic, not model-written.
-- **Deep investigation** without a Shadow Radar hypothesis now tests the account's own evidence: the named contract and incumbent, the tender's scope, or the specific private signal. Each claim gets a confirm question and a challenge question.
-- **Resolve this gap:** contract end added to the new-site and develop plays (could the incumbent absorb the new site?), and site operator added to expansion. With the existing role search, the current supplier, contract end, site operator and decision-maker are each one click.
-- **Buying committee:** fixes 2a–2c above mean a verified-looking contact must be tied to its person by its source.
+- **Best opportunities is a focused day.**
+  - It shows only "act now" and "this week" qualified leads (up to 10). Each has a positive service match from the evidence, or an existing relationship.
+  - On a quiet day, at most 3 qualified leads kept in view are added, labelled as such.
+  - Exploratory leads follow under "Worth investigating", at most 5, labelled.
+- **One next step per lead,** built deterministically from its own evidence: a bid decision, a renewal question, a new leader, a new site, or a published finding. For exploratory leads it is always an investigation.
+- **Deep investigation, Resolve this gap and the buying committee** are as before. The committee now needs a contact to be tied to their person by the source.
 
 **Verdict: VERIFIED PASS (tested); usefulness CONDITIONAL on the human review.**
 
 ## Phase 5: showcase from real public evidence
 
-**Source:** `docs/saas/evaluation/SHOWCASE.md`, generated by `backend/scripts/build_showcase.py`.
+`docs/saas/evaluation/SHOWCASE.md` is regenerated from the evaluation snapshot by `backend/scripts/build_showcase.py`. **Its selection rule, fixed before looking:** the top lead of each source type, from the qualified list where that type has one, otherwise from the exploratory list, labelled as such.
 
-**Selection rule, fixed before looking:** the top lead of each source type on the daily list for the reference profile.
-
-- **Public:**
-  - Ipswich Borough Council, "Door Entry Systems – Service Maintenance": a Find a Tender notice with a deadline of 9 November 2026.
-  - It shows why it was discovered, the evidence, the play (Public tender), what would disprove it, the unknowns (current supplier, scope), the stakeholders to find, the official route (the buyer's portal) and the next step.
-- **Private:**
-  - Campeys of Selby: a 190,527 sq ft warehouse opened at Sherburn 42, from company and trade announcements.
-  - Play: New site (a sourced, stated new-site signal).
-  - Next step: ask who will specify and maintain its fire and security.
-  - Bespoke Property Management (a new Head of Facilities) was the top private lead before fix 7. Once Yorkshire counted as England it ranks lower, and it now gets Account development, not New site (fix 1).
-- **Shadow Radar: none.**
-  - 95 active leads, made up of 61 on one line of evidence, 32 contradicted by later evidence, and 2 now advertised (shown as public leads instead).
-  - **Causes:** the adjacent-works source gives one record per project; three sensors still need sources (Companies House key, merger register, funding recipients); the planning data has no national coverage.
-
-**Not shown:** deep research and contact discovery for these leads. They need an approved research budget, by design.
-
-**Verdict: CONDITIONAL PASS.** Real, explained and replayable, but only two of three sources produced a lead, and none is yet judged worth pursuing by a salesperson.
+**Verdict: CONDITIONAL PASS.** The leads are real, explained and replayable, but none is yet judged worth pursuing by a salesperson.
 
 ## Phase 6: quality and ROI scorecard
 
 | Measure | Status |
 |---|---|
-| Independently adjudicated precision | **Pending:** 0 of 37 judged |
-| Actionable lead yield (worth pursuing this week or month) | **Pending** |
-| Contact-route coverage (objective, sampled) | SalesIntel 7 of 11, renewal 12 of 12, keywords 9 of 12 |
-| Research cost | **$0** spent for this PR. Live research is gated by an approved budget; replay costs are simulated and not reported as spend |
-| Share of discoveries leading to a meaningful sales action | **Not measurable yet.** Exposure is now recorded honestly (on screen), and the Results view counts accounts reaching outreach, meetings, requirements and deals. It needs pilot users |
+| Independently adjudicated relevance and actionability, against the baselines | **Pending:** 0 of 44 judged by two reviewers |
+| Exploratory usefulness and noise | **Pending:** the rule (at least 30% worth investigating) was fixed in advance |
+| Research cost | **$0** for this PR. Live research needs an approved budget |
+| Share of discoveries leading to a sales action | **Not measurable yet.** Exposure is recorded honestly; it needs pilot users |
 
-### Prospective outcome tracking (design)
+The prospective pilot design is unchanged:
+- 3 to 6 consenting salespeople, for 8 weeks;
+- each completes the blind review before using the product;
+- outcomes are recorded automatically, with weekly relevance checks;
+- intervals are always shown, and nothing is entered on anyone's behalf.
 
-Ready to run with consenting pilot salespeople:
+**Verdict: CONDITIONAL.** The machinery is ready; no pilot has run.
 
-**Who and how long:**
-- 3 to 6 salespeople, each consenting in writing.
-- 8 weeks, each using their own territory and profile.
+## Acceptance for the next phase (the AI Win Room)
 
-**Before starting:**
-- An administrator approves a research budget with a written purpose, for example $50 for 8 weeks, which the server enforces.
-- Each salesperson completes the blind review (37 items, about 2 minutes each) **before** using the product, so judgements are not anchored on SalesIntel's reasons.
-
-**What is recorded automatically** (no message content and no personal data beyond the contact routes salespeople choose to save):
-- leads actually seen;
-- leads opened;
-- investigations;
-- gaps resolved;
-- contacts found or verified;
-- outreach;
-- responses and meetings;
-- requirements confirmed;
-- deals, with stage, won or lost, and value with its basis.
-
-**Weekly check:** each salesperson marks every account they opened that week as relevant, not relevant (with a reason), or already known. This is the existing feedback model.
-
-**Measures:**
-- **Precision:** opened accounts judged relevant.
-- **Actionable yield:** accounts reaching outreach within 14 days.
-- **Conversation rate.**
-- **Meetings and requirements per 10 leads seen.**
-- **Cost:** per researched account, per usable verified contact, and per qualified opportunity.
-- **Time** to first meaningful action.
-- **Repeat weekly use.**
-
-All measures are compared with a renewal-date and keyword list each salesperson sees side by side for 2 of the 8 weeks.
-
-**Rules:**
-- No outcome is entered on anyone's behalf.
-- Nothing is reported until it happened.
-- Intervals are always shown.
-- Any claim of improvement needs intervals that separate.
-
-**Verdict: CONDITIONAL.** Machinery ready; no pilot run.
+The next phase may start only when all five of these hold:
+1. **The method is defensible.** Done.
+2. **Both reviewers have completed the sample.** Not yet.
+3. **Disagreements are recorded and resolved transparently.** The machinery is ready; there are none yet.
+4. **Relevance and actionability are measured against the baselines.** Not yet.
+5. **Exploratory private opportunities are not silently excluded** because fire or security words are absent. Done, and tested.
 
 ## Engineering acceptance (local, final run)
 
-- **Backend:** 615 passed, 1 skipped (the RLS test on SQLite), on SQLite and on PostgreSQL with row-level security as an ordinary role. New:
-  - `test_opportunity_quality.py`: defects 1–6, the budget gate, focus, next actions, evidence questions;
-  - `test_blind_review.py`: blinding, per-reviewer storage, administrator-only results, kappa and Wilson intervals, the frozen-set protocol, no personal data.
-- **Frontend:** 35 unit tests and TypeScript pass.
-- **Browser (hosted):** 12 of 12, including the new blind review and budget journey.
-- **Browser (local):** 60 passed, 1 skipped (unchanged), with axe WCAG 2.1 AA scans.
-- **Screenshots** of the running application:
-  - 10–14: the hosted journeys, regenerated;
-  - 15: the blind review;
-  - 16: **the daily list on the real captured data** for the reference installer (10 leads: 8 act now, 2 this week, 286 kept in view);
-  - 17: the research budget, with none approved.
+The final run's results are recorded in the PR description, with the final commit and the GitHub Actions run.
 
-## Known limitations found while reviewing the real-data list
+**Screenshots of the running application:**
+- 10: both pathways, with real organisations masked so no screenshot can unblind a reviewed item;
+- 15: the reviewer's view;
+- 18: the offline review pack;
+- 19: the evaluation controls, with the results still sealed.
 
-- **Service names in plural or combined forms are under-detected.** Examples: "Access Controls", and "Fire & Intruder Alarms", which reads only as intruder. The patterns are shared with Renewal Radar, so they were not changed here. This can cause missed leads, not false ones; the blind review's "missed opportunities" measure will show how often.
-- **Fixed in this PR:** an early market notice's expected tender date was described as a "deadline". The reason now says which date it is.
-- **The list is mostly public tenders for a profile with no private research of its own.** Private leads appear only where a workspace has run company research.
+The old real-data screenshot 16 is removed. Its leads are excluded from v2.
 
-## Next product phase
+## Known limitations
 
-**The AI Win Room:** analysing real tender packs, specifications, commercial schedules and evaluation criteria, with page and clause references, to tell a bid team exactly what is required to compete. It should start **after** this quality gate has human judgements, so it builds on an acquisition engine proven to find leads worth bidding for.
+- **Plural and combined service names are under-detected,** for example "Access Controls". The patterns are shared with Renewal Radar. This can cause missed leads, not false ones. The review's "missed" measures will show how often.
+- **The exploratory list is mostly indirect public records** (59 of 72). Private leads appear only where a workspace has run company research.
+- **Blinding cannot hide the kind of record,** which is material evidence. Results are also reported by kind of record.

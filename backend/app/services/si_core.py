@@ -421,7 +421,9 @@ def account_view(db: Session, account_id: int) -> dict:
 
 def contact_dict(c: Contact) -> dict:
     return {"id": c.id, "name": c.name, "role": c.role, "email": c.email, "phone": c.phone, "label": c.label, "basis": c.basis, "source_url": c.source_url,
-            "source_quote": c.source_quote, "status": c.status, "influence": c.influence}
+            "source_quote": c.source_quote, "status": c.status, "influence": c.influence, "quality": c.quality, "route_kind": c.route_kind,
+            "role_category": c.role_category, "verification_method": c.verification_method, "verified_at": c.verified_at.isoformat() if c.verified_at else None,
+            "source_date": c.source_date, "flags": c.flags, "use_restriction": c.use_restriction}
 
 
 def activity_dict(a: Activity) -> dict:
@@ -499,11 +501,18 @@ def today_queue(db: Session) -> dict:
 
 def preferences(db: Session) -> dict:
     rows = {p.key: p.value for p in db.scalars(select(Preference))}
-    return {"territory": rows.get("territory") or [], "services": rows.get("services") or [], "company_name": rows.get("company_name") or "", "sender_name": rows.get("sender_name") or ""}
+    return {"territory": rows.get("territory") or [], "services": rows.get("services") or [], "company_name": rows.get("company_name") or "", "sender_name": rows.get("sender_name") or "",
+            "sectors": rows.get("sectors") or [], "deal_size_min": rows.get("deal_size_min"), "deal_size_max": rows.get("deal_size_max"), "capabilities": rows.get("capabilities") or []}
 
 
 def set_preferences(db: Session, values: dict) -> dict:
-    for key in ("territory", "services", "company_name", "sender_name"):
+    from app.services.si_engage import money
+    for key in ("deal_size_min", "deal_size_max"):
+        if values.get(key) not in (None, ""):
+            values[key] = str(money(values[key], "Deal size"))
+    if values.get("deal_size_min") and values.get("deal_size_max") and float(values["deal_size_min"]) > float(values["deal_size_max"]):
+        raise ValueError("The smallest deal size is larger than the largest.")
+    for key in ("territory", "services", "company_name", "sender_name", "sectors", "deal_size_min", "deal_size_max", "capabilities"):
         if key in values:
             row = db.scalar(select(Preference).where(Preference.key == key))  # scoped to the workspace
             if row is None:

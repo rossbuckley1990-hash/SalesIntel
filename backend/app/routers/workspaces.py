@@ -231,6 +231,7 @@ def remove_member(user_id: int, ctx: Context = Depends(current_context), db: Ses
 @router.get('/workspace/audit')
 def audit(limit: int = Query(100, ge=1, le=500), ctx: Context = Depends(current_context), db: Session = Depends(get_db)):
     ctx.require('audit.read')
+    db.info[ORG], db.info[USER] = ctx.organisation_id, ctx.user_id  # row-level security shows only this workspace's audit trail
     rows = db.scalars(select(WorkspaceAuditEvent).where(WorkspaceAuditEvent.organisation_id == ctx.organisation_id)
                       .order_by(WorkspaceAuditEvent.id.desc()).limit(limit)).all()
     return {'items': [{'at': r.at.isoformat(), 'user_id': r.user_id, 'action': r.action, 'entity_type': r.entity_type,

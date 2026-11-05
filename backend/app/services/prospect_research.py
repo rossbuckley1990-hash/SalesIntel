@@ -142,9 +142,9 @@ def dedup_key(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", text).strip()[:200]
 
 
-def _task(query: str, mode: str, limit: int) -> str:
+def _task(query: str, mode: str, limit: int, seller: str | None = None) -> str:
     if mode == "company":
-        return (f"Research this organisation as a prospect for Mitie Fire & Security: {query}. Build the full picture: what they do, "
+        return (f"Research this organisation as a prospect for {seller or 'Mitie Fire & Security'}: {query}. Build the full picture: what they do, "
                 f"their sites, every signal that they may need fire or security services, the timing clues, the incumbent, competitors, "
                 f"who decides and influences, published contact routes, and the best approach.\n\n{SEARCH_GUIDE}")
     return (f"Find up to {limit} UK private-sector organisations worth approaching now for this brief: {query}. Prefer organisations "
@@ -152,9 +152,18 @@ def _task(query: str, mode: str, limit: int) -> str:
             f"switchboard, enquiries email or contact form and the named property, facilities or security leader. Gather everything below.\n\n{SEARCH_GUIDE}")
 
 
-def _research(post: Post, model: str, query: str, mode: str, limit: int) -> tuple[list[dict], dict[str, str]]:
-    messages: list[dict[str, Any]] = [{"role": "user", "content": _task(query, mode, limit)}]
-    payload = {"model": model, "max_tokens": 16000, "system": f"{ROLE} {RULES}", "thinking": {"type": "adaptive"},
+def _role(seller: str | None) -> str:
+    """Hosted workspaces research for their own company, never for a named third party."""
+    if seller is None:
+        return ROLE
+    return (f"You are SalesIntel, a senior business-development researcher for {seller or 'a UK fire and security company'}, which provides fire and "
+            "security systems installation, maintenance and monitoring. You find private-sector organisations worth approaching before they go "
+            "to market, and explain exactly why and when.")
+
+
+def _research(post: Post, model: str, query: str, mode: str, limit: int, seller: str | None = None) -> tuple[list[dict], dict[str, str]]:
+    messages: list[dict[str, Any]] = [{"role": "user", "content": _task(query, mode, limit, seller)}]
+    payload = {"model": model, "max_tokens": 16000, "system": f"{_role(seller)} {RULES}", "thinking": {"type": "adaptive"},
                "tools": [{"type": "web_search_20260209", "name": "web_search", "max_uses": 20 if mode == "discover" else 14}]}
     blocks: list[dict[str, Any]] = []
     for _ in range(5):
@@ -180,9 +189,9 @@ def _research(post: Post, model: str, query: str, mode: str, limit: int) -> tupl
     return findings, sources
 
 
-def _structure(post: Post, model: str, query: str, findings: list[dict], sources: dict[str, str]) -> list[dict]:
+def _structure(post: Post, model: str, query: str, findings: list[dict], sources: dict[str, str], seller: str | None = None) -> list[dict]:
     result = post({"model": model, "max_tokens": 16000,
-        "system": f"{ROLE} {RULES} Turn the findings into prospect records. Use only the findings. Every source_url must be one of the "
+        "system": f"{_role(seller)} {RULES} Turn the findings into prospect records. Use only the findings. Every source_url must be one of the "
                   "supplied source URLs, or empty. A quote must be copied exactly from a cited excerpt. Leave arrays empty rather than guess.",
         "messages": [{"role": "user", "content": json.dumps({"brief": query, "web_findings_untrusted": findings[:80],
                       "source_urls": [{"url": u, "title": t} for u, t in list(sources.items())[:150]]}, ensure_ascii=False)}],
@@ -296,19 +305,19 @@ def save(db: Session, search: ProspectSearch, prospects: list[dict], now: dateti
 
 
 def run_search(db: Session, search: ProspectSearch, post: Post | None = None, settings: Settings | None = None,
-               now: datetime | None = None, limit: int = 5) -> ProspectSearch:
+               now: datetime | None = None, limit: int = 5, seller: str | None = None, replayed: bool = False) -> ProspectSearch:
     active = settings or get_settings()
     try:
-        if active.app_env == "demo":
+        if active.app_env == "demo" and not replayed:
             raise DossierUnavailable("AI research is switched off in demo mode, so no API credit is used.")
         if post is None:
             if not active.anthropic_api_key:
                 raise DossierUnavailable("Prospect research needs ANTHROPIC_API_KEY in the .env file.")
             post = anthropic_post(active.anthropic_api_key, timeout=600)
-        findings, sources = _research(post, active.anthropic_model, search.query, search.mode, limit)
+        findings, sources = _research(post, active.anthropic_model, search.query, search.mode, limit, seller)
         if not findings:
             raise DossierUnavailable("The research returned no findings. Try a different brief.")
-        prospects = [clean(p, sources) for p in _structure(post, active.anthropic_model, search.query, findings, sources)]
+        prospects = [clean(p, sources) for p in _structure(post, active.anthropic_model, search.query, findings, sources, seller)]
         moment = now or datetime.now(UTC)
         for p in prospects:
             p["researched_at"] = moment.isoformat()

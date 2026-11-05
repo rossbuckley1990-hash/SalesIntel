@@ -88,21 +88,48 @@ def _jwks_client(url: str) -> jwt.PyJWKClient:
 
 
 def verify(token: str) -> dict:
+    """Verify an API access token and return its claims, normalised to iss, sub, email, email_verified and name.
+
+    ID tokens are refused: they prove a sign-in to the browser app, not authority to call this API.
+    """
     settings = get_settings()
+    unauthorised = HTTPException(status_code=401, detail='Sign in again: your session is not valid.', headers={'WWW-Authenticate': 'Bearer'})
     try:
         if settings.auth_mode == 'dev':
             key, issuer, audience, algorithms = _dev_key().public_key(), DEV_ISSUER, DEV_AUDIENCE, ['RS256']
         else:
             key = _jwks_client(settings.oidc_jwks_url).get_signing_key_from_jwt(token).key
-            issuer, audience = settings.oidc_issuer, settings.oidc_audience
+            audience = settings.oidc_audience
             algorithms = [a.strip() for a in settings.oidc_algorithms.split(',') if a.strip()]
+            issuer = None if '{tid}' in (settings.oidc_issuer or '') else settings.oidc_issuer  # Entra multi-tenant: checked below
         claims = jwt.decode(token, key, algorithms=algorithms, audience=audience, issuer=issuer, leeway=30,
-                            options={'require': ['exp', 'iat', 'iss', 'aud', 'sub']})
+                            options={'require': ['exp', 'iat', 'iss', 'aud', 'sub'], 'verify_iss': issuer is not None})
     except jwt.PyJWTError as exc:
-        raise HTTPException(status_code=401, detail='Sign in again: your session is not valid.', headers={'WWW-Authenticate': 'Bearer'}) from exc
+        raise unauthorised from exc
+    if 'nonce' in claims or str(jwt.get_unverified_header(token).get('typ', '')).lower() in {'id+jwt'}:
+        raise unauthorised  # an ID token, not an access token
+    if settings.auth_mode == 'oidc':
+        if settings.oidc_required_scope:
+            granted = set(str(claims.get('scp') or '').split()) | set(str(claims.get('scope') or '').split()) | set(claims.get('roles') or [])
+            if settings.oidc_required_scope not in granted:
+                raise HTTPException(status_code=403, detail='Your sign-in does not grant access to SalesIntel.')
+        if settings.oidc_provider == 'entra':
+            claims = _entra(claims, settings, unauthorised)
     if not claims.get('email') or claims.get('email_verified') is not True:
         raise HTTPException(status_code=403, detail='Verify your email address with your sign-in provider first.')
     return claims
+
+
+def _entra(claims: dict, settings, unauthorised: HTTPException) -> dict:
+    """Microsoft Entra ID: one issuer per directory, a stable tid + oid identity, and xms_edov for a verified email domain."""
+    tid, oid = str(claims.get('tid') or ''), str(claims.get('oid') or '')
+    allowed = {t.strip() for t in settings.oidc_allowed_tenants.split(',') if t.strip()}
+    expected = (settings.oidc_issuer or '').replace('{tid}', tid)
+    if not tid or not oid or claims.get('iss') != expected or (allowed and tid not in allowed):
+        raise unauthorised
+    email = claims.get('email') or claims.get('preferred_username') or ''
+    return {**claims, 'iss': expected, 'sub': f'{tid}:{oid}', 'email': email,
+            'email_verified': claims.get('xms_edov') is True or claims.get('email_verified') is True}
 
 
 def _bearer(request: Request) -> str:

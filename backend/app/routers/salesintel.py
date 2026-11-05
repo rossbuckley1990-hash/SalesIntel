@@ -15,7 +15,12 @@ from app.tenancy import hosted
 from app.models.crm import Account, Contact, Draft, FunnelEvent, SavedView, Site
 from app.services import si_core as core
 from app.services import si_engage as engage
-from app.services.prospect_research import search_dict, start_search
+from app.idempotency import idempotent
+from app.services import jobs, navigator, spend
+from app.services import research_handlers  # noqa: F401  registers the job handlers
+from app.services.ai_costs import ESTIMATE_CENTS, research_provider
+from app.services.spend import SpendLimitReached
+from app.tenancy import can
 
 
 
@@ -96,18 +101,86 @@ class WebResearch(Strict):
 
 
 @router.post('/discover/research')
-def web_research(payload: WebResearch, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
-    if get_settings().app_env == 'demo':
-        raise HTTPException(status_code=403, detail='Web research is switched off in demo mode, so no API credit is used.')
+def web_research(payload: WebResearch, request: Request, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+    """Find private-sector organisations for a brief. Runs as a durable job within today's spending limit."""
     ctx.require('research.run')
-    if hosted():
-        allowance = get_settings().research_daily_limit_per_workspace
-        since = datetime.combine(core.uk_today(), datetime.min.time(), tzinfo=UTC) - timedelta(hours=1)
-        used = db.scalar(select(func.count()).select_from(ProspectSearch).where(ProspectSearch.created_at >= since)) or 0
-        if used >= allowance:
-            raise HTTPException(status_code=429, detail=(f"This workspace has used today's {allowance} paid research runs." if allowance
-                                                         else 'Paid research is switched off for this workspace until an allowance is set.'))
-    return search_dict(start_search(db, payload.query, 'discover'))
+    if research_provider(get_settings()) is None:
+        raise HTTPException(status_code=403, detail='Web research is switched off in demo mode, so no API credit is used.' if get_settings().app_env == 'demo'
+                            else 'Web research is not configured here.')
+    return run(db, lambda: idempotent(db, request.headers.get('idempotency-key'), 'research.prospects', payload.model_dump(), lambda: _start(
+        db, ctx, 'prospect_search', None, {'query': payload.query})))
+
+
+def _start(db: Session, ctx: Context, kind: str, account_id: int | None, params: dict, refresh: bool = False) -> dict:
+    try:
+        job, created = jobs.enqueue(db, kind, account_id=account_id, params=params, estimated_cents=ESTIMATE_CENTS[kind], user_id=ctx.user_id, refresh=refresh)
+    except SpendLimitReached as exc:
+        who = 'your own' if str(exc) == 'person' else "this workspace's"
+        raise HTTPException(status_code=429, detail=f"This would exceed {who} AI spending limit for today, so nothing was started or charged."
+                            if any(spend.limits()) else 'Paid research is switched off for this workspace until a spending limit is set.') from exc
+    return jobs.job_dict(job) | {'reused': not created}
+
+
+class PeopleSearch(Strict):
+    refresh: bool = False
+
+
+@router.post('/accounts/{account_id}/people-search')
+def people_search(account_id: int, payload: PeopleSearch, request: Request, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+    """Find the right people: roles, named people where sources support them, and legitimate business routes."""
+    def work():
+        if db.get(Account, account_id) is None:
+            raise LookupError('Account not found')
+        use_ai = research_provider(get_settings()) is not None and can(ctx.role, 'research.run')
+        return _start(db, ctx, 'contact_navigator', account_id, {'use_ai': use_ai}, payload.refresh) if use_ai else \
+            jobs.job_dict(jobs.enqueue(db, 'contact_navigator', account_id=account_id, params={'use_ai': False}, estimated_cents=0, user_id=ctx.user_id,
+                                       refresh=payload.refresh)[0])
+    return run(db, lambda: idempotent(db, request.headers.get('idempotency-key'), f'people.{account_id}', payload.model_dump(), work))
+
+
+@router.get('/accounts/{account_id}/people')
+def people(account_id: int, db: Session = Depends(tenant_db)):
+    """Who to contact at this account, best route first, with the latest research."""
+    def work():
+        from app.models.acquisition import ResearchJob
+        account = db.get(Account, account_id)
+        if account is None:
+            raise LookupError('Account not found')
+        roles = navigator.choose_roles(db, account)
+        latest = db.scalar(select(ResearchJob).where(ResearchJob.account_id == account_id, ResearchJob.kind == 'contact_navigator').order_by(ResearchJob.id.desc()))
+        return {'roles': roles, 'routes': navigator.ranked(db, account, roles), 'job': jobs.job_dict(latest) if latest else None,
+                'quality_labels': navigator.QUALITY_LABEL, 'partial_message': navigator.PARTIAL}
+    return run(db, work)
+
+
+@router.get('/research-jobs')
+def research_jobs(account_id: int | None = Query(None), db: Session = Depends(tenant_db)):
+    from app.models.acquisition import ResearchJob
+    query = select(ResearchJob).order_by(ResearchJob.id.desc()).limit(20)
+    if account_id is not None:
+        query = query.where(ResearchJob.account_id == account_id)
+    return {'items': [jobs.job_dict(j) for j in db.scalars(query)]}
+
+
+@router.get('/research-jobs/{job_id}')
+def research_job(job_id: int, db: Session = Depends(tenant_db)):
+    from app.models.acquisition import ResearchJob
+    def work():
+        job = db.get(ResearchJob, job_id)
+        if job is None:
+            raise LookupError('Research not found')
+        return jobs.job_dict(job)
+    return run(db, work)
+
+
+@router.post('/research-jobs/{job_id}/cancel')
+def cancel_research(job_id: int, db: Session = Depends(tenant_db)):
+    return run(db, lambda: jobs.job_dict(jobs.cancel(db, job_id)))
+
+
+@router.get('/spend')
+def spending(db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+    return spend.today(db, ctx.user_id)
 
 
 # ---------------------------------------------------------------- accounts
@@ -125,8 +198,11 @@ class NewAccount(Strict):
 
 
 @router.post('/accounts')
-def create_account(payload: NewAccount, db: Session = Depends(tenant_db)):
+def create_account(payload: NewAccount, request: Request, db: Session = Depends(tenant_db)):
     def work():
+        return idempotent(db, request.headers.get('idempotency-key'), 'account.create', payload.model_dump(), create)
+
+    def create():
         found, basis = core.resolve_account(db, payload.name, None)
         if found:
             return {'account_id': found.id, 'created': False, 'basis': basis}
@@ -225,8 +301,13 @@ class ContactStatus(Strict):
 
 
 @router.patch('/contacts/{contact_id}')
-def contact_status(contact_id: int, payload: ContactStatus, db: Session = Depends(tenant_db)):
-    return run(db, lambda: core.contact_dict(engage.update_contact(db, contact_id, payload.status)))
+def contact_status(contact_id: int, payload: ContactStatus, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+    def work():
+        contact = engage.update_contact(db, contact_id, payload.status)
+        if payload.status == 'do_not_contact':
+            navigator.suppress(db, contact, ctx.user_id)  # survives repeated research and new sources
+        return core.contact_dict(contact)
+    return run(db, work)
 
 
 class NewSite(Strict):
@@ -311,8 +392,11 @@ class LogSent(Strict):
 
 
 @router.post('/drafts/{draft_id}/log')
-def log_sent(draft_id: int, payload: LogSent, db: Session = Depends(tenant_db)):
+def log_sent(draft_id: int, payload: LogSent, request: Request, db: Session = Depends(tenant_db)):
     def work():
+        return idempotent(db, request.headers.get('idempotency-key'), f'draft.log.{draft_id}', payload.model_dump(mode='json'), logged)
+
+    def logged():
         activity, task = engage.log_draft_sent(db, draft_id, sent_externally=payload.sent_externally,
                                                follow_up=payload.follow_up.model_dump(mode='json') if payload.follow_up else None)
         return {'activity': core.activity_dict(activity), 'task': core.task_dict(task) if task else None}
@@ -343,8 +427,11 @@ class ActivityIn(Strict):
 
 
 @router.post('/accounts/{account_id}/activities')
-def log_activity(account_id: int, payload: ActivityIn, db: Session = Depends(tenant_db)):
+def log_activity(account_id: int, payload: ActivityIn, request: Request, db: Session = Depends(tenant_db)):
     def work():
+        return idempotent(db, request.headers.get('idempotency-key'), f'activity.{account_id}', payload.model_dump(mode='json'), logged)
+
+    def logged():
         data = payload.model_dump(mode='json', exclude={'follow_up'})
         activity, task = engage.log_activity(db, account_id, data, payload.follow_up.model_dump(mode='json') if payload.follow_up else None)
         return {'activity': core.activity_dict(activity), 'task': core.task_dict(task) if task else None}
@@ -398,8 +485,9 @@ class NewDeal(Strict):
 
 
 @router.post('/accounts/{account_id}/deals')
-def create_deal(account_id: int, payload: NewDeal, db: Session = Depends(tenant_db)):
-    return run(db, lambda: engage.deal_view(db, engage.create_deal(db, account_id, payload.model_dump()).id))
+def create_deal(account_id: int, payload: NewDeal, request: Request, db: Session = Depends(tenant_db)):
+    return run(db, lambda: idempotent(db, request.headers.get('idempotency-key'), f'deal.create.{account_id}', payload.model_dump(),
+                                      lambda: engage.deal_view(db, engage.create_deal(db, account_id, payload.model_dump()).id)))
 
 
 @router.get('/deals')
@@ -480,9 +568,11 @@ class Approval(Strict):
 
 
 @router.post('/deals/{deal_id}/quote/approve')
-def approve_quote(deal_id: int, payload: Approval, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+def approve_quote(deal_id: int, payload: Approval, request: Request, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+    key = request.headers.get('idempotency-key')
     if not hosted():
-        return run(db, lambda: engage.approve_quote(db, deal_id, payload.reviewer) and engage.deal_view(db, deal_id))
+        return run(db, lambda: idempotent(db, key, f'quote.approve.{deal_id}', payload.model_dump(),
+                                          lambda: engage.approve_quote(db, deal_id, payload.reviewer) and engage.deal_view(db, deal_id)))
     # Hosted: the approver is the signed-in person, never a typed name, and never the deal's owner.
     ctx.require('quote.approve')
 
@@ -497,7 +587,7 @@ def approve_quote(deal_id: int, payload: Approval, db: Session = Depends(tenant_
         engage.approve_quote(db, deal_id, ctx.name)
         record(db, 'approve', 'si_deals', deal_id, {'version': deal.quote.get('version')})
         return engage.deal_view(db, deal_id)
-    return run(db, work)
+    return run(db, lambda: idempotent(db, key, f'quote.approve.{deal_id}', payload.model_dump(), work))
 
 
 class OwnerChange(Strict):
@@ -536,6 +626,10 @@ def get_preferences(db: Session = Depends(tenant_db)):
 class PreferencesIn(Strict):
     territory: list[str] | None = Field(None, max_length=10)
     services: list[str] | None = Field(None, max_length=10)
+    sectors: list[str] | None = Field(None, max_length=12)
+    deal_size_min: StrictStr | StrictInt | None = None
+    deal_size_max: StrictStr | StrictInt | None = None
+    capabilities: list[str] | None = Field(None, max_length=20)
     company_name: str | None = Field(None, max_length=160)
     sender_name: str | None = Field(None, max_length=160)
 

@@ -19,6 +19,7 @@ from app.models.market_contract import MarketContract, MarketContractLink
 from app.models.market_inference import MarketObservation, MarketHypothesis, MarketHypothesisRevision
 from app.models.tenancy import Invitation, LeadState, Membership, Organisation, User, WorkspaceAuditEvent
 from app.models.prospect import Prospect, ProspectSearch
+from app.models.acquisition import IdempotencyRecord, ResearchJob, SpendBudget, Suppression
 from app.models.crm import Account, AccountLink, Activity, Contact, DealRecord, Draft, FunnelEvent, Preference, SavedView, Site, Task
 
 __all__ = [

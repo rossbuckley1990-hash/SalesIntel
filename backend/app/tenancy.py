@@ -115,8 +115,31 @@ def _table(mapper) -> str:
     return getattr(mapper.local_table, 'name', '')
 
 
+def _sync_database_setting(session: Session) -> None:
+    """Keep PostgreSQL's transaction-local workspace setting equal to this session's workspace (row-level security)."""
+    bind = session.get_bind()
+    if bind.dialect.name != 'postgresql':
+        return
+    org = session.info.get(ORG)
+    if org is None and not session.info.get(SYSTEM) and not hosted():
+        org = LOCAL_ORG_ID
+    want = ('on' if session.info.get(SYSTEM) and org is None else 'off', '' if org is None else str(org))
+    connection = session.connection()
+    if connection.info.get('si_rls') == (want, id(session.get_transaction())):
+        return
+    connection.exec_driver_sql("SELECT set_config('salesintel.bypass', %(b)s, true), set_config('salesintel.organisation_id', %(o)s, true)",
+                               {'b': want[0], 'o': want[1]})
+    connection.info['si_rls'] = (want, id(session.get_transaction()))
+
+
+@event.listens_for(Session, 'after_begin')
+def _new_transaction(session: Session, transaction, connection) -> None:
+    connection.info.pop('si_rls', None)  # transaction-local settings end with the transaction
+
+
 @event.listens_for(Session, 'do_orm_execute')
 def _scope_statements(state) -> None:
+    _sync_database_setting(state.session)
     if not (state.is_select or state.is_update or state.is_delete):
         return
     session = state.session
@@ -141,6 +164,7 @@ def _scope_statements(state) -> None:
 
 @event.listens_for(Session, 'before_flush')
 def _stamp_writes(session: Session, flush_context, instances) -> None:
+    _sync_database_setting(session)
     request = _is_request(session)
     for obj in list(session.new) + list(session.dirty) + list(session.deleted):
         if isinstance(obj, TenantScoped):
@@ -183,6 +207,7 @@ def _audit(session: Session, flush_context) -> None:
                          'entity_type': type(obj).__tablename__, 'entity_id': getattr(obj, 'id', None) if isinstance(getattr(obj, 'id', None), int) else None,
                          'fields': fields, 'detail': {}, 'at': moment})
     if rows:
+        _sync_database_setting(session)
         session.connection().execute(WorkspaceAuditEvent.__table__.insert(), rows)
 
 
@@ -191,6 +216,7 @@ def record(session: Session, action: str, entity_type: str, entity_id: int | Non
     org = session.info.get(ORG, None if hosted() else LOCAL_ORG_ID)
     if org is None:
         return
+    _sync_database_setting(session)
     session.connection().execute(WorkspaceAuditEvent.__table__.insert(), [{
         'organisation_id': org, 'user_id': session.info.get(USER), 'action': action[:12], 'entity_type': entity_type[:48],
         'entity_id': entity_id, 'fields': [], 'detail': detail or {}, 'at': datetime.now(UTC)}])

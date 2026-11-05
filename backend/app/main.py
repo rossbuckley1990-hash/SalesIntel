@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -38,10 +40,25 @@ from app.routers.market_network import router as market_network_router
 from app.routers.workspaces import router as workspaces_router
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Start the durable research worker. In production run backend/scripts/research_worker.py instead (RESEARCH_WORKER=off)."""
+    from app.db import engine
+    from app.services import research_handlers  # noqa: F401
+    from app.services.jobs import start_inline_worker
+    if get_settings().auth_mode != "local" and engine.dialect.name == "postgresql":
+        from app.rls import check_role
+        with engine.connect() as connection:
+            check_role(connection)  # a superuser or BYPASSRLS role would silently ignore row-level security
+    start_inline_worker(engine)
+    yield
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     settings.check_safe_to_serve()
     application = FastAPI(
+        lifespan=_lifespan,
         title=settings.app_name,
         description="Backend API for SalesIntel.",
         version=settings.app_version,

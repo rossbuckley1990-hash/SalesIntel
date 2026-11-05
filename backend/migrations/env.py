@@ -8,6 +8,10 @@ if context.is_offline_mode():
 else:
     engine = create_database_engine()
     with engine.connect() as connection:
+        if connection.dialect.name == "postgresql":  # migrations are trusted system work beneath row-level security
+            from sqlalchemy import text
+            connection.execute(text("SELECT set_config('salesintel.bypass', 'on', false)"))
+            connection.commit()
         context.configure(
             connection=connection, target_metadata=Base.metadata, compare_type=True
         )

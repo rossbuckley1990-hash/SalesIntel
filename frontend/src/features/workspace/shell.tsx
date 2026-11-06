@@ -26,6 +26,7 @@ import {
   Telescope,
   Undo2,
   Upload,
+  Wallet,
   X,
 } from "lucide-react";
 import { getApiBaseUrl } from "@/lib/api";
@@ -69,6 +70,9 @@ const Prospects = dynamic(() => import("./prospects").then((m) => m.Prospects), 
 const Imports = dynamic(() => import("./imports").then((m) => m.Imports), {
   loading: () => <Loading />,
 });
+const ResearchBudgetView = dynamic(() => import("./research-budget").then((m) => m.ResearchBudgetView), {
+  loading: () => <Loading />,
+});
 
 const navigation = [
   { id: "today", label: "Today", icon: House },
@@ -90,6 +94,8 @@ const navigation = [
   { id: "outcomes", label: "Outcomes", icon: CheckCheck },
 ] as const;
 const primaryViews: View[] = ["today", "find", "clients", "engage", "deals"];
+const footerViews: View[] = ["imports", "budget"];  // reached from the foot of the menu, not from Tools
+const known = (next: string | null): next is View => !!next && [...navigation.map((n) => n.id), ...footerViews].includes(next as View);
 
 export function LivingWorkspace() {
   const [data, setData] = useState<Workspace | null>(null);
@@ -144,11 +150,7 @@ export function LivingWorkspace() {
   useEffect(() => {
     const url = new URL(window.location.href);
     const next = url.searchParams.get("view");
-    if (
-      next &&
-      [...navigation.map((n) => n.id), "imports"].includes(next as View)
-    )
-      setView(next as View);
+    if (known(next)) setView(next);
     const id = Number(url.searchParams.get("opportunity"));
     if (id > 0) setSelectedId(id);
     const abort = new AbortController();
@@ -163,7 +165,7 @@ export function LivingWorkspace() {
     // Workspaces link to each other through the URL; keep the shell in step.
     const sync = () => {
       const next = new URL(window.location.href).searchParams.get("view");
-      setView(next && [...navigation.map((n) => n.id), "imports"].includes(next as View) ? (next as View) : "today");
+      setView(known(next) ? next : "today");
     };
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
@@ -179,7 +181,7 @@ export function LivingWorkspace() {
     return () => window.removeEventListener("keydown", key);
   }, []);
   useEffect(() => {
-    if (!primaryViews.includes(view) && view !== "imports") setToolsOpen(true);
+    if (!primaryViews.includes(view) && !footerViews.includes(view)) setToolsOpen(true);
   }, [view]);
   useEffect(() => {
     if (!toast) return;
@@ -261,6 +263,8 @@ export function LivingWorkspace() {
         return <AssetStudio {...shared} />;
       case "imports":
         return <Imports {...shared} />;
+      case "budget":
+        return <ResearchBudgetView notify={notify} />;
       case "outcomes":
         return <Outcomes {...shared} />;
     }
@@ -317,6 +321,14 @@ export function LivingWorkspace() {
             <Upload size={17} />
             <span>Import data</span>
           </button>
+          <button
+            className={`m-nav-item ${view === "budget" ? "active" : ""}`}
+            aria-current={view === "budget" ? "page" : undefined}
+            onClick={() => navigate("budget")}
+          >
+            <Wallet size={17} />
+            <span>Research budget</span>
+          </button>
           <a href="/classic" className="m-nav-item">
             <Layers3 size={17} />
             <span>Classic workspace</span>
@@ -357,7 +369,7 @@ export function LivingWorkspace() {
             <span>SalesIntel</span>
             <ChevronRight size={13} />
             <strong>
-              {navigation.find((n) => n.id === view)?.label || "Import data"}
+              {navigation.find((n) => n.id === view)?.label || (view === "budget" ? "Research budget" : "Import data")}
             </strong>
           </div>
           <button

@@ -32,6 +32,7 @@ export type View =
   | "actions"
   | "assets"
   | "imports"
+  | "budget"
   | "outcomes";
 export type Financials = {
   estimated_annual_revenue: number | null;

@@ -37,10 +37,14 @@ type Rate = { hits: number; n: number; rate: number | null; interval: number[] |
 type Arm = { label: string; n: number; pool: number; frame: number; relevant: Rate; relevant_or_possible: Rate; actionable: Rate; worth_investigating: Rate; noise: Rate;
   route_available: number | null; identity_correct: number | null; minutes_per_item: number | null; objective: { median_evidence_age_days: number | null } };
 type Comparison = { family: string; arms: [string, string]; measure: string; difference: number | null; adjusted_interval: number[] | null; supported: boolean; overlap: number };
-type ResultsT = { items: number; reviewers: number; reviews: number; arms: Record<string, Arm>; comparisons: Comparison[]; verdicts: string[];
+type Share = { n: number; score: number; rate: number | null; interval: number[] | null };
+type DiagnosisT = { registered: string; purpose: string; measures: { otherwise_missed: string; chain: string }; statistics: string; rule: string;
+  steps: { key: string; label: string }[]; otherwise_missed: Record<string, Record<"relevant" | "relevant_or_possible", Share & { label: string }>>;
+  chain: Record<string, { n: number; steps: (Share & { key: string; label: string; drop: number | null })[] }> };
+export type ResultsT = { items: number; reviewers: number; reviews: number; arms: Record<string, Arm>; comparisons: Comparison[]; verdicts: string[];
   exploratory: { rule: string; worth_investigating: Rate; met: boolean }; agreement: Agree;
   disagreements: { item_id: string; questions: { question: string; answers: Record<string, string>; final: string; method: string; adjudicator: string; rationale: string }[] }[];
-  missed_by_qualified: string[]; missed_by_salesintel: string[]; note: string; statistics: string };
+  missed_by_qualified: string[]; missed_by_salesintel: string[]; note: string; statistics: string; diagnosis?: DiagnosisT };
 
 const pct = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${Math.round(v * 100)}%`);
 const MEASURE: Record<string, string> = { relevant: "Genuine opportunity", actionable: "Worth pursuing this week or month", worth_investigating: "Worth investigating",
@@ -268,7 +272,7 @@ function Adjudicate({ d, q, disabled, onSave }: { d: Dis; q: Question; disabled:
   );
 }
 
-function Results({ r }: { r: ResultsT }) {
+export function Results({ r }: { r: ResultsT }) {
   const arms = Object.entries(r.arms);
   const cell = (x: Rate) => (x.n ? `${x.hits}/${x.n} · ${pct(x.rate)}${x.interval ? ` (${pct(x.interval[0])}–${pct(x.interval[1])})` : ""}` : "—");
   return (
@@ -291,6 +295,7 @@ function Results({ r }: { r: ResultsT }) {
         <p className="mt-2 text-[12px] text-ds-muted">{r.statistics}</p>
         <p className="mt-2 text-[13px] text-ds-ink-2">Exploratory pathway: {r.exploratory.rule} Result: {cell(r.exploratory.worth_investigating)}, so the rule is {r.exploratory.met ? "met" : "not met"}.</p>
       </div>
+      {r.diagnosis && <Diagnosis d={r.diagnosis} arms={arms} />}
       <div className="ds-card p-4 text-[13px] text-ds-ink-2">
         <p className="font-semibold text-ds-ink">Agreement and disagreements</p>
         <p className="mt-1">{Object.entries(r.agreement).map(([q, a]) => `${q}: ${pct(a.percent_agreement)} over ${a.items} items, kappa ${a.kappa ?? "—"}`).join(" · ")}</p>
@@ -299,5 +304,44 @@ function Results({ r }: { r: ResultsT }) {
         <p className="mt-2 text-[12px] text-ds-muted">{r.note}</p>
       </div>
     </div>
+  );
+}
+
+const share = (x: Share | undefined) => (!x || x.rate === null ? "—" : `${pct(x.rate)}${x.interval ? ` (${pct(x.interval[0])}–${pct(x.interval[1])})` : ""}`);
+
+/** Where discovery is weak, as registered before any answer was seen. It sits beside the pre-specified comparisons and decides nothing. */
+function Diagnosis({ d, arms }: { d: DiagnosisT; arms: [string, Arm][] }) {
+  const registered = new Date(`${d.registered}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const label = (m: "relevant" | "relevant_or_possible") => Object.values(d.otherwise_missed)[0]?.[m]?.label ?? m;
+  const head = (first: string) => (
+    <thead><tr className="border-b border-ds-border text-[12px] text-ds-muted"><th scope="col" className="px-4 py-2.5 font-medium">{first}</th>
+      {arms.map(([k, a]) => <th key={k} scope="col" className="px-3 py-2.5 text-right font-medium">{a.label}<span className="block font-normal">n {d.chain[k]?.n ?? 0}</span></th>)}</tr></thead>
+  );
+  return (
+    <section aria-label="Diagnosis" className="ds-card space-y-4 p-4">
+      <div><p className="text-[13px] font-semibold text-ds-ink">Diagnosis, registered before any answer ({registered})</p>
+        <p className="mt-1 max-w-3xl text-[13px] text-ds-ink-2">{d.purpose}</p></div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px] text-left text-[13px]">
+          <caption className="pb-1 text-left text-[13px] font-medium text-ds-ink">Otherwise missed</caption>
+          {head("Not yet advertised")}
+          <tbody>{(["relevant", "relevant_or_possible"] as const).map((m) => (
+            <tr key={m} className="border-b border-ds-border last:border-0"><th scope="row" className="px-4 py-2 font-normal text-ds-ink-2">{label(m)}</th>
+              {arms.map(([k]) => <td key={k} className="si-mono px-3 py-2 text-right text-ds-ink">{share(d.otherwise_missed[k]?.[m])}</td>)}</tr>))}</tbody>
+        </table>
+        <p className="mt-1.5 max-w-3xl text-[12px] text-ds-muted">{d.measures.otherwise_missed}</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px] text-left text-[13px]">
+          <caption className="pb-1 text-left text-[13px] font-medium text-ds-ink">Where leads drop out</caption>
+          {head("Still standing after")}
+          <tbody>{d.steps.map((s, n) => (
+            <tr key={s.key} className="border-b border-ds-border last:border-0"><th scope="row" className="px-4 py-2 font-normal text-ds-ink-2">{n + 1} · {s.label}</th>
+              {arms.map(([k]) => <td key={k} className="si-mono px-3 py-2 text-right text-ds-ink">{share(d.chain[k]?.steps[n])}</td>)}</tr>))}</tbody>
+        </table>
+        <p className="mt-1.5 max-w-3xl text-[12px] text-ds-muted">{d.measures.chain}</p>
+      </div>
+      <p className="max-w-3xl text-[12px] text-ds-muted">{d.statistics} {d.rule}</p>
+    </section>
   );
 }

@@ -42,13 +42,14 @@ The withdrawn v1 set and its key are still in the Git history of this public rep
    - Choose the private key file. The server accepts it only if it matches the published commitment.
    - The results then appear: per method, with 95% intervals, the pre-specified comparisons and their verdicts, agreement, and every disagreement with how it was resolved.
 8. **Record the results.**
-   - Copy the results into `QUALITY_GATE.md`, unedited.
+   - Copy the results into `QUALITY_GATE.md`, unedited, including the diagnosis that was registered before any answer.
    - Then the key may be published, so anyone can check it: `.venv/bin/python backend/scripts/build_review_set.py --verify <key file>`.
 
 ## Rules
 
 - Do not judge any item yourself, and never let SalesIntel's AI judge.
 - Do not change ranking rules because of what reviewers said until the results are recorded.
+- Treat the diagnosis as hypotheses. Test any change it suggests on a fresh, independently drawn set, or in the pilot, before claiming an improvement.
 - If a reviewer learns how items were found before finishing, record it and leave their answers out.
 - Never redraw the set to get a different sample. The build refuses to overwrite a frozen set.
 - Until the review is locked, publish no screenshot or document that shows SalesIntel's lists on real data. The showcase already skips every reviewed organisation.

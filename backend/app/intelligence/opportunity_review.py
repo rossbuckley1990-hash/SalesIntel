@@ -155,6 +155,34 @@ PROTOCOL = {
     'withdrawn': [{'set_key': 'opportunities-2026-11-05', 'reason': 'Its key was published in a public repository before any judgement; it was never reviewed.'}],
 }
 
+# How the review diagnoses discovery. Registered on 6 November 2026: after the v2 set was frozen, before any reviewer's answer
+# was imported. It is not part of PROTOCOL or its public commitment, which are unchanged. It adds no comparison and no verdict.
+# The acceptance test, step by step. Relevance, reason and pursue use final labels; the other steps use each reviewer's answer.
+CHAIN = (
+    ('identity', 'The right organisation', 'identity', {'yes'}),
+    ('opportunity', 'A genuine or possible opportunity', 'relevance', {'yes', 'possibly'}),
+    ('reason', 'A reason to contact them now', 'reason', {'yes'}),
+    ('person', 'Someone to speak to', 'stakeholders', {'named', 'role'}),
+    ('route', 'A reliable way to reach them', 'route', {'yes'}),
+    ('pursue', 'Worth pursuing this week or month', 'pursue', {'this_week', 'this_month'}),
+)
+UNADVERTISED = {'relevant': ('A genuine opportunity, not yet advertised', {'yes'}),
+                'relevant_or_possible': ('A genuine or possible opportunity, not yet advertised', {'yes', 'possibly'})}
+DIAGNOSIS = {
+    'registered': '2026-11-06',
+    'purpose': 'Show where discovery is weak. The review is a quality gate and a diagnosis, not the measure of commercial success.',
+    'measures': {
+        'otherwise_missed': ('Leads judged a genuine (or a genuine or possible) opportunity by final label, that had not been advertised: each counts '
+                             'by the share of its reviewers who answered "Not advertised" ("Unclear" does not count). A tender search would not find these.'),
+        'chain': ("Each method's leads, step by step: " + '; '.join(label.lower() for _, label, _, _ in CHAIN) + '. A lead passes a step only if it '
+                  "passed every earlier one. Relevance, reason and pursue use final labels; the other steps use each reviewer's own answer, and "
+                  'every reviewer counts equally.')},
+    'statistics': 'Approximate 95% Wilson intervals over items. With about ten leads per method they show direction, not proof.',
+    'rule': ('Diagnostic only: no comparison, verdict or claim is made from it. Any change to discovery it suggests is a hypothesis, tested on a '
+             'fresh, independently drawn set or in a live pilot before any improvement is claimed. Ranking rules stay as they are until these '
+             'results are recorded.'),
+}
+
 
 # ------------------------------------------------------------------ profile and rules
 
@@ -501,6 +529,32 @@ def kappa(pairs: list[tuple[str, str]]) -> float | None:
     return round((observed - expected) / (1 - expected), 3) if expected < 1 else None
 
 
+def diagnosis(ids_by_arm: dict[str, list[str]], final: dict[str, dict], reviews: dict[str, dict]) -> dict:
+    """Where discovery is weak, exactly as registered in DIAGNOSIS before any answer was seen. Adds no comparison and no verdict."""
+    def rate(values: list[float]) -> dict:
+        n, score = len(values), round(sum(values), 3)
+        return {'n': n, 'score': score, 'rate': round(score / n, 3) if n else None, 'interval': wilson(score, n)}
+
+    def unadvertised(item: str, accepted: set[str]) -> float:
+        if final[item]['relevance'] not in accepted:
+            return 0.0
+        return sum(1 for d in reviews[item].values() if d['answers']['advertised'] == 'not_advertised') / len(reviews[item])
+
+    def passes(item: str, d: dict, steps: int) -> bool:
+        return all((final[item][q] if q in PRIMARY else d['answers'][q]) in ok for _, _, q, ok in CHAIN[:steps])
+
+    missed, chain = {}, {}
+    for arm, ids in ids_by_arm.items():
+        missed[arm] = {m: {**rate([unadvertised(i, ok) for i in ids]), 'label': label} for m, (label, ok) in UNADVERTISED.items()}
+        steps, before = [], 1.0
+        for k, (step, label, _, _) in enumerate(CHAIN, 1):
+            r = rate([sum(passes(i, d, k) for d in reviews[i].values()) / len(reviews[i]) for i in ids])
+            steps.append({'key': step, 'label': label, **r, 'drop': None if r['rate'] is None else round(before - r['rate'], 3)})
+            before = before if r['rate'] is None else r['rate']
+        chain[arm] = {'n': len(ids), 'steps': steps}
+    return {**DIAGNOSIS, 'steps': [{'key': s, 'label': label} for s, label, _, _ in CHAIN], 'otherwise_missed': missed, 'chain': chain}
+
+
 def results(review_set: dict, key: dict, decisions: list[dict], adjudications: list[dict]) -> dict:
     """The unblinded results. Refuses until every item has two complete reviews and every disagreement is adjudicated."""
     state = status(review_set, decisions, adjudications)
@@ -510,9 +564,9 @@ def results(review_set: dict, key: dict, decisions: list[dict], adjudications: l
     final = final_labels(review_set, decisions, adjudications)
     reviews = _reviews(review_set, decisions)
     rulings = {(a['item_id'], a['question']): a for a in adjudications}
-    arms = {}
+    arms, ids_by_arm = {}, {}
     for arm in ARMS:
-        ids = sorted(i for i, k in key['items'].items() if arm in k['sampled_by'])
+        ids = ids_by_arm[arm] = sorted(i for i, k in key['items'].items() if arm in k['sampled_by'])
         n = len(ids)
         row = {'label': ARM_LABEL[arm], 'n': n, 'pool': key['pools'].get(arm), 'frame': key['frames'].get(arm)}
         for m, (_, f) in MEASURES.items():
@@ -570,7 +624,7 @@ def results(review_set: dict, key: dict, decisions: list[dict], adjudications: l
             'arms': arms, 'overlap': overlap, 'comparisons': comparisons, 'verdicts': verdicts,
             'exploratory': {'rule': PROTOCOL['exploratory_rule'], 'worth_investigating': explore,
                             'met': bool(explore['n']) and explore['rate'] >= EXPLORATORY_RULE},
-            'agreement': state['agreement'], 'disagreements': disagreements,
+            'agreement': state['agreement'], 'disagreements': disagreements, 'diagnosis': diagnosis(ids_by_arm, final, reviews),
             'missed_by_qualified': sorted(i for i in relevant if 'qualified' not in key['items'][i]['in_pools']),
             'missed_by_salesintel': sorted(i for i in relevant if not {'qualified', 'exploratory'} & set(key['items'][i]['in_pools'])),
             'pools': key['pools'], 'frames': key['frames'], 'excluded_published': key.get('excluded_published'),

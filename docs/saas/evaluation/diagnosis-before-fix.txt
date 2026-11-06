@@ -1,0 +1,9 @@
+Diagnosis tests run before the diagnosis existed: 2026-11-06T10:42:54Z, on 955be3c with only the new tests added.
+
+FAILED tests/test_review_diagnosis.py::test_the_diagnosis_is_registered_in_the_results_and_adds_no_comparison_or_verdict
+FAILED tests/test_review_diagnosis.py::test_otherwise_missed_is_a_genuine_opportunity_that_had_not_been_advertised
+FAILED tests/test_review_diagnosis.py::test_relevance_comes_from_the_final_label_so_one_reviewer_cannot_hide_a_missed_opportunity
+FAILED tests/test_review_diagnosis.py::test_where_leads_drop_out_follows_the_acceptance_test_step_by_step
+FAILED tests/test_review_diagnosis.py::test_adding_the_diagnosis_left_the_frozen_protocol_and_its_commitment_unchanged
+FAILED tests/test_evaluation_integrity.py::test_results_stay_sealed_until_the_review_is_complete_locked_and_the_key_verifies[sqlite]
+6 failed, 11 passed in 1.50s

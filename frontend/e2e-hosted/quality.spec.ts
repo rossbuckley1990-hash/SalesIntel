@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
 // The blind review, from both sides.
@@ -92,4 +93,27 @@ test("a reviewer judges an opportunity blind, an offline pack comes back verifie
   const budget = page.getByRole("region", { name: "Research budget" });
   await expect(budget).toContainText("No budget approved");
   await expect(budget.getByRole("button", { name: "Approve" })).toBeVisible();
+});
+
+test("a revealed review shows its results with the diagnosis registered before any answer", async ({ browser }, info) => {
+  // The real key never enters a test. The server's own results for a synthetic set stand in for a revealed review
+  // (backend/tests/test_review_diagnosis.py keeps the fixture in step), so only the screen is under test here.
+  const results = JSON.parse(readFileSync("tests/fixtures/review-results.json", "utf8"));
+  const page = await signUp(browser, "ola.owner@zeta-quality.example", "Ola Owner", "Zeta Fire Ltd");
+  await page.getByRole("navigation", { name: "Main navigation" }).waitFor();
+  await page.route(/\/api\/si\/review\/[^/]+\/status(\?|$)/, async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...(await response.json()), state: "revealed" } });
+  });
+  await page.route(/\/api\/si\/review\/[^/]+\/results(\?|$)/, async (route) => route.fulfill({ response: await route.fetch(), status: 200, json: results }));
+  await page.goto("/?view=review");
+  const diagnosis = page.getByRole("region", { name: "Diagnosis" });
+  await expect(diagnosis).toContainText("Diagnosis, registered before any answer (6 November 2026)");
+  await expect(diagnosis.getByRole("table", { name: "Where leads drop out" }).getByRole("row")).toHaveCount(results.diagnosis.steps.length + 1);
+  await expect(diagnosis.getByRole("table", { name: "Otherwise missed" })).toContainText(results.arms.exploratory.label);
+  await expect(page.getByRole("region", { name: "Review results" })).toContainText("Comparisons, decided before the review");
+  await diagnosis.scrollIntoViewIfNeeded();
+  await diagnosis.screenshot({ animations: "disabled", path: info.outputPath("diagnosis.png") });
+  const scan = await new AxeBuilder({ page }).include('[aria-label="Diagnosis"]').withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+  expect(scan.violations).toEqual([]);
 });

@@ -298,6 +298,7 @@ def test_results_stay_sealed_until_the_review_is_complete_locked_and_the_key_ver
     assert alice.post(f'/api/si/review/{S}/reveal', json=key).status_code == 200
     res = alice.get(f'/api/si/review/{S}/results').json()
     assert res['arms']['qualified']['n'] == 1 and res['disagreements'][0]['item_id'] == 'E-01'
+    assert res['diagnosis']['registered'] == review.DIAGNOSIS['registered']  # the pre-registered diagnosis comes with the results
     bob, _ = workspace(h, 'bob', 'Beta Security Ltd')
     assert bob.get(f'/api/si/review/{S}/results').status_code == 409 and bob.get(f'/api/si/review/{S}/status').json()['reviews'] == 0
 

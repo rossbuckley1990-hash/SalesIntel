@@ -1,0 +1,1168 @@
+{
+ "set_key": "test-set-v2",
+ "items": 4,
+ "reviewers": 2,
+ "reviews": 8,
+ "arms": {
+  "qualified": {
+   "label": "SalesIntel qualified",
+   "n": 1,
+   "pool": 10,
+   "frame": 10,
+   "relevant": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "relevant_or_possible": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "actionable": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "worth_investigating": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "noise": {
+    "hits": 0,
+    "n": 1,
+    "rate": 0.0,
+    "interval": [
+     0.0,
+     0.793
+    ]
+   },
+   "identity_correct": 1.0,
+   "requirement_confirmed": 0.0,
+   "judged_advertised": 0.0,
+   "stakeholders_identifiable": 1.0,
+   "route_available": 0.5,
+   "evidence_strong": 0.0,
+   "by_record_type": {
+    "Not recorded": {
+     "n": 1,
+     "relevant": 1,
+     "actionable": 1
+    }
+   },
+   "minutes_per_item": 2.0,
+   "objective": {
+    "median_evidence_age_days": 10,
+    "advertised_share": 1.0,
+    "with_route_on_record": 1.0,
+    "by_source": {
+     "public": 1
+    }
+   }
+  },
+  "exploratory": {
+   "label": "SalesIntel exploratory",
+   "n": 1,
+   "pool": 10,
+   "frame": 10,
+   "relevant": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "relevant_or_possible": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "actionable": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "worth_investigating": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "noise": {
+    "hits": 0,
+    "n": 1,
+    "rate": 0.0,
+    "interval": [
+     0.0,
+     0.793
+    ]
+   },
+   "identity_correct": 1.0,
+   "requirement_confirmed": 0.0,
+   "judged_advertised": 0.0,
+   "stakeholders_identifiable": 0.0,
+   "route_available": 0.0,
+   "evidence_strong": 0.0,
+   "by_record_type": {
+    "Not recorded": {
+     "n": 1,
+     "relevant": 1,
+     "actionable": 1
+    }
+   },
+   "minutes_per_item": 2.0,
+   "objective": {
+    "median_evidence_age_days": 10,
+    "advertised_share": 1.0,
+    "with_route_on_record": 1.0,
+    "by_source": {
+     "public": 1
+    }
+   }
+  },
+  "pr8": {
+   "label": "SalesIntel (PR #8 rules)",
+   "n": 1,
+   "pool": 10,
+   "frame": 10,
+   "relevant": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "relevant_or_possible": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "actionable": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "worth_investigating": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "noise": {
+    "hits": 0,
+    "n": 1,
+    "rate": 0.0,
+    "interval": [
+     0.0,
+     0.793
+    ]
+   },
+   "identity_correct": 0.5,
+   "requirement_confirmed": 0.0,
+   "judged_advertised": 0.0,
+   "stakeholders_identifiable": 1.0,
+   "route_available": 0.0,
+   "evidence_strong": 0.0,
+   "by_record_type": {
+    "Not recorded": {
+     "n": 1,
+     "relevant": 1,
+     "actionable": 1
+    }
+   },
+   "minutes_per_item": 2.0,
+   "objective": {
+    "median_evidence_age_days": 10,
+    "advertised_share": 1.0,
+    "with_route_on_record": 1.0,
+    "by_source": {
+     "public": 1
+    }
+   }
+  },
+  "renewal": {
+   "label": "Renewal dates",
+   "n": 1,
+   "pool": 10,
+   "frame": 10,
+   "relevant": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "relevant_or_possible": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "actionable": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "worth_investigating": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "noise": {
+    "hits": 0,
+    "n": 1,
+    "rate": 0.0,
+    "interval": [
+     0.0,
+     0.793
+    ]
+   },
+   "identity_correct": 1.0,
+   "requirement_confirmed": 0.0,
+   "judged_advertised": 0.0,
+   "stakeholders_identifiable": 1.0,
+   "route_available": 0.0,
+   "evidence_strong": 0.0,
+   "by_record_type": {
+    "Not recorded": {
+     "n": 1,
+     "relevant": 1,
+     "actionable": 1
+    }
+   },
+   "minutes_per_item": 2.0,
+   "objective": {
+    "median_evidence_age_days": 10,
+    "advertised_share": 1.0,
+    "with_route_on_record": 1.0,
+    "by_source": {
+     "public": 1
+    }
+   }
+  },
+  "keyword": {
+   "label": "Keywords",
+   "n": 1,
+   "pool": 10,
+   "frame": 10,
+   "relevant": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "relevant_or_possible": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "actionable": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "worth_investigating": {
+    "hits": 1,
+    "n": 1,
+    "rate": 1.0,
+    "interval": [
+     0.207,
+     1.0
+    ]
+   },
+   "noise": {
+    "hits": 0,
+    "n": 1,
+    "rate": 0.0,
+    "interval": [
+     0.0,
+     0.793
+    ]
+   },
+   "identity_correct": 1.0,
+   "requirement_confirmed": 0.0,
+   "judged_advertised": 0.0,
+   "stakeholders_identifiable": 1.0,
+   "route_available": 0.5,
+   "evidence_strong": 0.0,
+   "by_record_type": {
+    "Not recorded": {
+     "n": 1,
+     "relevant": 1,
+     "actionable": 1
+    }
+   },
+   "minutes_per_item": 2.0,
+   "objective": {
+    "median_evidence_age_days": 10,
+    "advertised_share": 1.0,
+    "with_route_on_record": 1.0,
+    "by_source": {
+     "public": 1
+    }
+   }
+  }
+ },
+ "overlap": {
+  "exploratory|qualified": 0,
+  "pr8|qualified": 0,
+  "qualified|renewal": 0,
+  "keyword|qualified": 1,
+  "exploratory|pr8": 0,
+  "exploratory|renewal": 0,
+  "exploratory|keyword": 0,
+  "pr8|renewal": 0,
+  "keyword|pr8": 0,
+  "keyword|renewal": 0
+ },
+ "comparisons": [
+  {
+   "family": "primary",
+   "arms": [
+    "qualified",
+    "renewal"
+   ],
+   "measure": "relevant",
+   "overlap": 0,
+   "difference": 0.0,
+   "interval": [
+    -0.793,
+    0.793
+   ],
+   "adjusted_interval": [
+    -0.862,
+    0.862
+   ],
+   "supported": false
+  },
+  {
+   "family": "primary",
+   "arms": [
+    "qualified",
+    "renewal"
+   ],
+   "measure": "actionable",
+   "overlap": 0,
+   "difference": 0.0,
+   "interval": [
+    -0.793,
+    0.793
+   ],
+   "adjusted_interval": [
+    -0.862,
+    0.862
+   ],
+   "supported": false
+  },
+  {
+   "family": "primary",
+   "arms": [
+    "qualified",
+    "keyword"
+   ],
+   "measure": "relevant",
+   "overlap": 1,
+   "difference": 0.0,
+   "interval": [
+    -0.793,
+    0.793
+   ],
+   "adjusted_interval": [
+    -0.862,
+    0.862
+   ],
+   "supported": false
+  },
+  {
+   "family": "primary",
+   "arms": [
+    "qualified",
+    "keyword"
+   ],
+   "measure": "actionable",
+   "overlap": 1,
+   "difference": 0.0,
+   "interval": [
+    -0.793,
+    0.793
+   ],
+   "adjusted_interval": [
+    -0.862,
+    0.862
+   ],
+   "supported": false
+  },
+  {
+   "family": "secondary",
+   "arms": [
+    "qualified",
+    "pr8"
+   ],
+   "measure": "relevant",
+   "overlap": 0,
+   "difference": 0.0,
+   "interval": [
+    -0.793,
+    0.793
+   ],
+   "adjusted_interval": [
+    -0.862,
+    0.862
+   ],
+   "supported": false
+  },
+  {
+   "family": "secondary",
+   "arms": [
+    "qualified",
+    "pr8"
+   ],
+   "measure": "noise",
+   "overlap": 0,
+   "difference": 0.0,
+   "interval": [
+    -0.793,
+    0.793
+   ],
+   "adjusted_interval": [
+    -0.862,
+    0.862
+   ],
+   "supported": false
+  },
+  {
+   "family": "secondary",
+   "arms": [
+    "exploratory",
+    "keyword"
+   ],
+   "measure": "worth_investigating",
+   "overlap": 0,
+   "difference": 0.0,
+   "interval": [
+    -0.793,
+    0.793
+   ],
+   "adjusted_interval": [
+    -0.862,
+    0.862
+   ],
+   "supported": false
+  },
+  {
+   "family": "secondary",
+   "arms": [
+    "exploratory",
+    "keyword"
+   ],
+   "measure": "noise",
+   "overlap": 0,
+   "difference": 0.0,
+   "interval": [
+    -0.793,
+    0.793
+   ],
+   "adjusted_interval": [
+    -0.862,
+    0.862
+   ],
+   "supported": false
+  }
+ ],
+ "verdicts": [
+  "No statistically supported difference between SalesIntel qualified and Renewal dates on genuine fire or security opportunity (n = 1 and 1).",
+  "No statistically supported difference between SalesIntel qualified and Renewal dates on worth pursuing this week or month (n = 1 and 1).",
+  "No statistically supported difference between SalesIntel qualified and Keywords on genuine fire or security opportunity (n = 1 and 1).",
+  "No statistically supported difference between SalesIntel qualified and Keywords on worth pursuing this week or month (n = 1 and 1).",
+  "No statistically supported difference between SalesIntel qualified and SalesIntel (PR #8 rules) on genuine fire or security opportunity (n = 1 and 1).",
+  "No statistically supported difference between SalesIntel qualified and SalesIntel (PR #8 rules) on not relevant, or not worth pursuing (n = 1 and 1).",
+  "No statistically supported difference between SalesIntel exploratory and Keywords on a reason to contact, worth pursuing at some point (n = 1 and 1).",
+  "No statistically supported difference between SalesIntel exploratory and Keywords on not relevant, or not worth pursuing (n = 1 and 1)."
+ ],
+ "exploratory": {
+  "rule": "The exploratory pathway is supported as useful if at least 30% of its sampled leads are judged worth investigating.",
+  "worth_investigating": {
+   "hits": 1,
+   "n": 1,
+   "rate": 1.0,
+   "interval": [
+    0.207,
+    1.0
+   ]
+  },
+  "met": true
+ },
+ "agreement": {
+  "relevance": {
+   "items": 4,
+   "percent_agreement": 0.75,
+   "kappa": 0.0
+  },
+  "reason": {
+   "items": 4,
+   "percent_agreement": 1.0,
+   "kappa": null
+  },
+  "pursue": {
+   "items": 4,
+   "percent_agreement": 0.75,
+   "kappa": 0.0
+  }
+ },
+ "disagreements": [
+  {
+   "item_id": "E-01",
+   "questions": [
+    {
+     "question": "relevance",
+     "answers": {
+      "Ann": "yes",
+      "Ben": "no"
+     },
+     "final": "yes",
+     "method": "consensus",
+     "adjudicator": "Ann and Ben",
+     "rationale": "Agreed: the notice includes the fire alarms."
+    },
+    {
+     "question": "pursue",
+     "answers": {
+      "Ann": "this_month",
+      "Ben": "no"
+     },
+     "final": "this_month",
+     "method": "consensus",
+     "adjudicator": "Ann and Ben",
+     "rationale": "Agreed: the notice includes the fire alarms."
+    }
+   ]
+  }
+ ],
+ "diagnosis": {
+  "registered": "2026-11-06",
+  "purpose": "Show where discovery is weak. The review is a quality gate and a diagnosis, not the measure of commercial success.",
+  "measures": {
+   "otherwise_missed": "Leads judged a genuine (or a genuine or possible) opportunity by final label, that had not been advertised: each counts by the share of its reviewers who answered \"Not advertised\" (\"Unclear\" does not count). A tender search would not find these.",
+   "chain": "Each method's leads, step by step: the right organisation; a genuine or possible opportunity; a reason to contact them now; someone to speak to; a reliable way to reach them; worth pursuing this week or month. A lead passes a step only if it passed every earlier one. Relevance, reason and pursue use final labels; the other steps use each reviewer's own answer, and every reviewer counts equally."
+  },
+  "statistics": "Approximate 95% Wilson intervals over items. With about ten leads per method they show direction, not proof.",
+  "rule": "Diagnostic only: no comparison, verdict or claim is made from it. Any change to discovery it suggests is a hypothesis, tested on a fresh, independently drawn set or in a live pilot before any improvement is claimed. Ranking rules stay as they are until these results are recorded.",
+  "steps": [
+   {
+    "key": "identity",
+    "label": "The right organisation"
+   },
+   {
+    "key": "opportunity",
+    "label": "A genuine or possible opportunity"
+   },
+   {
+    "key": "reason",
+    "label": "A reason to contact them now"
+   },
+   {
+    "key": "person",
+    "label": "Someone to speak to"
+   },
+   {
+    "key": "route",
+    "label": "A reliable way to reach them"
+   },
+   {
+    "key": "pursue",
+    "label": "Worth pursuing this week or month"
+   }
+  ],
+  "otherwise_missed": {
+   "qualified": {
+    "relevant": {
+     "n": 1,
+     "score": 1.0,
+     "rate": 1.0,
+     "interval": [
+      0.207,
+      1.0
+     ],
+     "label": "A genuine opportunity, not yet advertised"
+    },
+    "relevant_or_possible": {
+     "n": 1,
+     "score": 1.0,
+     "rate": 1.0,
+     "interval": [
+      0.207,
+      1.0
+     ],
+     "label": "A genuine or possible opportunity, not yet advertised"
+    }
+   },
+   "exploratory": {
+    "relevant": {
+     "n": 1,
+     "score": 1.0,
+     "rate": 1.0,
+     "interval": [
+      0.207,
+      1.0
+     ],
+     "label": "A genuine opportunity, not yet advertised"
+    },
+    "relevant_or_possible": {
+     "n": 1,
+     "score": 1.0,
+     "rate": 1.0,
+     "interval": [
+      0.207,
+      1.0
+     ],
+     "label": "A genuine or possible opportunity, not yet advertised"
+    }
+   },
+   "pr8": {
+    "relevant": {
+     "n": 1,
+     "score": 1.0,
+     "rate": 1.0,
+     "interval": [
+      0.207,
+      1.0
+     ],
+     "label": "A genuine opportunity, not yet advertised"
+    },
+    "relevant_or_possible": {
+     "n": 1,
+     "score": 1.0,
+     "rate": 1.0,
+     "interval": [
+      0.207,
+      1.0
+     ],
+     "label": "A genuine or possible opportunity, not yet advertised"
+    }
+   },
+   "renewal": {
+    "relevant": {
+     "n": 1,
+     "score": 1.0,
+     "rate": 1.0,
+     "interval": [
+      0.207,
+      1.0
+     ],
+     "label": "A genuine opportunity, not yet advertised"
+    },
+    "relevant_or_possible": {
+     "n": 1,
+     "score": 1.0,
+     "rate": 1.0,
+     "interval": [
+      0.207,
+      1.0
+     ],
+     "label": "A genuine or possible opportunity, not yet advertised"
+    }
+   },
+   "keyword": {
+    "relevant": {
+     "n": 1,
+     "score": 1.0,
+     "rate": 1.0,
+     "interval": [
+      0.207,
+      1.0
+     ],
+     "label": "A genuine opportunity, not yet advertised"
+    },
+    "relevant_or_possible": {
+     "n": 1,
+     "score": 1.0,
+     "rate": 1.0,
+     "interval": [
+      0.207,
+      1.0
+     ],
+     "label": "A genuine or possible opportunity, not yet advertised"
+    }
+   }
+  },
+  "chain": {
+   "qualified": {
+    "n": 1,
+    "steps": [
+     {
+      "key": "identity",
+      "label": "The right organisation",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "opportunity",
+      "label": "A genuine or possible opportunity",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "reason",
+      "label": "A reason to contact them now",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "person",
+      "label": "Someone to speak to",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "route",
+      "label": "A reliable way to reach them",
+      "n": 1,
+      "score": 0.5,
+      "rate": 0.5,
+      "interval": [
+       0.055,
+       0.945
+      ],
+      "drop": 0.5
+     },
+     {
+      "key": "pursue",
+      "label": "Worth pursuing this week or month",
+      "n": 1,
+      "score": 0.5,
+      "rate": 0.5,
+      "interval": [
+       0.055,
+       0.945
+      ],
+      "drop": 0.0
+     }
+    ]
+   },
+   "exploratory": {
+    "n": 1,
+    "steps": [
+     {
+      "key": "identity",
+      "label": "The right organisation",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "opportunity",
+      "label": "A genuine or possible opportunity",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "reason",
+      "label": "A reason to contact them now",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "person",
+      "label": "Someone to speak to",
+      "n": 1,
+      "score": 0.0,
+      "rate": 0.0,
+      "interval": [
+       0.0,
+       0.793
+      ],
+      "drop": 1.0
+     },
+     {
+      "key": "route",
+      "label": "A reliable way to reach them",
+      "n": 1,
+      "score": 0.0,
+      "rate": 0.0,
+      "interval": [
+       0.0,
+       0.793
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "pursue",
+      "label": "Worth pursuing this week or month",
+      "n": 1,
+      "score": 0.0,
+      "rate": 0.0,
+      "interval": [
+       0.0,
+       0.793
+      ],
+      "drop": 0.0
+     }
+    ]
+   },
+   "pr8": {
+    "n": 1,
+    "steps": [
+     {
+      "key": "identity",
+      "label": "The right organisation",
+      "n": 1,
+      "score": 0.5,
+      "rate": 0.5,
+      "interval": [
+       0.055,
+       0.945
+      ],
+      "drop": 0.5
+     },
+     {
+      "key": "opportunity",
+      "label": "A genuine or possible opportunity",
+      "n": 1,
+      "score": 0.5,
+      "rate": 0.5,
+      "interval": [
+       0.055,
+       0.945
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "reason",
+      "label": "A reason to contact them now",
+      "n": 1,
+      "score": 0.5,
+      "rate": 0.5,
+      "interval": [
+       0.055,
+       0.945
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "person",
+      "label": "Someone to speak to",
+      "n": 1,
+      "score": 0.5,
+      "rate": 0.5,
+      "interval": [
+       0.055,
+       0.945
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "route",
+      "label": "A reliable way to reach them",
+      "n": 1,
+      "score": 0.0,
+      "rate": 0.0,
+      "interval": [
+       0.0,
+       0.793
+      ],
+      "drop": 0.5
+     },
+     {
+      "key": "pursue",
+      "label": "Worth pursuing this week or month",
+      "n": 1,
+      "score": 0.0,
+      "rate": 0.0,
+      "interval": [
+       0.0,
+       0.793
+      ],
+      "drop": 0.0
+     }
+    ]
+   },
+   "renewal": {
+    "n": 1,
+    "steps": [
+     {
+      "key": "identity",
+      "label": "The right organisation",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "opportunity",
+      "label": "A genuine or possible opportunity",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "reason",
+      "label": "A reason to contact them now",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "person",
+      "label": "Someone to speak to",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "route",
+      "label": "A reliable way to reach them",
+      "n": 1,
+      "score": 0.0,
+      "rate": 0.0,
+      "interval": [
+       0.0,
+       0.793
+      ],
+      "drop": 1.0
+     },
+     {
+      "key": "pursue",
+      "label": "Worth pursuing this week or month",
+      "n": 1,
+      "score": 0.0,
+      "rate": 0.0,
+      "interval": [
+       0.0,
+       0.793
+      ],
+      "drop": 0.0
+     }
+    ]
+   },
+   "keyword": {
+    "n": 1,
+    "steps": [
+     {
+      "key": "identity",
+      "label": "The right organisation",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "opportunity",
+      "label": "A genuine or possible opportunity",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "reason",
+      "label": "A reason to contact them now",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "person",
+      "label": "Someone to speak to",
+      "n": 1,
+      "score": 1.0,
+      "rate": 1.0,
+      "interval": [
+       0.207,
+       1.0
+      ],
+      "drop": 0.0
+     },
+     {
+      "key": "route",
+      "label": "A reliable way to reach them",
+      "n": 1,
+      "score": 0.5,
+      "rate": 0.5,
+      "interval": [
+       0.055,
+       0.945
+      ],
+      "drop": 0.5
+     },
+     {
+      "key": "pursue",
+      "label": "Worth pursuing this week or month",
+      "n": 1,
+      "score": 0.5,
+      "rate": 0.5,
+      "interval": [
+       0.055,
+       0.945
+      ],
+      "drop": 0.0
+     }
+    ]
+   }
+  }
+ },
+ "missed_by_qualified": [
+  "E-03",
+  "E-04"
+ ],
+ "missed_by_salesintel": [
+  "E-03"
+ ],
+ "pools": {
+  "qualified": 10,
+  "exploratory": 10,
+  "pr8": 10,
+  "renewal": 10,
+  "keyword": 10
+ },
+ "frames": {
+  "qualified": 10,
+  "exploratory": 10,
+  "pr8": 10,
+  "renewal": 10,
+  "keyword": 10
+ },
+ "excluded_published": null,
+ "future_evidence_dropped": null,
+ "statistics": "Wilson 95% intervals per arm; Newcombe intervals for differences at z = 2.4977 (Bonferroni over each family of four). Shared leads make arms positively correlated, so these intervals are conservative. A difference is claimed only if the adjusted interval excludes zero.",
+ "note": "Every measure comes from final labels: agreed answers, or adjudicated ones where two reviewers differed. With samples this small the intervals are wide; no difference is claimed unless its adjusted interval excludes zero."
+}

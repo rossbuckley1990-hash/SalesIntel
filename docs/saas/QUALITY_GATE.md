@@ -1,6 +1,6 @@
 # PR #9: The Real Opportunity Challenge (quality gate)
 
-Branch `feat/opportunity-quality`, stacked on PR #8 (`feat/best-opportunities`), which sits on #7 → #6 → #5 → #4 → `main`. Written on 5 November 2026, with the evaluation-integrity corrections added the same day.
+Branch `feat/opportunity-quality`, stacked on PR #8 (`feat/best-opportunities`), which sits on #7 → #6 → #5 → #4 → `main`. Written on 5 November 2026, with the evaluation-integrity corrections added the same day. The diagnosis was registered on 6 November 2026, before any reviewer's answer existed.
 
 - Nothing is merged or deployed.
 - The live installation, database, collectors and launch agents were not touched. The evaluation was built from an isolated copy of a copy.
@@ -24,6 +24,10 @@ Branch `feat/opportunity-quality`, stacked on PR #8 (`feat/best-opportunities`),
 - Every method is a random sample of its own list, with conservative intervals.
 
 **The claim that SalesIntel finds better opportunities is still a NO-GO.** The new frozen set has 44 items and none has been judged. Two salespeople need to complete it, and I will not stand in for them.
+
+**The review is a quality gate and a diagnosis, not the measure of commercial success.**
+- It shows whether independent salespeople judge the leads worth pursuing, and where discovery is weak.
+- Commercial success is shown only by real-world outcomes in a pilot: qualified conversations, pipeline, won revenue, margin and time saved.
 
 **Exploratory private-sector discovery is no longer hidden.**
 - Credible changes that never mention fire or security now have their own labelled list, separate from the qualified list.
@@ -153,6 +157,42 @@ Fixed in `backend/app/intelligence/opportunity_review.py`, and committed publicl
 - The evaluation owner then resolves disagreements, locks the review and reveals the key, all on their own Mac.
 - `docs/saas/evaluation/REVIEWER_GUIDE.md` is for the reviewers; `docs/saas/evaluation/RUNBOOK.md` is for the owner. `scripts/evaluation-server.sh` runs the app on 127.0.0.1, on a fresh database, with no credentials and no paid calls.
 
+### The diagnosis, registered before any answer (6 November 2026)
+
+**Why:** the review should also show where discovery is weak, not only whether one list beats another. Writing down how, before anyone has seen an answer, means the answers cannot shape it.
+
+- **When:** after the set was frozen, and before any reviewer's answer existed. The evaluation database held no review decisions when this was committed.
+- **What stays fixed:** the diagnosis is not part of the frozen protocol or its public commitment. Both are unchanged, and a test checks it.
+
+It reports two things for each method, from the answers reviewers already give. Neither needs a change to the packs or the set.
+
+**1. Otherwise missed.** These are opportunities that had not been advertised, so a tender search would not find them.
+- They are reported twice: genuine opportunities, and genuine or possible ones, each by final label.
+- Each lead counts by the share of its reviewers who answered "Not advertised". "Unclear" does not count.
+
+**2. Where leads drop out.** This is the share of leads still standing after each step of the acceptance test, in order. A lead passes a step only if it passed every earlier one.
+
+| Step | The reviewer's question | Passes when |
+|---|---|---|
+| 1. The right organisation | Is the organisation correctly identified? | Yes |
+| 2. A genuine or possible opportunity | Is there a genuine fire or security opportunity? | Yes or Possibly (final label) |
+| 3. A reason to contact them now | Is there a legitimate reason to contact them now? | Yes (final label) |
+| 4. Someone to speak to | Can you tell who to speak to? | A named person, or a role |
+| 5. A reliable way to reach them | Is a reliable business contact route available? | Yes |
+| 6. Worth pursuing | Would you pursue it? | This week or this month (final label) |
+
+Steps 2, 3 and 6 use the final, adjudicated labels. The others use each reviewer's own answer, and every reviewer counts equally.
+
+**The rules:**
+- **It decides nothing.** The diagnosis adds no comparison, verdict or claim. With about ten leads per method, its approximate 95% Wilson intervals show direction, not proof.
+- **Changes are tested elsewhere first.** Any change to discovery it suggests is a hypothesis. It is tested on a fresh, independently drawn set, or in a live pilot, before any improvement is claimed.
+- **Ranking rules stay as they are** until these results are recorded.
+
+**Where it is:**
+- **Code:** `diagnosis()` in `backend/app/intelligence/opportunity_review.py`. It appears in the results and on the results screen, only after the reveal.
+- **Tests:** `backend/tests/test_review_diagnosis.py`. The run before the diagnosis existed is recorded in `docs/saas/evaluation/diagnosis-before-fix.txt`: 6 failed.
+- **The results screen:** `frontend/tests/si-review-results.test.ts`, plus a hosted browser test with an accessibility scan. Both render the server's own results for a synthetic set, because the real key never enters a test.
+
 ### Results so far
 
 **0 of 44 items judged. No improvement is claimed.**
@@ -196,6 +236,7 @@ Objective facts about each whole list:
 |---|---|
 | Independently adjudicated relevance and actionability, against the baselines | **Pending:** 0 of 44 judged by two reviewers |
 | Exploratory usefulness and noise | **Pending:** the rule (at least 30% worth investigating) was fixed in advance |
+| Where leads drop out, and opportunities a tender search would miss | **Pending:** the diagnosis was registered before any answer |
 | Research cost | **$0** for this PR. Live research needs an approved budget |
 | Share of discoveries leading to a sales action | **Not measurable yet.** Exposure is recorded honestly; it needs pilot users |
 
@@ -207,14 +248,19 @@ The prospective pilot design is unchanged:
 
 **Verdict: CONDITIONAL.** The machinery is ready; no pilot has run.
 
-## Acceptance for the next phase (the AI Win Room)
+## After the gate: what comes next, in order
 
-The next phase may start only when all five of these hold:
+The gate is passed only when all five of these hold:
 1. **The method is defensible.** Done.
 2. **Both reviewers have completed the sample.** Not yet.
 3. **Disagreements are recorded and resolved transparently.** The machinery is ready; there are none yet.
 4. **Relevance and actionability are measured against the baselines.** Not yet.
 5. **Exploratory private opportunities are not silently excluded** because fire or security words are absent. Done, and tested.
+
+Then the work follows the product's priorities, set on 6 November 2026, in this order:
+1. **More genuinely actionable leads, and more of them reaching a customer conversation.** The diagnosis shows where to start: the step at which each method's leads drop out, and how many opportunities a tender search would miss.
+2. **The AI Win Room.**
+3. **Measurable revenue outcomes,** proved with independent real-world evidence from the pilot: qualified conversations, pipeline, won revenue, margin and time saved.
 
 ## Engineering acceptance (local, final run)
 

@@ -34,8 +34,8 @@ export function ResearchBudget({ manage, notify }: { manage: boolean; notify: (m
       </dl>
       {!b.approved && <p className="mt-2 text-[12.5px] text-ds-ink-2">No budget approved: investigations and gap research that would call a paid provider are refused, and nothing is charged.</p>}
       {manage && <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={approve} aria-label="Approve research budget">
-        <label className="block"><span className="ds-label">Add (US$)</span><input className="ds-input mt-1 !w-28 !pl-3" inputMode="decimal" aria-label="Budget to add" value={amount} onChange={(e) => setAmount(e.target.value)} required /></label>
-        <label className="block min-w-[200px] flex-1"><span className="ds-label">Purpose</span><input className="ds-input mt-1 !pl-3" aria-label="Budget purpose" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Pilot evaluation, 20 investigations" /></label>
+        <label className="block"><span className="ds-label block">Add (US$)</span><input className="ds-input mt-1 !w-28 !pl-3" inputMode="decimal" aria-label="Budget to add" value={amount} onChange={(e) => setAmount(e.target.value)} required /></label>
+        <label className="block min-w-[200px] flex-1"><span className="ds-label block">Purpose</span><input className="ds-input mt-1 !pl-3" aria-label="Budget purpose" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Pilot evaluation, 20 investigations" /></label>
         <button className="ds-btn primary">Approve</button>
       </form>}
     </section>

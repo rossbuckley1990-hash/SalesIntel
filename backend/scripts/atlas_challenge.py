@@ -172,19 +172,25 @@ def _facts(raws: list[dict]) -> dict:
                     out['suppliers'].add(_n(p.get('name') or ''))
             tender = rel.get('tender') or {}
             out['text'] += f" {tender.get('title') or ''} {tender.get('description') or ''}"
+            for holder in [tender, *(tender.get('lots') or [])]:  # Find a Tender publishes amountGross and amountNet as well as amount
+                for k in ('amount', 'amountGross', 'amountNet'):
+                    if isinstance(holder.get('value'), dict) and holder['value'].get(k) is not None:
+                        out['values'].add(float(holder['value'][k]))
             for a in rel.get('awards') or []:
                 for s in a.get('suppliers') or []:
                     out['suppliers'].add(_n(s.get('name') or ''))
                 if (a.get('contractPeriod') or {}).get('endDate'):
                     out['ends'].add(str(a['contractPeriod']['endDate'])[:10])
-                if (a.get('value') or {}).get('amount') is not None:
-                    out['values'].add(float(a['value']['amount']))
+                for k in ('amount', 'amountGross', 'amountNet'):
+                    if (a.get('value') or {}).get(k) is not None:
+                        out['values'].add(float(a['value'][k]))
                 out['text'] += f" {a.get('title') or ''} {a.get('description') or ''}"
             for k in rel.get('contracts') or []:
                 if (k.get('period') or {}).get('endDate'):
                     out['ends'].add(str(k['period']['endDate'])[:10])
-                if (k.get('value') or {}).get('amount') is not None:
-                    out['values'].add(float(k['value']['amount']))
+                for key in ('amount', 'amountGross', 'amountNet'):
+                    if (k.get('value') or {}).get(key) is not None:
+                        out['values'].add(float(k['value'][key]))
             if (tender.get('contractPeriod') or {}).get('endDate'):
                 out['ends'].add(str(tender['contractPeriod']['endDate'])[:10])
     return out
@@ -247,6 +253,8 @@ def verify(args) -> None:
     unsupported = [r for r in rows if any(r.get(k) is False for k in ('supplier_in_source', 'customer_in_source', 'end_in_source', 'value_in_source'))]
     false_matches = [r for r in rows if r.get('supplier_in_source') is False or r.get('number_in_source') is False or r.get('name_join_supported') is False]
     summary = {'as_of': data['as_of'], 'checked_by': 'scripts/atlas_challenge.py verify: its own OCDS parser and name normaliser, reading the raw source records',
+               'checker_history': ('The first run flagged 2 values (one framework ceiling, on two contractors). The source publishes it as tender value '
+                                   'amountGross, which the checker did not yet read; the checker was widened and the Atlas was unchanged.'),
                'assertions': len(rows), 'contractors': len(data['contractors']), 'by_check': {k: rate(k) for k in keys},
                'relationship_correct': rate_both(rows), 'unsupported_assertions': len(unsupported), 'false_relationship_matches': len(false_matches),
                'by_basis': dict(Counter(r['basis'] for r in rows))}
@@ -337,12 +345,16 @@ def recheck(args) -> None:
             words = [w for w in _n(name).split() if w not in generic and len(w) > 1] or _n(name).split()
             return bool(words) and all(f' {w} ' in f' {page} ' for w in words)
         out.append({**r, 'page_status': status, 'page_available': bool(text),
-                    'quote_on_live_page': bool(text) and quote in page, 'supplier_on_live_page': bool(text) and named(r['supplier']),
+                    'quote_on_live_page': bool(text) and bool(quote) and quote in page,  # an empty quote is never 'found' 'supplier_on_live_page': bool(text) and named(r['supplier']),
                     'customer_on_live_page': bool(text) and named(r['customer'])})
     reported = [o for o in out if o['status'] == 'reported']
     available = [o for o in reported if o['page_available']]
+    rejected = [o for o in out if o['status'] != 'reported']
     summary = {'checked_by': 'scripts/atlas_challenge.py recheck: a fresh fetch of each page, with its own text extraction',
                'reported': len(reported), 'pages_available': len(available),
+               'rejected_claims': len(rejected), 'rejected_pages_available': sum(o['page_available'] for o in rejected),
+               'rejected_with_customer_on_live_page': sum(o['customer_on_live_page'] for o in rejected),
+               'rejected_with_quote_on_live_page': sum(o['quote_on_live_page'] for o in rejected),
                'quote_confirmed_live': sum(o['quote_on_live_page'] for o in available), 'customer_named_live': sum(o['customer_on_live_page'] for o in available),
                'supplier_named_live': sum(o['supplier_on_live_page'] for o in available),
                'pipeline_quote_verified': sum(o['quote_verified'] for o in reported), 'unsupported_kept_hidden': len(out) - len(reported)}

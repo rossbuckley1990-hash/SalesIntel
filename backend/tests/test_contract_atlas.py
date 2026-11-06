@@ -175,6 +175,7 @@ def test_private_research_keeps_only_what_the_pages_say(market):
     for r in view['relationships']:
         assert not {'value', 'amount', 'end', 'end_date'} & set(r) and 'not established' in r['caveat'] or r['currency'] == 'historical'
     assert atlas.customer_record(db, 'northmoor care group', today=TODAY)['incumbent']['state'] == 'reported'
+    assert [c['name'] for c in atlas.search(db, 'northmoor', today=TODAY)['customers']] == ['Northmoor Care Group']  # findable once researched
     # A person's decision survives a new run, and a new run adds no duplicates.
     northmoor.status = 'confirmed'
     db.commit()

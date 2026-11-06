@@ -1,0 +1,478 @@
+{
+ "as_of": "2026-11-06",
+ "code": {
+  "commit": "9dc14034ce4dbe4fd5ed28cb08028ffee267e871",
+  "tracked_changes": false
+ },
+ "sample_seed": 15922276876787277799,
+ "contractors": [
+  {
+   "contractor": "GLEN WILSON LIMITED",
+   "company_number": "01543289",
+   "stratum": "1|number",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 1,
+   "ending_within_18_months": 1,
+   "with_published_end": 1,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "SCHNEIDER ELECTRIC (UK) LIMITED",
+   "company_number": "02886434",
+   "stratum": "1|number",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 1,
+   "ending_within_18_months": 0,
+   "with_published_end": 1,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "Snowdonia Fire Protection",
+   "company_number": "04674757",
+   "stratum": "5+|number",
+   "published_contracts": 6,
+   "customers": 5,
+   "in_term": 5,
+   "ending_within_18_months": 4,
+   "with_published_end": 6,
+   "with_published_value": 6
+  },
+  {
+   "contractor": "ASPECT BUILDING SOLUTIONS LIMITED",
+   "company_number": "06382267",
+   "stratum": "2-4|number",
+   "published_contracts": 4,
+   "customers": 2,
+   "in_term": 0,
+   "ending_within_18_months": 0,
+   "with_published_end": 2,
+   "with_published_value": 2
+  },
+  {
+   "contractor": "Practical Solutions Midlands Limited",
+   "company_number": "07617741",
+   "stratum": "2-4|number",
+   "published_contracts": 2,
+   "customers": 2,
+   "in_term": 1,
+   "ending_within_18_months": 1,
+   "with_published_end": 2,
+   "with_published_value": 2
+  },
+  {
+   "contractor": "BRIGGS FIRE AND SECURITY LIMITED",
+   "company_number": "10448718",
+   "stratum": "5+|number",
+   "published_contracts": 5,
+   "customers": 4,
+   "in_term": 2,
+   "ending_within_18_months": 1,
+   "with_published_end": 5,
+   "with_published_value": 5
+  },
+  {
+   "contractor": "AlphaComm systems LTD",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 0,
+   "ending_within_18_months": 0,
+   "with_published_end": 0,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "B&C Fire Engineering",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 1,
+   "ending_within_18_months": 1,
+   "with_published_end": 1,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "BB7 FIRE LIMITED",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 0,
+   "ending_within_18_months": 0,
+   "with_published_end": 1,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "Central Security Systems Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 1,
+   "ending_within_18_months": 0,
+   "with_published_end": 1,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "Custom Technology Solutions Ltd",
+   "company_number": null,
+   "stratum": "2-4|name_only",
+   "published_contracts": 3,
+   "customers": 2,
+   "in_term": 1,
+   "ending_within_18_months": 1,
+   "with_published_end": 3,
+   "with_published_value": 3
+  },
+  {
+   "contractor": "DCF Joiners & Building Services Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 0,
+   "ending_within_18_months": 0,
+   "with_published_end": 0,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "Diamond & Company (Scotland) Limited",
+   "company_number": null,
+   "stratum": "2-4|name_only",
+   "published_contracts": 2,
+   "customers": 1,
+   "in_term": 0,
+   "ending_within_18_months": 0,
+   "with_published_end": 0,
+   "with_published_value": 2
+  },
+  {
+   "contractor": "ETS Health and Safety Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 0,
+   "ending_within_18_months": 0,
+   "with_published_end": 1,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "Eyton solutions",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 0,
+   "ending_within_18_months": 0,
+   "with_published_end": 1,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "FRANKHAM RISK MANAGEMENT SERVICES LIMITED",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 1,
+   "ending_within_18_months": 1,
+   "with_published_end": 1,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "Instalrite Design Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 1,
+   "ending_within_18_months": 1,
+   "with_published_end": 1,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "Knightguard Security Limited",
+   "company_number": null,
+   "stratum": "2-4|name_only",
+   "published_contracts": 3,
+   "customers": 2,
+   "in_term": 1,
+   "ending_within_18_months": 1,
+   "with_published_end": 3,
+   "with_published_value": 3
+  },
+  {
+   "contractor": "Pro Fire Safety and Training Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 1,
+   "ending_within_18_months": 1,
+   "with_published_end": 1,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "RACAM Security & Communications Limited",
+   "company_number": null,
+   "stratum": "2-4|name_only",
+   "published_contracts": 2,
+   "customers": 1,
+   "in_term": 0,
+   "ending_within_18_months": 0,
+   "with_published_end": 0,
+   "with_published_value": 2
+  },
+  {
+   "contractor": "Saltash Enterprises Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 0,
+   "ending_within_18_months": 0,
+   "with_published_end": 1,
+   "with_published_value": 1
+  },
+  {
+   "contractor": "Secureshield Ltd",
+   "company_number": null,
+   "stratum": "5+|name_only",
+   "published_contracts": 7,
+   "customers": 5,
+   "in_term": 0,
+   "ending_within_18_months": 0,
+   "with_published_end": 1,
+   "with_published_value": 7
+  },
+  {
+   "contractor": "Synectics Security Limited",
+   "company_number": null,
+   "stratum": "5+|name_only",
+   "published_contracts": 5,
+   "customers": 5,
+   "in_term": 1,
+   "ending_within_18_months": 1,
+   "with_published_end": 5,
+   "with_published_value": 5
+  },
+  {
+   "contractor": "Ubisecure Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1,
+   "customers": 1,
+   "in_term": 0,
+   "ending_within_18_months": 0,
+   "with_published_end": 1,
+   "with_published_value": 1
+  }
+ ],
+ "verification": {
+  "as_of": "2026-11-06",
+  "checked_by": "scripts/atlas_challenge.py verify: its own OCDS parser and name normaliser, reading the raw source records",
+  "checker_history": "The first run flagged 2 values (one framework ceiling, on two contractors). The source publishes it as tender value amountGross, which the checker did not yet read; the checker was widened and the Atlas was unchanged.",
+  "assertions": 53,
+  "contractors": 24,
+  "by_check": {
+   "supplier_in_source": {
+    "checked": 53,
+    "passed": 53,
+    "rate": 1.0
+   },
+   "customer_in_source": {
+    "checked": 53,
+    "passed": 53,
+    "rate": 1.0
+   },
+   "number_in_source": {
+    "checked": 9,
+    "passed": 9,
+    "rate": 1.0
+   },
+   "name_join_supported": {
+    "checked": 10,
+    "passed": 10,
+    "rate": 1.0
+   },
+   "end_in_source": {
+    "checked": 39,
+    "passed": 39,
+    "rate": 1.0
+   },
+   "value_in_source": {
+    "checked": 51,
+    "passed": 51,
+    "rate": 1.0
+   },
+   "status_consistent": {
+    "checked": 39,
+    "passed": 39,
+    "rate": 1.0
+   },
+   "service_words_in_source": {
+    "checked": 53,
+    "passed": 53,
+    "rate": 1.0
+   },
+   "scope_consistent": {
+    "checked": 33,
+    "passed": 33,
+    "rate": 1.0
+   }
+  },
+  "relationship_correct": {
+   "checked": 53,
+   "passed": 53,
+   "rate": 1.0
+  },
+  "unsupported_assertions": 0,
+  "false_relationship_matches": 0,
+  "by_basis": {
+   "company_number": 9,
+   "identical_legal_name": 10,
+   "name_only": 34
+  }
+ },
+ "private_research": {
+  "runs": [
+   {
+    "contractor": "GLEN WILSON LIMITED",
+    "cost_usd": 0.67,
+    "reported": 0,
+    "quote_verified": 0,
+    "unsupported_hidden": 0,
+    "historical": 0,
+    "pages_reviewed": 49,
+    "error": null
+   },
+   {
+    "contractor": "SCHNEIDER ELECTRIC (UK) LIMITED",
+    "cost_usd": 0.54,
+    "reported": 0,
+    "quote_verified": 0,
+    "unsupported_hidden": 1,
+    "historical": 0,
+    "pages_reviewed": 47,
+    "error": null
+   },
+   {
+    "contractor": "ASPECT BUILDING SOLUTIONS LIMITED",
+    "cost_usd": 0.94,
+    "reported": 0,
+    "quote_verified": 0,
+    "unsupported_hidden": 2,
+    "historical": 0,
+    "pages_reviewed": 54,
+    "error": null
+   },
+   {
+    "contractor": "B&C Fire Engineering",
+    "cost_usd": 0.41,
+    "reported": 0,
+    "quote_verified": 0,
+    "unsupported_hidden": 0,
+    "historical": 0,
+    "pages_reviewed": 35,
+    "error": null
+   },
+   {
+    "contractor": "BB7 FIRE LIMITED",
+    "cost_usd": 1.54,
+    "reported": null,
+    "quote_verified": null,
+    "unsupported_hidden": null,
+    "historical": null,
+    "pages_reviewed": null,
+    "error": "ValueError: This research reached its cost ceiling and stopped before making another paid call."
+   },
+   {
+    "contractor": "Custom Technology Solutions Ltd",
+    "cost_usd": 0.39,
+    "reported": 0,
+    "quote_verified": 0,
+    "unsupported_hidden": 0,
+    "historical": 0,
+    "pages_reviewed": 49,
+    "error": null
+   },
+   {
+    "contractor": "Knightguard Security Limited",
+    "cost_usd": 0.65,
+    "reported": 0,
+    "quote_verified": 0,
+    "unsupported_hidden": 0,
+    "historical": 0,
+    "pages_reviewed": 52,
+    "error": null
+   },
+   {
+    "contractor": "Pro Fire Safety and Training Ltd",
+    "cost_usd": 0.83,
+    "reported": 0,
+    "quote_verified": 0,
+    "unsupported_hidden": 1,
+    "historical": 0,
+    "pages_reviewed": 48,
+    "error": null
+   }
+  ],
+  "spent_usd": 5.97,
+  "budget_usd": 10.0,
+  "recheck": {
+   "checked_by": "scripts/atlas_challenge.py recheck: a fresh fetch of each page, with its own text extraction",
+   "reported": 0,
+   "pages_available": 0,
+   "rejected_claims": 4,
+   "rejected_pages_available": 3,
+   "rejected_with_customer_on_live_page": 3,
+   "rejected_with_quote_on_live_page": 1,
+   "quote_confirmed_live": 0,
+   "customer_named_live": 0,
+   "supplier_named_live": 0,
+   "pipeline_quote_verified": 0,
+   "unsupported_kept_hidden": 4
+  }
+ },
+ "utility": {
+  "as_of": "2026-11-06",
+  "reference_profile": {
+   "services": [
+    "fire_alarm",
+    "access_control",
+    "cctv",
+    "intruder",
+    "emergency_lighting"
+   ],
+   "territory": [
+    "England",
+    "Scotland",
+    "Wales"
+   ]
+  },
+  "accounts_already_pursued": 1,
+  "atlas": {
+   "new_accounts": 317,
+   "with_published_supplier_relationship": 317,
+   "with_specific_reason": 317,
+   "with_published_end_date": 305,
+   "with_named_contact_on_notice": 0,
+   "with_contact_route_on_notice": 0,
+   "with_next_action": 317
+  },
+  "baselines": {
+   "renewal_radar_accounts": 325,
+   "shadow_radar_accounts": 0
+  },
+  "overlap": {
+   "atlas_and_renewal_radar": 196,
+   "atlas_only": 121,
+   "renewal_radar_only": 129
+  },
+  "note": "Counts of what each list can show, not a judgement of quality. Whether these accounts are worth pursuing needs a salesperson, as in the blind review; no improvement is claimed."
+ },
+ "withheld": "Organisations that appear in the frozen blind-review set are withheld until that review is locked."
+}

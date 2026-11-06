@@ -552,6 +552,16 @@ def search(db: Session, q: str = '', *, discipline: str = '', nation: str = '', 
             k['suppliers'].add(contractor.display_name)
             k['services'].update(party.disciplines)
 
+    if not any(f.values()):  # relationships this workspace researched; filters apply to published contracts only
+        for r in db.scalars(select(AtlasRelationship).where(AtlasRelationship.status != 'unsupported')):
+            if term and term not in r.customer_key:
+                continue
+            k = by_customer.setdefault(r.customer_key, {'key': r.customer_key, 'name': r.customer_name, 'contracts': 0, 'ending_soon': 0,
+                                                        'suppliers': set(), 'services': Counter(), 'region': '', 'nation': ''})
+            k['suppliers'].add(r.supplier_name)
+            k['services'].update(r.services)
+            k['reported'] = k.get('reported', 0) + 1
+
     def done(x: dict) -> dict:
         x = dict(x)
         x['services'] = [{'family': k, 'label': FAMILY_LABEL.get(k, k), 'contracts': n} for k, n in x['services'].most_common(4)]

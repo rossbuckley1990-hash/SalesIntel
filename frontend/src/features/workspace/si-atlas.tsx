@@ -344,7 +344,7 @@ export function AccountSuppliers({ accountId }: { accountId: number }) {
       <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-[14px] font-semibold text-ds-ink">Who supplies them</h3>
         <button className="text-[12.5px] font-semibold text-ds-brand hover:underline" onClick={() => goto("find", { mode: "atlas", customer: c.key })}>Open in Contract Atlas</button></div>
       <p className="mt-1.5"><Pill tone={c.incumbent.state === "published" ? "green" : c.incumbent.state === "reported" ? "blue" : "neutral"}>{c.incumbent.label}</Pill></p>
-      {!!suppliers.length && <p className="mt-1.5 text-[12.5px] text-ds-ink-2">{suppliers.slice(0, 5).join(" · ")}</p>}
+      {suppliers.some((s) => !c.incumbent.label.includes(s)) && <p className="mt-1.5 text-[12.5px] text-ds-ink-2">Also named: {suppliers.filter((s) => !c.incumbent.label.includes(s)).slice(0, 5).join(" · ")}</p>}
       {!suppliers.length && <p className="mt-1.5 text-[12.5px] text-ds-muted">Nothing published names a current supplier. Research it from Contract Atlas, within your research budget.</p>}
     </section>
   );

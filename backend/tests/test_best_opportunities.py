@@ -41,26 +41,32 @@ def test_best_opportunities_are_ranked_by_explained_tiers_never_by_a_score(hoste
         db.commit()
     alice, _ = workspace(h, 'alice', 'Alpha Fire Ltd')
     best = alice.get('/api/si/best').json()
-    assert best['items'] and set(best['tiers']) <= {'act_now', 'this_week', 'watch'}
+    # This data is indirect evidence only. Under the two pathways it is explored, labelled as unconfirmed, and never put on
+    # the qualified list as a requirement (PR #8 put the corroborated reading on the day's list itself).
+    shown = best['items'] + best['exploratory']
+    assert best['exploratory'] and set(best['tiers']) <= {'act_now', 'this_week', 'watch', 'explore'}
     text = json.dumps(best).lower()
-    assert 'probability' not in text.replace('no probability is shown', '') and '"score"' not in text and '%' not in json.dumps(best['items'])
+    assert 'probability' not in text.replace('no probability is shown', '') and '"score"' not in text and '%' not in json.dumps(shown)
     order = {'act_now': 0, 'this_week': 1, 'watch': 2}
     assert [order[x['tier']] for x in best['items']] == sorted(order[x['tier']] for x in best['items'])
-    for x in best['items']:
+    for x in shown:
         assert x['why_now'] and x['next'] and x['tier_label']
         if x['tier'] != 'watch':
-            assert x['reasons'], x['organisation']  # every promoted lead says why
-    h_item = next(x for x in best['items'] if x['organisation'].startswith('Harbourside'))
+            assert x['reasons'], x['organisation']  # every promoted or explored lead says why
+    h_item = next(x for x in best['exploratory'] if x['organisation'].startswith('Harbourside'))
     assert any('Corroborated by 2 independent sources' in r for r in h_item['reasons'])
     assert h_item['cautions'][0].startswith('Inferred, not advertised')  # an inference is never presented as confirmed
-    assert len({x['organisation'] for x in best['items']}) == len(best['items'])  # one row per organisation
+    assert any(u.startswith('Need not confirmed') for u in h_item['uncertainty'])
+    assert len({x['organisation'] for x in shown}) == len(shown)  # one row per organisation
     assert best['profile']['basis'] == 'stated' and best['profile']['minimum_won'] == 5  # too few wins to learn from
-    # Presented leads are recorded once a day, for later relevance measurement.
-    alice.get('/api/si/best')
+    # A lead counts as presented only when the interface reports it on screen, once a day (not when the API is read).
+    keys = [x['key'] for x in shown]
+    alice.post('/api/si/best/seen', json={'keys': keys})
+    alice.post('/api/si/best/seen', json={'keys': keys})
     from app.models.crm import FunnelEvent
     with h.system() as db:
         refs = [e.ref for e in db.scalars(select(FunnelEvent).where(FunnelEvent.event == 'lead_presented'))]
-        assert len(refs) == len(set(refs)) == len(best['items'])
+        assert len(refs) == len(set(refs)) == len(shown)
 
 
 def test_resolve_this_gap_answers_only_from_sources_and_says_so_when_it_cannot(hosted, monkeypatch):
@@ -191,7 +197,9 @@ def test_an_existing_customer_s_new_site_is_one_account_and_an_expansion_play(ho
     with h.system() as db:
         db.get(Account, made['account_id']).status = 'customer'  # an existing customer (won before this test)
         db.commit()
-    item = next(x for x in alice.get('/api/si/best').json()['items'] if x['organisation'].startswith('Harbourside'))
+    before = alice.get('/api/si/best').json()
+    item = next(x for x in before['exploratory'] if x['organisation'].startswith('Harbourside'))  # not yet linked: indirect evidence is explored
+    assert item['pathway'] == 'exploratory'
     lead, account = investigated(h, alice)
     assert account == made['account_id']  # linked to the customer, not a duplicate
     assert len([a for a in alice.get('/api/si/accounts').json()['items'] if a['name'].startswith('Harbourside')]) == 1
@@ -207,7 +215,7 @@ def test_an_account_without_evidence_is_never_assumed_to_be_a_new_site_or_a_tend
     alice, _ = workspace(h, 'alice', 'Alpha Fire Ltd')
     made = alice.post('/api/si/accounts', json={'name': 'Example Hand Added Ltd'}).json()
     play = alice.get(f"/api/si/accounts/{made['account_id']}/play").json()
-    assert play['play'] == 'develop' and 'no public signal' in play['hypothesis']
+    assert play['play'] == 'develop' and 'establish directly' in play['hypothesis'] and 'new site' not in play['label'].lower()
     steps = {s['key']: s['state'] for s in play['steps']}
     assert steps['evidence'] == 'todo' and steps['qualify'] == 'todo' and play['done'] == 0
 

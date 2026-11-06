@@ -65,10 +65,11 @@ def enqueue(db: Session, kind: str, *, account_id: int | None, params: dict, est
             return recent, False  # results are reused and linked to the account, not regenerated
     org = db.info.get(ORG) or 1
     day = spend.uk_today()
+    live = bool(estimated_cents) and spend.live_provider()  # paid research also needs the approved budget
     if estimated_cents:
-        spend.reserve(db, org, user_id, estimated_cents, day)  # refused before anything is queued or called
+        spend.reserve(db, org, user_id, estimated_cents, day, programme=live)  # refused before anything is queued or called
     moment = now()
-    job = ResearchJob(requested_by=user_id, kind=kind, account_id=account_id, params={**params, 'internal': {'spend_day': day.isoformat()}},
+    job = ResearchJob(requested_by=user_id, kind=kind, account_id=account_id, params={**params, 'internal': {'spend_day': day.isoformat(), 'programme': live}},
                       status='queued', stage='Waiting to start', attempts=0, max_attempts=3, next_run_at=moment, cancel_requested=False,
                       estimated_cents=estimated_cents, reserved_cents=estimated_cents, actual_cents=0, usage={}, result={}, error='',
                       created_at=moment, updated_at=moment)
@@ -101,7 +102,7 @@ def _finish(db: Session, job: ResearchJob, status: str, *, stage: str = '', erro
         day = datetime.fromisoformat(internal.get('spend_day', spend.uk_today().isoformat())).date()
         # A provider call cut off by a crash cannot be measured, so a recovered job is charged at least its estimate.
         charged = max(job.actual_cents, job.estimated_cents) if internal.get('interrupted') else job.actual_cents
-        spend.settle(db, job.requested_by, job.reserved_cents, charged, day)
+        spend.settle(db, job.requested_by, job.reserved_cents, charged, day, programme=bool(internal.get('programme')))
         job.reserved_cents = 0
 
 

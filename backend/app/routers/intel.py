@@ -18,14 +18,31 @@ from app.routers.salesintel import permitted, run
 from app.services import best, gaps, jobs, plays
 from app.services.ai_costs import research_provider
 from app.services.spend import SpendLimitReached
+from app.services.spend import refusal as spend_refusal
 from app.tenancy import can
 
 router = APIRouter(prefix='/api/si', tags=['intelligence'], dependencies=[Depends(permitted)])
 
 
 @router.get('/best')
-def best_opportunities(limit: int = 12, db: Session = Depends(tenant_db)):
-    return run(db, lambda: best.opportunities(db, limit=max(1, min(limit, 40))))
+def best_opportunities(limit: int = 10, explore: int | None = None, db: Session = Depends(tenant_db)):
+    return run(db, lambda: best.opportunities(db, limit=max(1, min(limit, 40)), explore_limit=None if explore is None else max(0, min(explore, 40))))
+
+
+class Seen(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    keys: list[str] = Field(min_length=1, max_length=40)
+
+    def model_post_init(self, _):
+        import re
+        if not all(re.fullmatch(r'(mo|pr|sh):\d{1,12}', k) for k in self.keys):
+            raise ValueError('Unknown lead reference.')
+
+
+@router.post('/best/seen')
+def best_seen(payload: Seen, db: Session = Depends(tenant_db)):
+    """The interface reports which leads were actually on screen. Only this counts as a lead being presented."""
+    return run(db, lambda: {'recorded': best.seen(db, payload.keys)})
 
 
 @router.get('/icp')
@@ -81,7 +98,7 @@ def resolve_gap(account_id: int, payload: GapAsk, request: Request, db: Session 
             row, new = gaps.request(db, account_id, payload.gap, payload.subject, question, lead_key=payload.lead_key, user_id=ctx.user_id,
                                     use_ai=use_ai, refresh=payload.refresh)
         except SpendLimitReached as exc:
-            raise HTTPException(status_code=429, detail='This would exceed today\'s AI spending limit, so nothing was started or charged.') from exc
+            raise HTTPException(**spend_refusal(exc)) from exc
         job = db.get(ResearchJob, row.job_id) if row.job_id else None
         return plays.request_dict(row) | {'reused': not new, 'job': jobs.job_dict(job) if job else None}
     return run(db, lambda: idempotent(db, request.headers.get('idempotency-key'), f'gap.{account_id}', payload.model_dump(), work))
@@ -119,8 +136,35 @@ def investigate_account(account_id: int, payload: Investigate, request: Request,
             job, new = jobs.enqueue(db, 'deep_investigation', account_id=account_id, params={'hypothesis_key': None, 'use_ai': use_ai},
                                     estimated_cents=ESTIMATE_CENTS['deep_investigation'] if use_ai else 0, user_id=ctx.user_id, refresh=payload.refresh)
         except SpendLimitReached as exc:
-            raise HTTPException(status_code=429, detail='This would exceed today\'s AI spending limit, so nothing was started or charged.') from exc
+            raise HTTPException(**spend_refusal(exc)) from exc
         if new:
             core.track(db, 'investigation_started', account_id=account_id, ref=f'job:{job.id}')
         return {'account_id': account_id, 'job': jobs.job_dict(job) | {'reused': not new}}
     return run(db, lambda: idempotent(db, request.headers.get('idempotency-key'), f'investigate.account.{account_id}', payload.model_dump(), work))
+
+
+class BudgetApproval(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    amount_cents: int = Field(ge=100, le=100_000)  # $1 to $1,000 per approval
+    note: str = Field('', max_length=500)
+
+
+@router.get('/research-budget')
+def research_budget(db: Session = Depends(tenant_db)):
+    """The budget an administrator approved for live paid research, and what is committed against it."""
+    from app.services import spend
+    return spend.programme(db) | {'live_provider': spend.live_provider()}
+
+
+@router.post('/research-budget')
+def approve_research_budget(payload: BudgetApproval, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+    """Approve (or top up) the hard ceiling for live paid research. Administrators only; recorded in the audit trail."""
+    from app.services import spend
+    from app.tenancy import record
+    ctx.require('members.manage')
+
+    def work():
+        row = spend.approve(db, ctx.organisation_id, payload.amount_cents)
+        record(db, 'budget_up', 'si_spend_budgets', row.id, {'added_cents': payload.amount_cents, 'note': payload.note})
+        return spend.programme(db)
+    return run(db, work)

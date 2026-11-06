@@ -4,37 +4,37 @@
   "marks": [
     {
       "step": "Understand why the lead matters",
-      "seconds": 0.7,
+      "seconds": 0.1,
       "clicks": 0
     },
     {
       "step": "Start an investigation",
-      "seconds": 2.5,
+      "seconds": 1.4,
       "clicks": 2
     },
     {
       "step": "Review the critical findings",
-      "seconds": 4.4,
+      "seconds": 3.3,
       "clicks": 2
     },
     {
       "step": "Identify a usable contact route",
-      "seconds": 4.4,
+      "seconds": 3.3,
       "clicks": 2
     },
     {
       "step": "Prepare first contact",
-      "seconds": 9,
+      "seconds": 7.4,
       "clicks": 5
     },
     {
       "step": "Set the next commercial action",
-      "seconds": 9.6,
+      "seconds": 8,
       "clicks": 7
     },
     {
       "step": "Return and continue",
-      "seconds": 0.4,
+      "seconds": 0.3,
       "clicks": 0
     }
   ]

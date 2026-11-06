@@ -1,0 +1,132 @@
+"""Generate the PR #9 showcase from real, permitted public evidence, by a rule fixed before looking:
+the highest-ranked lead of each source type on the daily list, for the reference profile, as of the evaluation date.
+
+Run against the same ISOLATED COPY used for the review set (after build_review_set.py, which creates the evaluation
+workspace). It writes docs/saas/evaluation/SHOWCASE.md. Nothing is researched or paid for here: the showcase shows
+what SalesIntel knows from collected evidence, and says plainly what it does not.
+
+    DATABASE_URL=sqlite:////path/to/copy.db PYTHONPATH=backend .venv/bin/python backend/scripts/build_showcase.py --as-of 2026-11-05
+"""
+from __future__ import annotations
+
+import argparse
+import json
+from datetime import date
+from pathlib import Path
+
+from sqlalchemy import select
+
+import app.models  # noqa: F401
+from app.db import SessionLocal
+from app.intelligence import opportunity_review as review
+from app.models.prospect import Prospect
+from app.models.tenancy import Organisation
+from app.services import best, committee, plays, si_core
+from app.tenancy import ORG
+
+OUT = Path(__file__).parents[2] / 'docs' / 'saas' / 'evaluation' / 'SHOWCASE.md'
+SETS = Path(__file__).parents[1] / 'reference_data' / 'evaluation'
+
+
+def play_of(db, lead: dict) -> str:
+    if lead['type'] == 'public':
+        return 'public_tender' if lead['kind'] == 'published_procurement' else 'renewal'
+    if lead['type'] == 'shadow':
+        return plays.SENSOR_PLAY.get((lead.get('shadow') or {}).get('sensor', ''), 'new_site')
+    row = db.get(Prospect, int(lead['key'][3:]))
+    sourced = {x.get('type') for x in ((row.data.get('signals') if row else None) or []) if x.get('source_url') and x.get('basis') in ('stated', 'published')}
+    return 'new_site' if sourced & {'new_site', 'relocation', 'planning_application'} else 'supplier_review' if 'incumbent_poor_performance' in sourced else 'develop'
+
+
+def routes(db, lead: dict) -> list[str]:
+    """Business contact routes on record, by kind and source only (no personal details)."""
+    if lead['type'] == 'public':
+        url = next((k.get('source_url') for k in lead['brief']['known'] if k.get('source_url')), None)
+        return [f"The buyer's official procurement notice and portal ({url})" if url else "The buyer's official procurement notice"]
+    if lead['type'] == 'private':
+        row = db.get(Prospect, int(lead['key'][3:]))
+        out = [f"{r.get('label') or r.get('kind')} ({r.get('kind')}), published at {r.get('source_url')}" for r in (row.data.get('contact_routes') or [])] if row else []
+        people = len((row.data.get('people') if row else None) or [])
+        if people:
+            out.append(f"{people} named person(s) in published sources (names withheld from this document)")
+        return out or ['No verified business route on record yet: Resolve this gap (find the role) would search for one']
+    return ['No route on record: an investigation would look for one']
+
+
+def disproof(lead: dict, play: str) -> list[str]:
+    if lead['type'] == 'shadow':
+        s = lead.get('shadow') or {}
+        return list(s.get('disconfirming') or []) + [a['explanation'] for a in s.get('alternatives') or []]
+    return {'renewal': ['The contract has already been extended, re-let or brought in house', 'The published term was not the real end date'],
+            'public_tender': ['The scope is outside what you deliver, or reserved for a framework', 'Mandatory requirements you cannot meet'],
+            'new_site': ['Fire and security is already specified, or let as part of a main contract', 'The site is delayed or cancelled'],
+            'supplier_review': ['The supplier change is resolved, or does not affect fire and security', 'A long contract term prevents any change'],
+            'develop': ['No change is planned and the incumbent is retained', 'The signal does not concern fire or security']}[play]
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--as-of', required=True)
+    as_of = date.fromisoformat(parser.parse_args().as_of)
+    with SessionLocal() as db:
+        org = db.scalar(select(Organisation).where(Organisation.slug == 'evaluation-reference-profile'))
+        if org is None:
+            raise SystemExit('Run build_review_set.py first: it creates the evaluation workspace.')
+        db.info[ORG] = org.id
+        with review.reference_profile():
+            listing = best.opportunities(db, limit=200, explore_limit=200)
+            items = {x['key']: x for x in si_core.discover_items(db, limit=None)}
+        # Never feature an organisation that is in a blind review set: a public showcase would tell reviewers how it was found.
+        blind = {i['organisation'].lower() for p in SETS.glob('*.json') if not p.name.endswith('.commitment.json') for i in json.loads(p.read_text())['items']}
+        lines = [f"# Showcase: what SalesIntel finds from real public evidence (as of {as_of:%-d %B %Y})", "",
+                 "Generated by `backend/scripts/build_showcase.py` from the isolated evaluation copy. **Selection rule, fixed before looking:** the "
+                 "highest-ranked lead of each source type for the reference profile (a UK installer of fire alarms, access control, CCTV, intruder and "
+                 "emergency lighting, in England, Scotland and Wales): from the qualified list if that source type has a lead there, otherwise from the "
+                 "exploratory list, which is labelled as such. Organisations in the blind review set are skipped, so this page cannot unblind it. "
+                 "Nothing here was researched or paid for; named individuals are withheld.", ""]
+        for kind, label in (('public', 'Public procurement'), ('private', 'Private-company intelligence'), ('shadow', 'Shadow Radar (indirect signals)')):
+            open_ = [x for x in listing['items'] + listing['exploratory'] if x['organisation'].lower() not in blind]
+            row = (next((x for x in open_ if x['type'] == kind and x.get('pathway') == 'qualified' and x['tier'] != 'watch'), None)
+                   or next((x for x in open_ if x['type'] == kind and x.get('pathway') == 'exploratory'), None))
+            lines += [f"## {label}", ""]
+            if row is None:
+                live = [x for x in items.values() if x['type'] == kind and x['status'] != 'dismissed']
+                states = {}
+                for x in live:
+                    st = (x.get('shadow') or {}).get('state_label') or 'unknown'
+                    states[st] = states.get(st, 0) + 1
+                lines += [f"**No lead of this kind reached either list.** {len(live)} active leads were kept in view: "
+                          + '; '.join(f"{v} {k.lower()}" for k, v in sorted(states.items(), key=lambda kv: -kv[1]))
+                          + ". None met the evidence bar for the qualified or the exploratory list. "
+                          "This is reported, not worked around.", ""]
+                continue
+            lead = items[row['key']]
+            play = play_of(db, lead)
+            spec = plays.PLAYS[play]
+            roles = [committee.ROLES[k][0] + f" ({committee.PARTS[committee.ROLES[k][1]].lower()})" for k in committee.TEMPLATES[play]]
+            pathway = ('**Exploratory: need not confirmed.** ' + '; '.join(u.rstrip('.') for u in row.get('uncertainty') or []) + '.'
+                       if row.get('pathway') == 'exploratory' else '**Qualified: the evidence names a service the profile sells.**')
+            lines += [f"### {row['organisation']}", f"*{row['title']}*", "", pathway, "",
+                      f"1. **Why it was discovered.** {row['tier_label']}: " + '; '.join(x.rstrip('.') for x in row['reasons']) + '.',
+                      "2. **The evidence.** " + ' '.join(f"{k['text'].rstrip('.')}{(' (' + k['date'] + ')') if k.get('date') else ''}{(' [source](' + k['source_url'] + ')') if k.get('source_url') else ''}." for k in row['known']) +
+                      f" Why now: {row['why_now']} ({row['why_now_basis'].lower()}).",
+                      f"3. **The likely opportunity.** {spec['label']}: {spec['hypothesis']}",
+                      "4. **What could disprove it.** " + '; '.join(x.rstrip('.') for x in disproof(lead, play)) + '.',
+                      "5. **Still unknown.** " + '; '.join(x.rstrip('.') for x in row['unknown']) + '.',
+                      "6. **Stakeholders to find.** " + '; '.join(roles) + '.',
+                      "7. **Legitimate contact routes on record.** " + '; '.join(routes(db, lead)) + '.',
+                      f"8. **How to engage.** {row['next']}",
+                      "9. **Into the pipeline.** Open the account, run the " + spec['label'] + " play (investigate, find people, resolve gaps, prepare the approach, "
+                      "log contact, confirm a requirement) and qualify it into a deal with this evidence attached. To qualify: " + '; '.join(spec['qualify']) + '.', ""]
+        lines += ["## What this shows, and what it does not", "",
+                  "- The leads are real organisations from published records (Contracts Finder, OGL; company announcements gathered by earlier research).",
+                  "- Each is explained by its evidence, with what would disprove it and what is unknown. A qualified lead rests on evidence that names the "
+                  "service; an exploratory lead is a reason to investigate, not a requirement.",
+                  "- Contact routes are only those already on record; deeper research needs an approved research budget.",
+                  "- Whether these are worth a salesperson's time is for the blind human review to decide, not this document.", ""]
+    OUT.write_text('\n'.join(lines))
+    print(f'Wrote {OUT}')
+
+
+if __name__ == '__main__':
+    main()

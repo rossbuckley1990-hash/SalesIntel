@@ -14,6 +14,10 @@ from sqlalchemy.orm import Session
 
 from app.models.crm import Contact
 
+
+def _norm(text: str) -> str:
+    return re.sub(r'\s+', ' ', re.sub(r'[^\w@.+-]+', ' ', (text or '').lower())).strip()
+
 LEVELS = {
     1: ("recently_reverified", "Recently re-verified", "Checked by your team in the last 90 days"),
     2: ("provider_verified", "Provider-verified", "Confirmed by a licensed data provider"),
@@ -49,6 +53,8 @@ def level(c: Contact, today: date | None = None) -> dict:
         n = 1
     elif c.quality == 'provider_verified':
         n = 2
+    elif named and c.quality != 'provider_verified' and c.source_quote and _norm(c.name) not in _norm(c.source_quote):
+        n = 4  # the source behind this contact does not name this person
     elif c.quality == 'public_source' or (c.basis == 'published' and c.source_url and c.source_quote):
         n = 3
     elif c.email or c.phone or named:
@@ -56,6 +62,8 @@ def level(c: Contact, today: date | None = None) -> dict:
     else:
         n = 6
     key, label, detail = LEVELS[n]
+    if n == 4 and named and c.source_quote and _norm(c.name) not in _norm(c.source_quote):
+        detail = 'Its source does not name this person: the detail may be a shared or departmental route'
     stale = 'stale' in (c.flags or []) or 'may_have_moved' in (c.flags or []) or (age is not None and age > STALE_DAYS)
     freshness = 'unknown' if age is None else 'stale' if stale else 'fresh' if age <= FRESH_DAYS else 'ageing'
     return {'level': n, 'key': key, 'label': label, 'detail': detail, 'freshness': freshness, 'age_days': age,

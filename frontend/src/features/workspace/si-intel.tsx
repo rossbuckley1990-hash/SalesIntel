@@ -14,14 +14,16 @@ import { newKey, type JobT } from "./si-people";
 type Known = { text: string; source_url: string | null; date: string; basis: string };
 export type BestItem = {
   key: string; organisation: string; account_id: number | null; type: "public" | "private" | "shadow"; kind: string; kind_label: string; title: string; site?: string | null;
-  tier: "act_now" | "this_week" | "watch"; tier_label: string; reasons: string[]; cautions: string[]; why_customer: string[]; why_now: string; why_now_basis: string;
+  tier: "act_now" | "this_week" | "watch" | "explore"; tier_label: string; pathway: "qualified" | "exploratory"; reasons: string[]; cautions: string[]; why_customer: string[];
+  why_now: string; why_now_basis: string; uncertainty?: string[]; sources?: number;
   known: Known[]; unknown: string[]; speak_to: { roles: string[]; routes_saved: number; summary: string }; next: string; timing: string | null; days: number | null;
   services: string[]; signals: { key: string; type: string; label: string; why_now: string }[];
   relationship: { status: string; open_deals: number; overdue: { title: string; due_on: string }[]; requirement: { text: string; on: string } | null; last_activity: string | null } | null;
 };
 type ProfileT = { basis: "stated" | "learned"; stated: { services: string[]; territory: string[]; sectors: string[] }; complete: boolean; caveat: string; won: number; minimum_won: number;
   learned: { sectors: { name: string; won: number }[]; services: { name: string; won: number }[]; median_total_value: number | null; median_days_to_win: number | null } | null };
-type BestT = { as_of: string; items: BestItem[]; total: number; tiers: Record<string, number>; set_aside: { reason: string; count: number }[]; profile: ProfileT; method: string };
+type BestT = { as_of: string; items: BestItem[]; exploratory: BestItem[]; exploratory_total: number; exploratory_method: string; total: number; in_view: number;
+  tiers: Record<string, number>; set_aside: { reason: string; count: number }[]; profile: ProfileT; method: string };
 type Finding = { answer: string; text: string; quote: string; source_url: string; source_date: string; official: boolean };
 export type GapReqT = { id: number; gap: string; subject: string; question: string; status: string; summary: string; findings: Finding[]; rejected: { text: string; source: string; reason: string }[];
   sources: number; job_id: number | null; cost_cents: number; created_at: string; resolved_at: string | null; job?: JobT | null; reused?: boolean };
@@ -45,6 +47,31 @@ export function BestOpportunities({ notify }: { notify: (m: string, e?: boolean)
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   useEffect(() => { si<BestT>("/best").then(setData).catch((e) => setError((e as Error).message)); }, []);
+  // A lead counts as presented only once its card has been at least half on screen for a second, never because the list loaded.
+  const list = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const root = list.current;
+    if (!data || !root || typeof IntersectionObserver === "undefined") return;
+    const sent = new Set<string>();
+    const pending = new Map<string, ReturnType<typeof setTimeout>>();
+    let batch: string[] = [];
+    let flush: ReturnType<typeof setTimeout> | null = null;
+    const report = (key: string) => {
+      if (sent.has(key)) return;
+      sent.add(key); batch.push(key);
+      if (!flush) flush = setTimeout(() => { const keys = batch; batch = []; flush = null; void si("/best/seen", { method: "POST", json: { keys } }).catch(() => {}); }, 400);
+    };
+    const observer = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const key = (e.target as HTMLElement).dataset.lead;
+        if (!key) continue;
+        if (e.isIntersecting && !pending.has(key)) pending.set(key, setTimeout(() => report(key), 1000));
+        if (!e.isIntersecting && pending.has(key)) { clearTimeout(pending.get(key)); pending.delete(key); }
+      }
+    }, { threshold: 0.5 });
+    root.querySelectorAll<HTMLElement>("[data-lead]").forEach((el) => observer.observe(el));
+    return () => { observer.disconnect(); pending.forEach(clearTimeout); if (flush) clearTimeout(flush); };
+  }, [data]);
 
   async function investigate(x: BestItem) {
     if (x.account_id) return goto("clients", { account: x.account_id });
@@ -64,10 +91,11 @@ export function BestOpportunities({ notify }: { notify: (m: string, e?: boolean)
 
   let last = "";
   return (
-    <section aria-label="Your best opportunities" className="space-y-3">
+    <section ref={list} aria-label="Your best opportunities" className="space-y-3">
       <div className="si-section-head">
         <div><h2 className="!text-[15px]">Your best opportunities</h2>
-          <p>{data ? `${data.items.length} of ${data.total} worth your time, ranked by the reasons shown. No score or probability is used.` : "Ranking today's leads against your profile…"}</p></div>
+          <p>{data ? <>{data.items.length} with evidence that they need what you sell, ranked by the reasons shown; no score or probability is used.
+            {data.in_view > 0 && <> {data.in_view} more are kept in view in <button className="font-medium text-ds-ink underline decoration-ds-border-strong underline-offset-2" onClick={() => goto("find")}>Discover</button>.</>}</> : "Ranking today's leads against your profile…"}</p></div>
         {data && <details className="relative text-right"><summary className="cursor-pointer text-[12px] font-medium text-ds-ink-2 hover:text-ds-ink">How these are chosen <ChevronDown size={12} className="si-chevron inline" /></summary>
           <div className="absolute right-0 z-10 mt-2 w-[min(420px,85vw)] rounded-[10px] border border-ds-border bg-white p-4 text-left text-[12.5px] leading-[19px] text-ds-ink-2 shadow-ds-lg">
             <p className="font-semibold text-ds-ink">{data.profile.basis === "learned" ? "Your stated profile and patterns in your won deals" : "Your stated profile"}</p>
@@ -79,7 +107,11 @@ export function BestOpportunities({ notify }: { notify: (m: string, e?: boolean)
       </div>
       {error && <p role="alert" className="text-[13px] text-ds-red">{error}</p>}
       {!data && !error && <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="ds-skeleton h-[118px] rounded-[10px]" />)}</div>}
-      {data && !data.items.length && <p className="ds-card px-4 py-6 text-[13px] text-ds-muted">Nothing fits your profile today. Widen your services or territory, or run new research in Discover.</p>}
+      {data && !data.items.length && (data.profile.complete
+        ? <p className="ds-card px-4 py-6 text-[13px] text-ds-muted">No evidenced requirement for what you sell today.
+            {data.exploratory.length ? " The changes below may be worth investigating." : " Widen your services or territory, or run new research in Discover."}</p>
+        : <div className="ds-card flex flex-wrap items-center justify-between gap-3 px-4 py-5 text-[13px] text-ds-muted"><p>Tell SalesIntel what you sell and where, and this list shows evidenced requirements for it.</p>
+            <button className="ds-btn sm" onClick={() => goto("settings")}>Complete your profile</button></div>)}
       <ol className="si-stagger space-y-2">
         {data?.items.map((x) => {
           const head = x.tier_label !== last ? x.tier_label : null;
@@ -87,42 +119,66 @@ export function BestOpportunities({ notify }: { notify: (m: string, e?: boolean)
           return (
             <li key={x.key}>
               {head && <p className={`si-eyebrow mb-2 mt-4 first:mt-0 ${x.tier === "act_now" ? "!text-[#c2410c]" : ""}`}>{head}</p>}
-              <article aria-label={x.organisation} className="ds-card si-best p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="si-type" style={{ ["--c" as string]: TYPE_COLOUR[x.type] }}><i aria-hidden="true" />{x.kind_label}</span>
-                      {x.relationship?.status === "customer" && <Pill tone="green">Customer</Pill>}
-                      {x.relationship?.open_deals ? <Pill>{x.relationship.open_deals} open deal{x.relationship.open_deals === 1 ? "" : "s"}</Pill> : null}
-                    </p>
-                    <h3 className="mt-1 text-[16px] font-semibold leading-snug text-ds-ink">{x.organisation}</h3>
-                    {(x.site || x.title) && <p className="truncate text-[13px] text-ds-muted">{x.site || x.title}</p>}
-                  </div>
-                  <div className="flex flex-none gap-1.5">
-                    <button className="ds-btn ghost sm" onClick={() => goto("find", { lead: x.key })}>Evidence</button>
-                    <button className="ds-btn primary sm" disabled={busy === x.key} onClick={() => void investigate(x)} aria-label={`${x.account_id ? "Open" : "Investigate"} ${x.organisation}`}>
-                      {busy === x.key ? <Loader2 size={14} className="ds-spin" /> : x.account_id ? <ArrowRight size={14} /> : <FileSearch size={14} />}{x.account_id ? "Open" : "Investigate"}</button>
-                  </div>
-                </div>
-                <p className="mt-2.5 text-[13.5px] leading-[20px] text-ds-ink"><span className="font-semibold">Why now: </span>{x.why_now}
-                  <span className={`ml-1.5 align-middle text-[10.5px] font-semibold uppercase tracking-wide ${x.why_now_basis === "Published" ? "text-ds-green" : "text-ds-amber"}`}>{x.why_now_basis}</span></p>
-                {!!x.reasons.length && <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Why it is on your list">{x.reasons.slice(0, 4).map((r) => <li key={r} className="inline-flex items-center gap-1 rounded-[5px] bg-[#f1f0ec] px-2 py-0.5 text-[12px] text-ds-ink-2"><Check size={11} className="text-ds-green" aria-hidden="true" />{r}</li>)}</ul>}
-                {!!x.cautions.length && <p className="mt-1.5 text-[12px] text-ds-amber">{x.cautions[0]}</p>}
-                <details className="mt-2.5 border-t border-ds-border pt-2">
-                  <summary className="flex cursor-pointer items-center gap-1 text-[12.5px] font-medium text-ds-ink-2 hover:text-ds-ink"><ChevronDown size={13} className="si-chevron" /> What we know, what we don&apos;t, who to speak to</summary>
-                  <div className="mt-2 grid gap-4 text-[12.5px] leading-[19px] text-ds-ink-2 md:grid-cols-3">
-                    <div><p className="si-eyebrow mb-1">What we know</p><ul className="space-y-1">{x.known.length ? x.known.map((k, i) => { const href = safeUrl(k.source_url || ""); return <li key={i}>{k.text}{href && <> <a className="font-medium text-ds-ink underline decoration-ds-border-strong underline-offset-2" href={href} target="_blank" rel="noreferrer">source</a></>}</li>; }) : <li>Only the signal above so far.</li>}</ul></div>
-                    <div><p className="si-eyebrow mb-1">What we don&apos;t know</p><ul className="space-y-1">{x.unknown.map((u) => <li key={u}>{u}</li>)}</ul></div>
-                    <div><p className="si-eyebrow mb-1">Who to speak to</p><ul className="space-y-1">{x.speak_to.roles.map((r) => <li key={r}>{r}</li>)}</ul><p className="mt-1 text-ds-muted">{x.speak_to.summary}</p></div>
-                  </div>
-                  <p className="mt-3 text-[12.5px]"><span className="font-semibold text-ds-ink">Next: </span>{x.next}</p>
-                </details>
-              </article>
+              <LeadCard x={x} busy={busy === x.key} onInvestigate={() => void investigate(x)} />
             </li>
           );
         })}
       </ol>
+      {data && !!data.exploratory.length && (
+        <section aria-label="Worth investigating" className="space-y-2 pt-4">
+          <div className="si-section-head">
+            <div><h2 className="!text-[15px]">Worth investigating</h2>
+              <p>Credible changes at an organisation or site, with no stated need for what you sell yet: a reason to look, not a requirement.
+                {data.exploratory_total > data.exploratory.length && <> {data.exploratory_total - data.exploratory.length} more like these are in <button className="font-medium text-ds-ink underline decoration-ds-border-strong underline-offset-2" onClick={() => goto("find")}>Discover</button>.</>}</p></div>
+            <details className="relative text-right"><summary className="cursor-pointer text-[12px] font-medium text-ds-ink-2 hover:text-ds-ink">How these are chosen <ChevronDown size={12} className="si-chevron inline" /></summary>
+              <div className="absolute right-0 z-10 mt-2 w-[min(420px,85vw)] rounded-[10px] border border-ds-border bg-white p-4 text-left text-[12.5px] leading-[19px] text-ds-ink-2 shadow-ds-lg">{data.exploratory_method}</div></details>
+          </div>
+          <ol className="space-y-2">{data.exploratory.map((x) => <li key={x.key}><LeadCard x={x} busy={busy === x.key} onInvestigate={() => void investigate(x)} /></li>)}</ol>
+        </section>
+      )}
     </section>
+  );
+}
+
+function LeadCard({ x, busy, onInvestigate }: { x: BestItem; busy: boolean; onInvestigate: () => void }) {
+  const explore = x.pathway === "exploratory";
+  return (
+    <article aria-label={x.organisation} data-lead={x.key} className={`ds-card si-best p-4 ${explore ? "border-dashed" : ""}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="si-type" style={{ ["--c" as string]: TYPE_COLOUR[x.type] }}><i aria-hidden="true" />{x.kind_label}</span>
+            {explore && <Pill tone="amber" title={x.uncertainty?.[0]}>Need not confirmed</Pill>}
+            {x.relationship?.status === "customer" && <Pill tone="green">Customer</Pill>}
+            {x.relationship?.open_deals ? <Pill>{x.relationship.open_deals} open deal{x.relationship.open_deals === 1 ? "" : "s"}</Pill> : null}
+          </p>
+          <h3 className="mt-1 text-[16px] font-semibold leading-snug text-ds-ink">{x.organisation}</h3>
+          {(x.site || x.title) && <p className="truncate text-[13px] text-ds-muted">{x.site || x.title}</p>}
+        </div>
+        <div className="flex flex-none gap-1.5">
+          <button className="ds-btn ghost sm" onClick={() => goto("find", { lead: x.key })}>Evidence</button>
+          <button className="ds-btn primary sm" disabled={busy} onClick={onInvestigate} aria-label={`${x.account_id ? "Open" : "Investigate"} ${x.organisation}`}>
+            {busy ? <Loader2 size={14} className="ds-spin" /> : x.account_id ? <ArrowRight size={14} /> : <FileSearch size={14} />}{x.account_id ? "Open" : "Investigate"}</button>
+        </div>
+      </div>
+      {explore
+        ? <p className="mt-2.5 text-[13.5px] leading-[20px] text-ds-ink"><span className="font-semibold">Why look: </span>{x.reasons[0]}</p>
+        : <p className="mt-2.5 text-[13.5px] leading-[20px] text-ds-ink"><span className="font-semibold">Why now: </span>{x.why_now}
+          <span className={`ml-1.5 align-middle text-[10.5px] font-semibold uppercase tracking-wide ${x.why_now_basis === "Published" ? "text-ds-green" : "text-ds-amber"}`}>{x.why_now_basis}</span></p>}
+      {!explore && !!x.reasons.length && <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Why it is on your list">{x.reasons.slice(0, 4).map((r) => <li key={r} className="inline-flex items-center gap-1 rounded-[5px] bg-[#f1f0ec] px-2 py-0.5 text-[12px] text-ds-ink-2"><Check size={11} className="text-ds-green" aria-hidden="true" />{r}</li>)}</ul>}
+      {explore && x.reasons.length > 1 && <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Why it may be worth a look">{x.reasons.slice(1, 4).map((r) => <li key={r} className="inline-flex items-center gap-1 rounded-[5px] bg-[#f1f0ec] px-2 py-0.5 text-[12px] text-ds-ink-2"><CircleDot size={11} className="text-ds-muted" aria-hidden="true" />{r}</li>)}</ul>}
+      {explore && (x.uncertainty?.length ?? 0) > 1 && <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="What is uncertain">{x.uncertainty!.slice(1).map((u) => <li key={u} className="inline-flex items-center gap-1 rounded-[5px] bg-[#fdf3e7] px-2 py-0.5 text-[12px] text-[#8a4b0f]"><CircleDashed size={11} aria-hidden="true" />{u}</li>)}</ul>}
+      {!!x.cautions.length && <p className="mt-1.5 text-[12px] text-ds-amber">{x.cautions[0]}</p>}
+      <details className="mt-2.5 border-t border-ds-border pt-2">
+        <summary className="flex cursor-pointer items-center gap-1 text-[12.5px] font-medium text-ds-ink-2 hover:text-ds-ink"><ChevronDown size={13} className="si-chevron" /> {explore ? "The evidence, and what to confirm" : "What we know, what we don’t, who to speak to"}</summary>
+        <div className="mt-2 grid gap-4 text-[12.5px] leading-[19px] text-ds-ink-2 md:grid-cols-3">
+          <div><p className="si-eyebrow mb-1">{explore ? "Sourced evidence" : "What we know"}</p><ul className="space-y-1">{x.known.length ? x.known.map((k, i) => { const href = safeUrl(k.source_url || ""); return <li key={i}>{k.text}{k.date && <span className="si-mono text-ds-muted"> · {k.date}</span>}{href && <> <a className="font-medium text-ds-ink underline decoration-ds-border-strong underline-offset-2" href={href} target="_blank" rel="noreferrer">source</a></>}</li>; }) : <li>Only the signal above so far.</li>}</ul></div>
+          <div><p className="si-eyebrow mb-1">What we don&apos;t know</p><ul className="space-y-1">{x.unknown.map((u) => <li key={u}>{u}</li>)}</ul></div>
+          <div><p className="si-eyebrow mb-1">Who to speak to</p><ul className="space-y-1">{x.speak_to.roles.map((r) => <li key={r}>{r}</li>)}</ul><p className="mt-1 text-ds-muted">{x.speak_to.summary}</p></div>
+        </div>
+        <p className="mt-3 text-[12.5px]"><span className="font-semibold text-ds-ink">{explore ? "To confirm: " : "Next: "}</span>{x.next}</p>
+      </details>
+    </article>
   );
 }
 

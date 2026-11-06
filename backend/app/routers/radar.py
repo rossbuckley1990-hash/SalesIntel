@@ -21,6 +21,7 @@ from app.services import investigator, jobs, shadow
 from app.services import si_core as core
 from app.services.ai_costs import ESTIMATE_CENTS, research_provider
 from app.services.spend import SpendLimitReached
+from app.services.spend import refusal as spend_refusal
 from app.tenancy import can
 
 router = APIRouter(prefix='/api/si/radar', tags=['shadow radar'], dependencies=[Depends(permitted)])
@@ -78,7 +79,7 @@ def investigate(hypothesis_id: int, payload: Investigate, request: Request, db: 
             job, new = jobs.enqueue(db, 'deep_investigation', account_id=account.id, params={'hypothesis_key': found[1]['key'], 'use_ai': use_ai},
                                     estimated_cents=ESTIMATE_CENTS['deep_investigation'] if use_ai else 0, user_id=ctx.user_id, refresh=payload.refresh)
         except SpendLimitReached as exc:
-            raise HTTPException(status_code=429, detail='This would exceed today\'s AI spending limit, so nothing was started or charged.') from exc
+            raise HTTPException(**spend_refusal(exc)) from exc
         core.set_status(db, f'sh:{hypothesis_id}', 'investigating')
         if new:
             core.track(db, 'investigation_started', account_id=account.id, ref=f'job:{job.id}')

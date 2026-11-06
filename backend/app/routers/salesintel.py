@@ -115,9 +115,9 @@ def _start(db: Session, ctx: Context, kind: str, account_id: int | None, params:
     try:
         job, created = jobs.enqueue(db, kind, account_id=account_id, params=params, estimated_cents=ESTIMATE_CENTS[kind], user_id=ctx.user_id, refresh=refresh)
     except SpendLimitReached as exc:
-        who = 'your own' if str(exc) == 'person' else "this workspace's"
-        raise HTTPException(status_code=429, detail=f"This would exceed {who} AI spending limit for today, so nothing was started or charged."
-                            if any(spend.limits()) else 'Paid research is switched off for this workspace until a spending limit is set.') from exc
+        if not isinstance(exc, spend.ApprovalRequired) and not any(spend.limits()):
+            raise HTTPException(status_code=429, detail='Paid research is switched off for this workspace until a spending limit is set.') from exc
+        raise HTTPException(**spend.refusal(exc)) from exc
     return jobs.job_dict(job) | {'reused': not created}
 
 
@@ -633,7 +633,7 @@ def get_preferences(db: Session = Depends(tenant_db)):
 
 class PreferencesIn(Strict):
     territory: list[str] | None = Field(None, max_length=10)
-    services: list[str] | None = Field(None, max_length=10)
+    services: list[str] | None = Field(None, max_length=16)
     sectors: list[str] | None = Field(None, max_length=12)
     deal_size_min: StrictStr | StrictInt | None = None
     deal_size_max: StrictStr | StrictInt | None = None

@@ -4,10 +4,10 @@
  * Results come only from this workspace's own API; nothing is sent anywhere else.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, Briefcase, Building2, CalendarCheck, Compass, CornerDownLeft, LogOut, Mail, Radar, Search, Settings, UserPlus, Users } from "lucide-react";
+import { ArrowRight, Briefcase, ClipboardCheck, Building2, CalendarCheck, Compass, CornerDownLeft, LogOut, Mail, Radar, Search, Settings, UserPlus, Users } from "lucide-react";
 import { si, STAGE_LABEL, type DealCard } from "@/features/workspace/si-api";
 
-export type PaletteView = "today" | "find" | "clients" | "engage" | "deals" | "team" | "settings";
+export type PaletteView = "today" | "find" | "clients" | "engage" | "deals" | "team" | "settings" | "review";
 type Item = { id: string; group: string; label: string; detail?: string; icon: ReactNode; keys?: string[]; run: () => void };
 type AccountRow = { id: number; name: string; sector?: string | null; region?: string | null };
 
@@ -55,6 +55,7 @@ function Palette({ close, go, signOut, canInvite }: Props) {
       ["deals", "Deals", "Qualified opportunities and quotes", <Briefcase key="i" size={16} />, ["G", "L"]],
       ["team", "Team", "Colleagues and roles", <Users key="i" size={16} />, undefined],
       ["settings", "My settings", "What you sell, territory and target", <Settings key="i" size={16} />, undefined],
+      ["review", "Blind review", "Judge discovered opportunities without knowing their source", <ClipboardCheck key="i" size={16} />, undefined],
     ] as [PaletteView, string, string, ReactNode, string[] | undefined][]).filter(([, label]) => match(label)) // places match on their names, so "shadow" leads to Shadow Radar, not to Discover
       .map(([v, label, detail, icon, keys]) => ({ id: `go-${v}`, group: "Go to", label, detail, icon, keys, run: done(() => go(v)) }));
     const search: Item[] = text ? [{ id: "search", group: "Opportunities", label: `Search opportunities for “${text}”`, detail: "Discover, across every source", icon: <Search size={16} />, run: done(() => go("find", { q: text })) }] : [];

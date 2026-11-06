@@ -23,7 +23,7 @@ test("a salesperson sees who holds the work, what public pages report, and turns
   await expect(page.getByRole("heading", { name: "Who holds the work" })).toBeVisible();
   await page.getByLabel("Contractor or customer").fill("Kestrel");
   await page.getByRole("button", { name: "Search", exact: true }).click();
-  const contractors = page.getByRole("region", { name: "Contractors" });
+  const contractors = page.getByRole("region", { name: "Contractors", exact: true });
   await contractors.getByRole("button", { name: /KESTREL FIRE SERVICES LTD/ }).click();
   const record = page.getByRole("article", { name: "Contractor KESTREL FIRE SERVICES LTD" });
   await expect(record).toContainText("Companies House 09876543");
@@ -50,14 +50,14 @@ test("a salesperson sees who holds the work, what public pages report, and turns
   // A researched private customer is findable, with its reported supplier.
   await page.getByLabel("Contractor or customer").fill("Northmoor");
   await page.getByRole("button", { name: "Search", exact: true }).click();
-  await page.getByRole("region", { name: "Customers" }).getByRole("button", { name: /Northmoor Care Group/ }).click();
+  await page.getByRole("region", { name: "Customers", exact: true }).getByRole("button", { name: /Northmoor Care Group/ }).click();
   const customer = page.getByRole("article", { name: "Customer Northmoor Care Group" });
   await expect(customer).toContainText("Reported by a public source; current status not established: Kestrel Fire Services Ltd");
 
   // From a competitor-held contract to an account, linked to the contract and its evidence, without retyping anything.
   await page.getByLabel("Contractor or customer").fill("Kestrel Fire Services");
   await page.getByRole("button", { name: "Search", exact: true }).click();
-  await page.getByRole("region", { name: "Contractors" }).getByRole("button", { name: /KESTREL FIRE SERVICES LTD/ }).click();
+  await page.getByRole("region", { name: "Contractors", exact: true }).getByRole("button", { name: /KESTREL FIRE SERVICES LTD/ }).click();
   await page.getByRole("button", { name: "Investigate Fenwick Housing Trust" }).click();
   await expect(page).toHaveURL(/view=clients/);
   await expect(page.getByRole("heading", { name: "Fenwick Housing Trust" })).toBeVisible();
@@ -70,7 +70,7 @@ test("a salesperson sees who holds the work, what public pages report, and turns
 test("researched relationships stay in the workspace that researched them", async ({ browser }) => {
   const page = await signUp(browser, "lee.other@lambda-atlas.example", "Lee Other", "Lambda Security Ltd");
   await page.goto("/?view=find&mode=atlas&q=Kestrel%20Fire%20Services");
-  await page.getByRole("region", { name: "Contractors" }).getByRole("button", { name: /KESTREL FIRE SERVICES LTD/ }).click();
+  await page.getByRole("region", { name: "Contractors", exact: true }).getByRole("button", { name: /KESTREL FIRE SERVICES LTD/ }).click();
   const record = page.getByRole("article", { name: "Contractor KESTREL FIRE SERVICES LTD" });
   await expect(record).toContainText("Companies House 09876543"); // published contracts are shared public facts
   await expect(record.getByRole("region", { name: "Reported customers" })).toContainText("None recorded yet"); // another workspace's research is not

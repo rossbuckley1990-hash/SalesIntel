@@ -37,7 +37,7 @@ type Contractor = { id: number; name: string; yours: boolean;
 type Customer = { key: string; name: string; incumbent: { state: string; label: string }; contracts: AtlasContract[]; relationships: Relationship[];
   signals: Reason[]; research: Research; coverage: string };
 type Row = { id?: number; key?: string; name: string; company_number?: string | null; identity_basis?: string; contracts: number; live?: number;
-  ending_soon: number; customers?: number; suppliers?: string[]; services: Service[]; region?: string; nation?: string };
+  ending_soon: number; customers?: number; suppliers?: string[]; services: Service[]; region?: string; nation?: string; reported?: number };
 type Found = { contractors: Row[]; customers: Row[]; totals: { contractors: number; customers: number };
   options: { disciplines: { family: string; label: string }[]; regions: string[]; nations: string[] } };
 
@@ -119,7 +119,8 @@ export function SiAtlas({ notify }: { notify: (m: string, e?: boolean) => void }
           <Results title="Customers" icon={<Landmark size={15} aria-hidden="true" />} rows={found?.customers} empty="No customer matches."
             render={(r) => <button className="w-full text-left" onClick={() => r.key && open({ type: "customer", key: r.key })} aria-current={selected?.type === "customer" && selected.key === r.key ? "true" : undefined}>
               <span className="block truncate text-[14px] font-semibold text-ds-ink">{r.name}</span>
-              <span className="mt-0.5 block text-[12px] text-ds-muted">{[r.region || r.nation, `${r.contracts} contract${r.contracts === 1 ? "" : "s"}`, (r.suppliers || []).slice(0, 2).join(", ")].filter(Boolean).join(" · ")}</span>
+              <span className="mt-0.5 block text-[12px] text-ds-muted">{[r.region || r.nation, r.contracts ? `${r.contracts} contract${r.contracts === 1 ? "" : "s"}` : "",
+                r.reported ? "Reported by a public source" : "", (r.suppliers || []).slice(0, 2).join(", ")].filter(Boolean).join(" · ")}</span>
               <Chips row={r} /></button>} />
         </div>
         <div id="atlas-record" className="min-w-0 scroll-mt-4">

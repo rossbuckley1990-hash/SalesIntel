@@ -8,7 +8,7 @@ test("a local install answers who holds the work and spends nothing in demo mode
   await expect(page).toHaveURL(/mode=atlas/);
   await page.getByLabel("Contractor or customer").fill("Brightwater");
   await page.getByRole("button", { name: "Search", exact: true }).click();
-  const contractors = page.getByRole("region", { name: "Contractors" });
+  const contractors = page.getByRole("region", { name: "Contractors", exact: true });
   await expect(contractors.getByRole("button")).toHaveCount(3); // one name with two company numbers, and a lookalike, kept apart
   await contractors.getByRole("button", { name: /Companies House 11122233/ }).click();
   const record = page.getByRole("article", { name: "Contractor BRIGHTWATER SECURITY LTD" });
@@ -22,6 +22,6 @@ test("a local install answers who holds the work and spends nothing in demo mode
   // A customer with no current published supplier says so plainly.
   await page.getByLabel("Contractor or customer").fill("Calder Valley");
   await page.getByRole("button", { name: "Search", exact: true }).click();
-  await page.getByRole("region", { name: "Customers" }).getByRole("button", { name: /Calder Valley Council/ }).click();
+  await page.getByRole("region", { name: "Customers", exact: true }).getByRole("button", { name: /Calder Valley Council/ }).click();
   await expect(page.getByRole("article", { name: "Customer Calder Valley Council" })).toContainText("Current supplier not publicly established");
 });

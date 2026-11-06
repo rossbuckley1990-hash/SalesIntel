@@ -478,7 +478,8 @@ def shadow_reasons(db: Session, customer_key: str) -> list[dict]:
 def contract_view(contract: MarketContract, party: AtlasContractParty, supplier: str, today: date) -> dict:
     facts = contract.facts or {}
     status = status_of(contract, party.route, today)
-    return {'key': f'mc:{contract.id}', 'id': contract.id, 'customer': contract.buyer, 'customer_key': party.customer_key, 'title': contract.title,
+    # A framework names several suppliers, so one contract has several parties: party_id tells their rows apart.
+    return {'key': f'mc:{contract.id}', 'id': contract.id, 'party_id': party.id, 'customer': contract.buyer, 'customer_key': party.customer_key, 'title': contract.title,
             'supplier': supplier, 'supplier_name_seen': party.supplier_name_seen, 'match': {'basis': party.match_basis, 'label': MATCH_LABEL[party.match_basis]},
             'services': [{'family': f, 'label': FAMILY_LABEL.get(f, f)} for f in party.disciplines], 'scope': {'code': party.scope, 'label': SCOPE_LABEL[party.scope]},
             'route': {'code': party.route, 'label': ROUTE_LABEL[party.route]}, 'nation': contract.nation, 'region': party.region,

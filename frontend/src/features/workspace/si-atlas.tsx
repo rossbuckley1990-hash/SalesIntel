@@ -17,7 +17,7 @@ type Service = { family: string; label: string; contracts?: number };
 type Reason = { kind: string; title: string; facts: string[]; mechanism: string; alternatives: string[]; disconfirming: string[]; missing: string[];
   action: string; next_step: string; key?: string };
 type Status = { code: string; label: string; detail: string; end?: string; latest_end?: string };
-export type AtlasContract = { key: string; id: number; customer: string; customer_key: string; title: string; supplier: string; supplier_name_seen: string;
+export type AtlasContract = { key: string; id: number; party_id: number; customer: string; customer_key: string; title: string; supplier: string; supplier_name_seen: string;
   contractor_id?: number; match: { basis: string; label: string }; services: Service[]; scope: { code: string; label: string };
   route: { code: string; label: string }; nation: string; region: string; region_approximate: boolean;
   value: { amount: number; kind: string; label: string; basis: string; annual_estimate?: number } | null;
@@ -287,10 +287,10 @@ export function ContractorRecord({ id, notify, onCustomer }: { id: number; notif
         {!!c.services.length && <div className="mt-3 flex flex-wrap gap-1">{c.services.map((s) => <Pill key={s.family}>{s.label} · {s.contracts}</Pill>)}</div>}
       </header>
       {!!c.worth_investigating.length && <Section title="Worth investigating" detail="Contracts in your services and territory where a published date gives a reason to engage. Never a probability: each says what would rule it out.">
-        <ul className="space-y-2">{c.worth_investigating.map((x) => <ContractCard key={x.key} c={x} notify={notify} onOpen={() => onCustomer(x.customer_key)} />)}</ul></Section>}
+        <ul className="space-y-2">{c.worth_investigating.map((x) => <ContractCard key={`${x.key}:${x.party_id}`} c={x} notify={notify} onOpen={() => onCustomer(x.customer_key)} />)}</ul></Section>}
       <Section title="Published contracts" detail="Awarded by the buyer and published on Find a Tender, Contracts Finder or Public Contracts Scotland.">
         {!others.length ? <p className="text-[13px] text-ds-muted">No other published contracts.</p>
-          : <ul className="space-y-2">{others.map((x) => <ContractCard key={x.key} c={x} notify={notify} onOpen={() => onCustomer(x.customer_key)} />)}</ul>}
+          : <ul className="space-y-2">{others.map((x) => <ContractCard key={`${x.key}:${x.party_id}`} c={x} notify={notify} onOpen={() => onCustomer(x.customer_key)} />)}</ul>}
       </Section>
       <Section title="Reported by public sources" label="Reported customers" detail="Customers named in this contractor's case studies, customer pages, press releases and FM announcements. Contract terms are not published.">
         {!c.relationships.length ? <p className="mb-3 text-[13px] text-ds-muted">None recorded yet.</p>
@@ -322,7 +322,7 @@ export function CustomerRecord({ customerKey, notify, onContractor, compact }: {
       </header>
       <Section title="Published contracts" detail="Who the buyer named as supplier, with the published term.">
         {!c.contracts.length ? <p className="text-[13px] text-ds-muted">None published in the sources collected.</p>
-          : <ul className="space-y-2">{c.contracts.slice(0, compact ? 4 : 50).map((x) => <ContractCard key={x.key} c={x} notify={notify} showSupplier onOpen={() => x.contractor_id && onContractor(x.contractor_id)} />)}</ul>}
+          : <ul className="space-y-2">{c.contracts.slice(0, compact ? 4 : 50).map((x) => <ContractCard key={`${x.key}:${x.party_id}`} c={x} notify={notify} showSupplier onOpen={() => x.contractor_id && onContractor(x.contractor_id)} />)}</ul>}
       </Section>
       <Section title="Reported by public sources" label="Reported suppliers" detail="Suppliers named by case studies, press releases and announcements.">
         {!c.relationships.length ? <p className="mb-3 text-[13px] text-ds-muted">None recorded yet.</p>

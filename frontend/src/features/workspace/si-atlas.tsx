@@ -71,7 +71,9 @@ export function SiAtlas({ notify }: { notify: (m: string, e?: boolean) => void }
     if (discipline) p.set("discipline", discipline);
     if (region) p.set("region", region);
     if (ending) p.set("ending_months", ending);
-    si<Found>(`/atlas/search?${p}`).then(setFound).catch((e) => notify((e as Error).message, true));
+    let current = true;  // a slower, older search must never overwrite the answer to a newer one
+    si<Found>(`/atlas/search?${p}`).then((r) => { if (current) setFound(r); }).catch((e) => { if (current) notify((e as Error).message, true); });
+    return () => { current = false; };
   }, [applied, discipline, region, ending, notify]);
   function open(next: { type: "contractor"; id: number } | { type: "customer"; key: string }) {
     setSelected(next);

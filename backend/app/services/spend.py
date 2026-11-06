@@ -131,9 +131,14 @@ def programme(db: Session) -> dict:
 def refusal(exc: SpendLimitReached) -> dict:
     """The HTTP refusal for a reservation that did not fit: nothing was started or charged."""
     if isinstance(exc, ApprovalRequired):
-        detail = ('Live web research needs a research budget approved by an administrator (Team, Research budget). Nothing was started or charged.'
-                  if str(exc) == 'not_approved' else
-                  'The approved research budget is used up. An administrator can approve more. Nothing was started or charged.')
+        if get_settings().auth_mode == 'local':  # one person and no Team page: the budget is in the app's own menu
+            detail = ('Live web research needs a research budget you approve (Research budget, at the foot of the menu). Nothing was started or charged.'
+                      if str(exc) == 'not_approved' else
+                      'The approved research budget is used up. You can approve more under Research budget. Nothing was started or charged.')
+        else:
+            detail = ('Live web research needs a research budget approved by an administrator (Team, Research budget). Nothing was started or charged.'
+                      if str(exc) == 'not_approved' else
+                      'The approved research budget is used up. An administrator can approve more. Nothing was started or charged.')
         return {'status_code': 409, 'detail': detail}
     who = 'your own' if str(exc) == 'person' else "this workspace's"
     return {'status_code': 429, 'detail': f"This would exceed {who} AI spending limit for today, so nothing was started or charged."}

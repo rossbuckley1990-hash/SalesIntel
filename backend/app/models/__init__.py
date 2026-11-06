@@ -23,6 +23,7 @@ from app.models.acquisition import IdempotencyRecord, ResearchJob, SpendBudget, 
 from app.models.shadow import Dossier, LeadFeedback, ShadowHypothesis, ShadowHypothesisRevision
 from app.models.gaps import GapRequest
 from app.models.review import ReviewAdjudication, ReviewDecision, ReviewState
+from app.models.brief import BriefReview
 from app.models.atlas import AtlasAlias, AtlasContractParty, AtlasContractor, AtlasIdentityConflict, AtlasRelationship
 from app.models.crm import Account, AccountLink, Activity, Contact, DealRecord, Draft, FunnelEvent, Preference, SavedView, Site, Task
 

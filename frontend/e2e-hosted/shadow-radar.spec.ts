@@ -30,6 +30,9 @@ test("an unadvertised opportunity: evidence, investigation that challenges itsel
   const results = page.getByRole("region", { name: "Results" });
   await results.getByRole("button", { name: /Harbourside Community Health/ }).first().click();
   const card = page.getByRole("complementary", { name: "Selected opportunity" });
+  await expect(card.getByRole("region", { name: "Why it could matter" })).toContainText("Hypothesis, not a finding");
+  await expect(card.getByRole("region", { name: "Next move" })).toBeVisible();
+  await card.getByText("Source record").click(); // the Shadow Radar card, as first found
   await expect(card.getByText("Corroborated by independent sources", { exact: true })).toBeVisible();
   await expect(card.getByRole("region", { name: "Competing hypotheses" })).toContainText("New premises");
   await expect(card.getByText("Inferred, not advertised")).toBeVisible();
@@ -91,8 +94,10 @@ test("an unadvertised opportunity: evidence, investigation that challenges itsel
   await nav(page, "Discover");
   await page.getByRole("button", { name: /^Shadow Radar/ }).click();
   await results.getByRole("button", { name: /Anchor Housing/ }).first().click();
-  await expect(card.getByText(/purchasing consortium/)).toBeVisible(); // owner inferred from a consortium notice, said as such
-  await expect(card.getByRole("region", { name: "Evidence timeline" })).toContainText("Meldrum Group Limited");
+  await card.getByText("Source record").click();
+  const record = card.getByRole("group", { name: "Source record" });
+  await expect(record.getByText(/purchasing consortium/)).toBeVisible(); // owner inferred from a consortium notice, said as such
+  await expect(record.getByRole("region", { name: "Evidence timeline" })).toContainText("Meldrum Group Limited");
   await page.screenshot({ animations: "disabled", path: `${SHOTS}/8-shadow-real-lead-desktop.png` });
   await card.getByRole("button", { name: "Not relevant" }).click();
   await card.getByLabel("Reason").selectOption("outside_territory");
@@ -117,6 +122,7 @@ test("the Shadow Radar card works on a phone", async ({ browser }) => {
   await page.getByRole("button", { name: /^Shadow Radar/ }).click();
   await page.getByRole("region", { name: "Results" }).getByRole("button", { name: /Harbourside Community Health/ }).first().click();
   const sheet = page.getByRole("region", { name: "Selected opportunity details" });
+  await sheet.getByText("Source record").click();
   await expect(sheet.getByText("Corroborated by independent sources", { exact: true })).toBeVisible();
   await expect(sheet.getByRole("button", { name: "Investigate" })).toBeVisible();
   await page.screenshot({ animations: "disabled", path: `${SHOTS}/9-shadow-card-mobile.png` });

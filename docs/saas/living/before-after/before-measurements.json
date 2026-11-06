@@ -1,0 +1,18 @@
+{
+  "branch": "feat/contract-atlas (base)",
+  "recorded": "2026-11-06",
+  "reveal_seconds": 0,
+  "answered_on_first_view": {
+    "what_happened": true,
+    "contrary_evidence_shown": true,
+    "services_named_vs_possible": false,
+    "rule_of_thumb_labelled": false,
+    "key_question": false
+  },
+  "journey_to_deal": {
+    "clicks": 6,
+    "page_changes": 2,
+    "requirement_carried_into_deal_form": false
+  },
+  "note": "Machine-measured on fictional records. contrary_evidence_shown means the contrary item (the Halden appointment) appears in the panel; it is listed among known facts, not marked as evidence against. Screenshots mask the workspace name."
+}

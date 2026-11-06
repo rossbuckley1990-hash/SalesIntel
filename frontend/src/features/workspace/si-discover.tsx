@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Bookmark, Building2, CalendarRange, Eye, Globe, Inbox, Info, Landmark, Layers, MailPlus, MousePointerClick, Network, Radar, Rows3, Search, Sparkles, Users, X, XCircle } from "lucide-react";
+import { ArrowUpRight, Bookmark, Building2, CalendarRange, ChevronDown, Eye, Globe, Inbox, Info, Landmark, Layers, MousePointerClick, Network, Radar, Rows3, Search, Sparkles, X, XCircle } from "lucide-react";
 import { EmptyState, Pill } from "./ds";
 import { NATIONS, relative, safeUrl, valueLine } from "./radar-model";
 import { BASIS_LABEL, SERVICES, SERVICE_NAME, dayLabel, goto, param, si, type DiscoverResult, type Lead } from "./si-api";
@@ -11,6 +11,7 @@ import { JobStatus, newKey, useJob, type JobT } from "./si-people";
 import { ShadowCard } from "./si-shadow";
 import { Runway } from "./si-runway";
 import { SiAtlas } from "./si-atlas";
+import { ActionDock, OpportunityBrief, useOpportunity, useWide, type Opportunity } from "./si-living";
 
 const KIND_SHORT: Record<string, string> = { published_procurement: "Live tender", contract_ending: "Contract ending", private_signal: "Signal", customer_expansion: "Customer", unverified_candidate: "Unverified" };
 const KIND_TONE: Record<string, "green" | "blue" | "amber" | "violet" | "neutral" | "brand"> = { published_procurement: "green", contract_ending: "blue", private_signal: "violet", customer_expansion: "brand", unverified_candidate: "amber" };
@@ -18,16 +19,17 @@ const KIND_TONE: Record<string, "green" | "blue" | "amber" | "violet" | "neutral
 function ResearchRow({ job, onDone }: { job: JobT & { params?: { query?: string } }; onDone: () => void }) {
   const [live] = useJob(job, onDone) as [(JobT & { params?: { query?: string } }) | null, unknown];
   if (!live) return null;
-  return <div><p className="mb-1 text-[12px] text-ds-muted">Web research: “{live.params?.query || job.params?.query}”</p><JobStatus job={live} />
-    {live.result?.message && !["queued", "running"].includes(live.status) && <p className="mt-1 text-[12px] text-ds-ink-2">{live.result.message}</p>}</div>;
+  const done = !["queued", "running"].includes(live.status);
+  return <li className="si-research-run"><p className="truncate text-[12.5px] text-ds-ink-2"><Globe size={12} className="mr-1 inline text-ds-muted" aria-hidden="true" />Web research: “{live.params?.query || job.params?.query}”</p>
+    <JobStatus job={live} />{done && live.result?.message && <p className="text-[12px] text-ds-muted">{live.result.message}</p>}</li>;
 }
 
-function BriefView({ lead, onPeople }: { lead: Lead; onPeople: () => void }) {
+function BriefView({ lead }: { lead: Lead }) {
   const b = lead.brief;
   const Q = ({ q, children }: { q: string; children: React.ReactNode }) => <section className="border-t border-ds-border pt-3 first:border-0 first:pt-0" aria-label={q}>
     <h3 className="si-eyebrow">{q}</h3><div className="mt-1 text-[14px] leading-6 text-ds-ink">{children}</div></section>;
   return (
-    <div className="mt-4 space-y-3 rounded-xl border border-ds-border p-4">
+    <div className="mt-3 space-y-3 rounded-xl border border-ds-border p-4">
       <Q q="Why this customer?"><ul className="space-y-0.5">{b.why_customer.map((x) => <li key={x}>{x}</li>)}{b.fit.gaps.map((x) => <li key={x} className="text-ds-amber">{x}</li>)}</ul>
         {!!b.fit.unknown.length && <p className="text-[12px] text-ds-muted">Not yet known: {b.fit.unknown.join("; ")}</p>}</Q>
       <Q q="Why now?"><p className="font-medium">{b.why_now} <span className={`text-[11px] font-semibold uppercase ${b.why_now_basis === "Published" ? "text-ds-green" : "text-ds-amber"}`}>{b.why_now_basis}</span></p>
@@ -35,8 +37,7 @@ function BriefView({ lead, onPeople }: { lead: Lead; onPeople: () => void }) {
       <Q q="What do we know?"><ul className="space-y-1">{b.known.map((k, i) => { const href = safeUrl(k.source_url || ""); return <li key={i} className="text-[13px]">{k.text}{k.date && <span className="text-ds-muted"> · {k.date}</span>}
         {href && <> · <a className="font-medium text-ds-brand hover:underline" href={href} target="_blank" rel="noreferrer">source</a></>}{k.basis !== "published" && k.basis !== "stated" && <span className="text-ds-amber"> (inferred)</span>}</li>; })}</ul></Q>
       <Q q="What remains unknown?"><ul className="list-disc space-y-0.5 pl-5 text-[13px] text-ds-ink-2">{b.unknown.map((u) => <li key={u}>{u}</li>)}</ul></Q>
-      <Q q="Who should we contact?"><p className="text-[13px]">{b.who.roles.join(" · ")}</p><p className="text-[12px] text-ds-muted">{b.who.summary}{b.who.people_in_research ? ` · ${b.who.people_in_research} named in research` : ""}</p>
-        <button className="ds-btn sm mt-2" onClick={onPeople}><Users size={13} /> Find the right people</button></Q>
+      <Q q="Who should we contact?"><p className="text-[13px]">{b.who.roles.join(" · ")}</p><p className="text-[12px] text-ds-muted">{b.who.summary}{b.who.people_in_research ? ` · ${b.who.people_in_research} named in research` : ""}</p></Q>
       <Q q="What should we do next?"><p className="font-semibold text-ds-brand">{b.next}</p></Q>
     </div>
   );
@@ -127,6 +128,7 @@ function DiscoverOpportunities({ notify }: SharedProps) {
   });
 
   const current = useMemo(() => result?.items.find((x) => x.key === selected) || null, [result, selected]);
+  const op = useOpportunity(current?.key ?? null, notify, { onChanged: () => void load() });
 
   async function setLeadStatus(lead: Lead, next: Lead["status"]) {
     setResult((r) => r && { ...r, items: r.items.map((x) => (x.key === lead.key ? { ...x, status: next } : x)) });
@@ -207,16 +209,16 @@ function DiscoverOpportunities({ notify }: SharedProps) {
         {result && applied && (result.interpreted.nations.length + result.interpreted.services.length + result.interpreted.regions.length > 0) && <p className="text-[12px] text-ds-muted">
           Understood: {[...result.interpreted.nations, ...result.interpreted.services.map((s) => SERVICE_NAME[s] || s), ...result.interpreted.regions].join(", ")}{result.interpreted.keywords.length ? `; matching “${result.interpreted.keywords.join(" ")}”` : ""}.</p>}
         {result?.gaps.map((g) => <p key={g} className="flex items-start gap-2 rounded-xl border border-ds-amber-line bg-ds-amber-soft px-3 py-2 text-[12px] leading-[18px] text-ds-ink-2"><Info size={14} className="mt-px flex-none text-ds-amber" aria-hidden="true" />{g}</p>)}
-        {jobs.map((j) => <ResearchRow key={j.id} job={j} onDone={() => { void load(); void loadJobs(); }} />)}
+        {!!jobs.length && <section aria-label="Web research runs" className="si-research-runs"><p className="si-eyebrow">Your latest web research</p>
+          <ul>{jobs.map((j) => <ResearchRow key={j.id} job={j} onDone={() => { void load(); void loadJobs(); }} />)}</ul></section>}
       </section>
 
       {layout === "runway" && <div className="mt-5 space-y-4">
         {!result ? <div className="ds-skeleton h-72 rounded-xl" /> : <Runway items={result.items} selected={selected} onSelect={setSelected} />}
-        {current && <section aria-label="Selected opportunity" className="ds-card si-swap max-w-4xl" key={current.key}>
-          {current.type === "shadow" ? <ShadowCard lead={current} notify={notify} onChanged={() => void load()} /> : <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} />}</section>}
+        {current && <aside aria-label="Selected opportunity" className="lo-detail !static !max-h-none"><Detail key={current.key} lead={current} op={op} notify={notify} onStatus={setLeadStatus} onChanged={() => void load()} /></aside>}
       </div>}
 
-      {layout === "list" && <div className="mt-4 grid items-start gap-5 xl:grid-cols-[minmax(340px,440px)_minmax(0,1fr)]">
+      {layout === "list" && <div className="lo-cockpit">
         <section aria-label="Results" className="min-w-0">
           <p className="mb-2 px-1 text-[12px] font-medium text-ds-muted" aria-live="polite">{result ? `${result.total} result${result.total === 1 ? "" : "s"}` : "Loading…"}{result && result.total > 0 && " · j/k to move, o to open"}</p>
           {!result && loading && <div className="space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="ds-skeleton h-[104px] rounded-xl" />)}</div>}
@@ -225,16 +227,48 @@ function DiscoverOpportunities({ notify }: SharedProps) {
             {result?.items.map((lead) => <li key={lead.key}><LeadRow lead={lead} active={lead.key === selected} onClick={() => setSelected(lead.key)} /></li>)}
           </ul>
         </section>
-        <aside aria-label="Selected opportunity" className="ds-card sticky top-[76px] hidden max-h-[calc(100vh-96px)] overflow-y-auto xl:block">
-          {current ? <div key={current.key} className="si-swap">{current.type === "shadow" ? <ShadowCard lead={current} notify={notify} onChanged={() => void load()} /> : <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} />}</div> : <EmptyState icon={<MousePointerClick size={20} />} title="Select a result">See why it is worth your time, what is known and what to do next.</EmptyState>}
+        <aside aria-label="Selected opportunity" className="lo-detail hidden xl:block">
+          {current ? <Detail key={current.key} lead={current} op={op} notify={notify} onStatus={setLeadStatus} onChanged={() => void load()} />
+            : <EmptyState icon={<MousePointerClick size={20} />} title="Select a result">See what happened, why it could matter, what could disprove it and the one thing to do next.</EmptyState>}
         </aside>
         {current && <button className="si-sheet-backdrop xl:hidden" aria-label="Close details" tabIndex={-1} onClick={() => setSelected(null)} />}
-        {current && <div key={current.key} className="si-sheet fixed inset-x-0 bottom-0 z-40 max-h-[78vh] overflow-y-auto rounded-t-[20px] border-t border-ds-border bg-white shadow-ds-lg xl:hidden" role="region" aria-label="Selected opportunity details">
+        {current && <div key={current.key} className="si-sheet fixed inset-x-0 bottom-0 z-40 max-h-[82vh] overflow-y-auto rounded-t-[20px] border-t border-ds-border bg-white shadow-ds-lg xl:hidden" role="region" aria-label="Selected opportunity details">
           <span className="si-sheet-handle" aria-hidden="true" />
-          {current.type === "shadow" ? <><button className="ds-btn ghost sm m-3 mb-0" onClick={() => setSelected(null)}><X size={14} /> Close</button><ShadowCard key={current.key} lead={current} notify={notify} onChanged={() => void load()} /></>
-            : <LeadDetail lead={current} onStatus={setLeadStatus} onOpen={openAccount} onClose={() => setSelected(null)} />}
+          <button className="ds-btn ghost sm m-3 mb-0" onClick={() => setSelected(null)}><X size={14} /> Close</button>
+          <Detail lead={current} op={op} notify={notify} onStatus={setLeadStatus} onChanged={() => void load()} />
         </div>}
       </div>}
+    </div>
+  );
+}
+
+/** The middle and right panels of the cockpit: the Living Opportunity and its Action Dock, with the lead's own record kept below. */
+function Detail({ lead, op, notify, onStatus, onChanged }: { lead: Lead; op: Opportunity; notify: SharedProps["notify"]; onStatus: (l: Lead, s: Lead["status"]) => void; onChanged: () => void }) {
+  const legacy = lead.type === "public" ? { view: "radar", key: "lead", id: lead.key.slice(3) } : lead.type === "private" ? { view: "prospects", key: "prospect", id: lead.key.slice(3) } : null;
+  const [frame, wide] = useWide(760); // wide: the dock is the third panel; narrow: it follows the reveal, so what happened is read first
+  return (
+    <div ref={frame} className={`lo-detail-inner ${wide ? "wide" : ""}`}>
+      <div className="min-w-0 space-y-4">
+        <div className="lo-lead-bar">
+          <Pill tone={lead.type === "public" ? "blue" : lead.type === "shadow" ? "amber" : "violet"}>{lead.source_label}</Pill>
+          <Pill tone={lead.basis === "published" ? "green" : "amber"}>{lead.basis === "published" ? "Published evidence" : "Inferred: verify"}</Pill>
+          {lead.account_id && <Pill tone="green">{BASIS_LABEL[lead.link_basis || ""] || "Account"}</Pill>}
+          <span className="ml-auto flex gap-1">
+            {lead.status !== "watching" && <button className="ds-btn ghost sm" onClick={() => onStatus(lead, "watching")}><Eye size={14} /> Watch</button>}
+            {lead.status !== "dismissed" ? <button className="ds-btn ghost sm" onClick={() => onStatus(lead, "dismissed")}><XCircle size={14} /> Dismiss</button>
+              : <button className="ds-btn ghost sm" onClick={() => onStatus(lead, "new")}>Restore</button>}
+          </span>
+        </div>
+        <OpportunityBrief op={op} afterReveal={wide ? null : <ActionDock op={op} />}>
+          <details className="lo-source-record" aria-label="Source record">
+            <summary><ChevronDown size={14} aria-hidden="true" />Source record<span className="lo-meta ml-1 font-normal">{lead.type === "shadow" ? "the Shadow Radar card" : "the six questions, as first found"}</span></summary>
+            <div className="mt-3">{lead.type === "shadow" ? <ShadowCard lead={lead} notify={notify} onChanged={onChanged} /> : <LeadRecord lead={lead} />}</div>
+            {authMode === "local" && legacy && <button className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ds-brand hover:underline" onClick={() => goto(legacy.view, { [legacy.key]: legacy.id })}>
+              {lead.type === "public" ? "Full record, evidence and deep research" : "Full research: signals, timing, people"} <ArrowUpRight size={13} /></button>}
+          </details>
+        </OpportunityBrief>
+      </div>
+      {wide && <div className="lo-dock-col"><ActionDock op={op} /></div>}
     </div>
   );
 }
@@ -265,42 +299,23 @@ function LeadRow({ lead, active, onClick }: { lead: Lead; active: boolean; onCli
   );
 }
 
-function LeadDetail({ lead, onStatus, onOpen, onClose }: { lead: Lead; onStatus: (l: Lead, s: Lead["status"]) => void; onOpen: (l: Lead, then?: "clients" | "engage") => void; onClose?: () => void }) {
-  const legacy = lead.type === "public" ? { view: "radar", key: "lead", id: lead.key.slice(3) } : { view: "prospects", key: "prospect", id: lead.key.slice(3) };
+function LeadRecord({ lead }: { lead: Lead }) {
   const value = lead.value ? valueLine(lead.value) : "Not published";
   return (
-    <article className="p-5" aria-label={lead.organisation}>
-      {onClose && <button className="ds-btn ghost sm -ml-2 mb-2" onClick={onClose}><X size={14} /> Close</button>}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Pill tone={lead.type === "public" ? "blue" : "violet"}>{lead.source_label}</Pill>
-        <Pill tone={lead.basis === "published" ? "green" : "amber"}>{lead.basis === "published" ? "Published evidence" : "Inferred: verify"}</Pill>
-        <Pill tone={KIND_TONE[lead.kind] || "neutral"}>{lead.kind_label}</Pill>
-        {lead.account_id && <Pill tone="green">{BASIS_LABEL[lead.link_basis || ""] || "Linked"}</Pill>}
-      </div>
-      <h2 className="mt-3 text-[20px] font-semibold leading-tight tracking-[-0.02em] text-ds-ink">{lead.organisation}</h2>
-      <p className="mt-1 text-[14px] leading-6 text-ds-ink-2">{lead.title}</p>
-
-      <BriefView lead={lead} onPeople={() => onOpen(lead)} />
-
-      <dl className="mt-4 grid gap-2.5 sm:grid-cols-2">
+    <div aria-label={lead.organisation}>
+      <Pill tone={KIND_TONE[lead.kind] || "neutral"}>{lead.kind_label}</Pill>
+      <p className="mt-2 text-[14px] font-semibold text-ds-ink">{lead.organisation}</p>
+      <p className="mt-0.5 text-[13px] leading-5 text-ds-ink-2">{lead.title}</p>
+      <BriefView lead={lead} />
+      <dl className="mt-3 grid gap-2.5 sm:grid-cols-2">
         <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">{lead.type === "public" ? (lead.timing_label ? lead.timing_label[0].toUpperCase() + lead.timing_label.slice(1) : "Timing") : "Timing"}</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.type === "public" ? (lead.timing ? new Date(lead.timing).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Not published") : lead.category_label}</dd></div>
         <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Value</dt><dd className="text-[14px] font-semibold text-ds-ink">{value}</dd></div>
-        <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Supplier named</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.supplier || "Unknown"}</dd>{lead.supplier && <dd className="text-[12px] text-ds-muted">Reported, not necessarily today's incumbent</dd>}</div>
+        <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Supplier named</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.supplier || "Unknown"}</dd>{lead.supplier && <dd className="text-[12px] text-ds-muted">Reported, not necessarily today&apos;s incumbent</dd>}</div>
         <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Where</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.nation || lead.region || "Not stated"}</dd></div>
       </dl>
       {!!lead.services.length && <div className="mt-3 flex flex-wrap gap-1.5">{lead.services.map((s) => <Pill key={s} tone="brand">{SERVICE_NAME[s] || s}</Pill>)}</div>}
       {lead.type === "private" && <p className="mt-3 text-[13px] text-ds-muted">{lead.people || 0} named people and {lead.contact_routes || 0} published contact routes found by research.</p>}
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        <button className="ds-btn primary" onClick={() => onOpen(lead)}><Building2 size={15} /> {lead.account_id ? "Open account" : "Investigate as account"}</button>
-        <button className="ds-btn" onClick={() => onOpen(lead, "engage")}><MailPlus size={15} /> Prepare introduction</button>
-        {lead.status !== "watching" && <button className="ds-btn ghost" onClick={() => onStatus(lead, "watching")}><Eye size={15} /> Watch</button>}
-        {lead.status !== "dismissed" ? <button className="ds-btn ghost" onClick={() => onStatus(lead, "dismissed")}><XCircle size={15} /> Dismiss</button>
-          : <button className="ds-btn ghost" onClick={() => onStatus(lead, "new")}>Restore</button>}
-      </div>
-      {authMode === "local" && <button className="mt-4 inline-flex items-center gap-1 text-[13px] font-semibold text-ds-brand hover:underline" onClick={() => goto(legacy.view, { [legacy.key]: legacy.id })}>
-        {lead.type === "public" ? "Full record, evidence and deep research" : "Full research: signals, timing, people"} <ArrowUpRight size={13} /></button>}
       {lead.type === "private" && <p className="mt-3 flex items-center gap-1.5 text-[12px] text-ds-muted"><Sparkles size={12} /> Found by AI web research. Check the sources before relying on it.</p>}
-    </article>
+    </div>
   );
 }

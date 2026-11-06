@@ -634,8 +634,9 @@ def account_view(db: Session, account_id: int) -> dict:
             if m not in confirm:
                 confirm.append(m)
     open_tasks = [t for t in tasks if t.status == "open"]
-    next_step = (f"{open_tasks[0].title} (due {open_tasks[0].due_on:%-d %b})" if open_tasks else
-                 "Prepare an introduction" if not activities else "Schedule the next follow-up")
+    from app.services.brief import next_label  # one decision for every screen: the brief's next move
+    next_step = next_label(db, account_id) or (f"{open_tasks[0].title} (due {open_tasks[0].due_on:%-d %b})" if open_tasks else
+                                               "Prepare an introduction" if not activities else "Schedule the next follow-up")
     return {
         "id": account.id, "name": account.name, "kind": account.kind, "company_number": account.company_number, "website": account.website, "sector": account.sector,
         "region": account.region, "status": account.status, "watched": account.watched, "notes": account.notes, "created_at": account.created_at.isoformat(),

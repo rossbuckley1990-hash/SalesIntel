@@ -326,13 +326,6 @@ details[open] > summary .si-chevron { transform: rotate(180deg); }
 .si-drop-close > div { display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; border: 1px dashed var(--ds-border-strong); border-radius: 10px; font-size: 12.5px; font-weight: 500; color: var(--ds-muted); transition: all var(--ds-dur-2); }
 .si-drop-close > div.over { border-style: solid; border-color: #18171c; color: var(--ds-ink); background: #fff; }
 
-/* Activity strip on an account: 26 weeks, one cell per week. */
-.si-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; height: 20px; }
-.si-strip i { border-radius: 3px; background: #ebe9e3; }
-.si-strip i[data-l="1"] { background: #f3c9b1; }
-.si-strip i[data-l="2"] { background: #e08a5f; }
-.si-strip i[data-l="3"] { background: #c2410c; }
-
 @media (max-width: 950px) {
   .si-shell .m-main { padding: 26px 24px 48px; }
   .si-cmdk { width: 220px; }

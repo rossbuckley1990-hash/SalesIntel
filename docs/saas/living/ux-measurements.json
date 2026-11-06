@@ -1,0 +1,21 @@
+{
+  "suite": "local, demo mode, fictional fixtures",
+  "recorded": "2026-11-06",
+  "marks": [
+    {
+      "step": "Reveal readable after choosing the lead",
+      "seconds": 0.1,
+      "clicks": 1
+    },
+    {
+      "step": "Understood the lead and its next move",
+      "seconds": 0.8,
+      "clicks": 2
+    },
+    {
+      "step": "From the lead to a qualified deal",
+      "seconds": 0.7,
+      "clicks": 6
+    }
+  ]
+}

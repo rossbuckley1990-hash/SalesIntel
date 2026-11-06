@@ -54,8 +54,8 @@ test("Scenario A: from the daily list to a qualified deal, with every claim sour
   // 2. Start an investigation, and 3. review its critical findings (including the evidence against it).
   await card.getByRole("button", { name: "Investigate Harbourside Community Health" }).click(); clicks++;
   await expect(page).toHaveURL(/view=clients&account=\d+/);
-  const play = page.getByRole("region", { name: "Play" });
-  await expect(play).toContainText("Play · New site");
+  const play = page.getByRole("region", { name: "Next move" }).first();
+  await expect(page.getByRole("region", { name: "Path to a deal" })).toContainText("Test the hypothesis");
   mark("Start an investigation");
   const investigation = page.getByRole("region", { name: "Investigation" });
   await expect(investigation.getByText("Evidence against it")).toBeVisible({ timeout: 30000 });
@@ -122,7 +122,7 @@ test("Scenario A: from the daily list to a qualified deal, with every claim sour
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "Accounts", exact: true }).click();
   await page.getByRole("table").getByRole("button", { name: "Harbourside Community Health" }).click();
   await expect(page.getByRole("region", { name: "Missing information" }).getByRole("listitem").filter({ hasText: "Current fire and security supplier" })).toContainText("Coastline Fire Services");
-  await expect(page.getByRole("region", { name: "Play" })).toContainText("Deal:");
+  await expect(page.getByRole("region", { name: "Deal story" })).toContainText("Deal:");
   writeFileSync("../docs/saas/ux-timings.json", JSON.stringify({ scenario: "A: unadvertised new site, replayed research", recorded: new Date().toISOString().slice(0, 10), marks }, null, 2));
 });
 
@@ -136,7 +136,7 @@ test("the best opportunities list reads well on a phone", async ({ browser }) =>
   // The account it opens, with its play, missing information and committee, also fits the screen.
   await best.getByRole("article").first().getByRole("button", { name: /^(Investigate|Open) / }).click();
   await expect(page).toHaveURL(/view=clients&account=\d+/);
-  await expect(page.getByRole("region", { name: "Play" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Next move" }).first()).toBeVisible();
   await expect(page.getByRole("region", { name: "Missing information" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth), "account page width").toBeLessThanOrEqual(390);
 });

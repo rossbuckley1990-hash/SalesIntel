@@ -58,7 +58,7 @@ test("on a phone the opportunity sheet sits on screen and closes from outside", 
   await page.getByRole("button", { name: /^Shadow Radar/ }).click();
   await page.getByRole("region", { name: "Results" }).getByRole("button", { name: /Harbourside Community Health/ }).first().click();
   const sheet = page.getByRole("region", { name: "Selected opportunity details" });
-  await expect(sheet.getByRole("button", { name: "Investigate" })).toBeVisible();
+  await expect(sheet.getByRole("region", { name: "Next move" })).toBeVisible();
   await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished))); // measure where it comes to rest
   const box = await sheet.boundingBox();
   expect(box).not.toBeNull();

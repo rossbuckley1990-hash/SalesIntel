@@ -37,8 +37,8 @@ test("a salesperson signs up, sets a target and takes a public lead to a qualifi
   await nav(alice, "Discover");
   await alice.getByRole("region", { name: "Results" }).getByRole("button", { name: /Example Housing Trust Limited/ }).click();
   const detail = alice.getByRole("complementary", { name: "Selected opportunity" });
-  await expect(detail.getByText(/Published contract with Sample Fire Services Ltd ends/)).toBeVisible();
-  await detail.getByRole("button", { name: "Prepare introduction" }).click();
+  await expect(detail.getByRole("heading", { name: /^Contract with Sample Fire Services Ltd ends/ })).toBeVisible();
+  await detail.getByRole("region", { name: "Next move" }).getByRole("button", { name: /Prepare introduction/ }).click();
   const message = alice.getByLabel("Message", { exact: true });
   await expect(message).toHaveValue(/Dear \[name\],/);
   await alice.getByLabel("Your name").fill("Alice Seller");
@@ -88,7 +88,9 @@ test("a salesperson signs up, sets a target and takes a public lead to a qualifi
   await expect(bob.getByText("No accounts yet")).toBeVisible();
   await nav(bob, "Discover");
   await bob.getByRole("region", { name: "Results" }).getByRole("button", { name: /Example Housing Trust Limited/ }).click();
-  await expect(bob.getByRole("complementary", { name: "Selected opportunity" }).getByRole("button", { name: "Prepare introduction" })).toBeVisible();
+  await expect(bob.getByRole("complementary", { name: "Selected opportunity" }).getByRole("region", { name: "Next move" })).toBeVisible();
+  await expect(bob.getByRole("complementary", { name: "Selected opportunity" }).getByText("Same name (unconfirmed)")).toHaveCount(0); // none of Alpha's account
+  await expect(bob.getByRole("complementary", { name: "Selected opportunity" }).getByRole("region", { name: "Deal story" })).toContainText("Nothing recorded yet");
   await bob.goto(dealUrl);
   await toast(bob, "Deal not found");
   await expect(bob.getByText("Annual fire alarm servicing at 14 schemes")).toHaveCount(0);

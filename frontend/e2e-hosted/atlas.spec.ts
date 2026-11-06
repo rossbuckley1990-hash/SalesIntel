@@ -60,7 +60,7 @@ test("a salesperson sees who holds the work, what public pages report, and turns
   await page.getByRole("region", { name: "Contractors", exact: true }).getByRole("button", { name: /KESTREL FIRE SERVICES LTD/ }).click();
   await page.getByRole("button", { name: "Investigate Fenwick Housing Trust" }).click();
   await expect(page).toHaveURL(/view=clients/);
-  await expect(page.getByRole("heading", { name: "Fenwick Housing Trust" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Fenwick Housing Trust", exact: true })).toBeVisible();
   const suppliers = page.getByRole("region", { name: "Who supplies them" });
   await expect(suppliers).toContainText("Published supplier in term: KESTREL FIRE SERVICES LTD");
   await suppliers.scrollIntoViewIfNeeded();

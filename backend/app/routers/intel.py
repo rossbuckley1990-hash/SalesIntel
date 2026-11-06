@@ -79,10 +79,11 @@ def account_play(account_id: int, db: Session = Depends(tenant_db)):
 
 class GapAsk(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    gap: Literal['find_role', 'verify_contact', 'incumbent', 'contract_end', 'site_operator', 'award_document', 'evaluation_criteria', 'site_status']
+    gap: Literal['find_role', 'verify_contact', 'incumbent', 'contract_end', 'site_operator', 'award_document', 'evaluation_criteria', 'site_status',
+                 'need', 'package_status', 'eligibility', 'route', 'relationship_status', 'hypothesis_test']
     subject: str = Field(min_length=1, max_length=160)
     question: str = Field('', max_length=1000)
-    lead_key: str | None = Field(None, pattern=r'^(sh|mo|pr):\d+$')
+    lead_key: str | None = Field(None, pattern=r'^(sh|mo|pr|mc):\d+$')
     refresh: bool = False
 
 

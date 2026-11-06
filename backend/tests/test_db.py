@@ -38,6 +38,7 @@ def test_models_create_against_sqlite() -> None:
         "atlas_contract_parties",
         "atlas_identity_conflicts",
         "atlas_relationships",
+        "si_brief_reviews",
         "competitor_profiles",
         "enrichment_runs",
         "evidence_observations",

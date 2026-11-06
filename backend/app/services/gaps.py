@@ -23,7 +23,9 @@ from app.services import committee as cm
 from app.services import jobs, navigator
 from app.services.ai_costs import ESTIMATE_CENTS
 
-GAP_KINDS = ('find_role', 'verify_contact', 'incumbent', 'contract_end', 'site_operator', 'award_document', 'evaluation_criteria', 'site_status')
+GAP_KINDS = ('find_role', 'verify_contact', 'incumbent', 'contract_end', 'site_operator', 'award_document', 'evaluation_criteria', 'site_status',
+             # The Living Opportunity's decisive questions (app/services/brief.py). Researched like any free question: the answer must be quoted from a page.
+             'need', 'package_status', 'eligibility', 'route', 'relationship_status', 'hypothesis_test')
 OPEN = ('queued', 'running')
 SCHEMA = {"type": "object", "additionalProperties": False, "required": ["findings"], "properties": {"findings": {"type": "array", "items": {
     "type": "object", "additionalProperties": False, "required": ["answer", "text", "quote", "source_url", "source_date"],

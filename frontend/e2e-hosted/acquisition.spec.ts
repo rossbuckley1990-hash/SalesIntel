@@ -49,6 +49,9 @@ test("public tender: notice, account, official procurement route, grounded intro
   await nav(page, "Discover");
   await page.getByRole("region", { name: "Results" }).getByRole("button", { name: /Example Housing Trust Limited/ }).click();
   const detail = page.getByRole("complementary", { name: "Selected opportunity" });
+  await expect(detail.getByRole("heading", { name: /^Contract with Sample Fire Services Ltd ends/ })).toBeVisible();
+  await expect(detail.getByRole("region", { name: "Next move" })).toBeVisible();
+  await detail.getByText("Source record").click(); // the six questions, as first found, one click away
   for (const q of ["Why this customer?", "Why now?", "What do we know?", "What remains unknown?", "Who should we contact?", "What should we do next?"])
     await expect(detail.getByRole("region", { name: q })).toBeVisible();
   await expect(detail.getByText("Existing contract approaching a reported end date")).toBeVisible();
@@ -56,8 +59,10 @@ test("public tender: notice, account, official procurement route, grounded intro
   await expect(detail.getByRole("region", { name: "Why this customer?" })).toContainText("In your territory: England");
   await page.screenshot({ animations: "disabled", path: `${SHOTS}/1-discover-brief-desktop.png`, fullPage: false });
 
-  // Investigate the company and find the people. The research is durable: refresh while it runs.
-  await detail.getByRole("button", { name: "Find the right people" }).click();
+  // Save it as an account from the Action Dock, then find the people. The research is durable: refresh while it runs.
+  await detail.getByRole("region", { name: "Next move" }).getByRole("button", { name: "Save as an account" }).click();
+  await toast(page, /as an account/);
+  await detail.getByRole("button", { name: /Open the full account/ }).click();
   await expect(page).toHaveURL(/view=clients&account=\d+/);
   const people = page.getByRole("region", { name: "Find the right people" });
   await people.getByRole("button", { name: "Find the right people" }).click();
@@ -126,6 +131,8 @@ test("private prospect on a phone: brief, durable research, people, partial resu
   const results = page.getByRole("region", { name: "Results" });
   await results.getByRole("button", { name: /Northgate Distribution Ltd/ }).click();
   const sheet = page.getByRole("region", { name: "Selected opportunity details" });
+  await expect(sheet.getByRole("region", { name: "Next move" })).toBeVisible();
+  await sheet.getByText("Source record").click();
   await expect(sheet.getByText("Private organisation with an observable signal")).toBeVisible();
   await expect(sheet.getByRole("region", { name: "Why now?" })).toContainText("Announced a 400,000 sq ft distribution centre in Wakefield");
   await expect(sheet.getByRole("region", { name: "Why now?" })).toContainText("Inferred timing:");
@@ -135,7 +142,9 @@ test("private prospect on a phone: brief, durable research, people, partial resu
   await expect(results.getByRole("button", { name: /Calder Freight Services/ })).toContainText("Unverified");
 
   // Find the people: a named lead and permitted routes, but no direct details, said plainly.
-  await sheet.getByRole("button", { name: "Find the right people" }).click();
+  await sheet.getByRole("button", { name: "Save as an account" }).click();
+  await toast(page, /as an account/);
+  await sheet.getByRole("button", { name: /Open the full account/ }).click();
   const people = page.getByRole("region", { name: "Find the right people" });
   await people.getByRole("button", { name: "Find the right people" }).click();
   await expect(people.getByText("Relevant decision-maker role identified, but no verified direct business contact details found.")).toBeVisible({ timeout: 30000 });
@@ -153,7 +162,8 @@ test("private prospect on a phone: brief, durable research, people, partial resu
   await page.getByRole("button", { name: "Save to timeline" }).click();
   await toast(page, /Logged/);
   await page.reload();
-  await expect(page.getByText("Called the switchboard; asked for Sam Patel about the Wakefield site")).toBeVisible();
+  await expect(page.getByText("Called the switchboard; asked for Sam Patel about the Wakefield site", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Deal story" })).toContainText("Call: Called the switchboard"); // the story keeps it too
   const accountUrl = page.url();
 
   // Another company cannot see the research, the account or the contacts.

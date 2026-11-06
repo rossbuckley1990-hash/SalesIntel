@@ -14,11 +14,12 @@ test("discover to contact to deal, with continuity after a reload", async ({ pag
   const results = page.getByRole("region", { name: "Results" });
   await results.getByRole("button", { name: /Example Housing Trust Limited/ }).click();
   const detail = page.getByRole("complementary", { name: "Selected opportunity" });
-  await expect(detail.getByText(/Published contract with Sample Fire Services Ltd ends/)).toBeVisible();
+  await expect(detail.getByRole("heading", { name: /^Contract with Sample Fire Services Ltd ends/ })).toBeVisible();
+  await detail.getByText("Source record").click(); // the record as first found, one click away
   await expect(detail.getByText("Reported, not necessarily today's incumbent", { exact: true })).toBeVisible();
 
-  // Prepare an introduction straight from the lead.
-  await detail.getByRole("button", { name: "Prepare introduction" }).click();
+  // Prepare an introduction straight from the lead, from the Action Dock.
+  await detail.getByRole("region", { name: "Next move" }).getByRole("button", { name: /Prepare introduction/ }).click();
   await expect(page).toHaveURL(/view=engage/);
   const message = page.getByLabel("Message", { exact: true });
   await expect(message).toHaveValue(/Dear \[name\],/);
@@ -70,9 +71,11 @@ test("discover to contact to deal, with continuity after a reload", async ({ pag
   // Deduplication: the same organisation found by private research joins the same account, unconfirmed.
   await page.goto("/?view=find&q=example housing");
   await page.getByRole("region", { name: "Results" }).getByRole("button", { name: /Private/ }).first().click();
-  await page.getByRole("complementary", { name: "Selected opportunity" }).getByRole("button", { name: /Open account|Investigate as account/ }).click();
+  const privateLead = page.getByRole("complementary", { name: "Selected opportunity" });
+  await privateLead.getByRole("region", { name: "Next move" }).getByRole("button", { name: /Save as an account/ }).click();
   await toast(page, /Linked to the existing Example Housing Trust account by name/);
-  await expect(page.getByText("Same name (unconfirmed)").first()).toBeVisible();
+  await expect(privateLead.getByText("Same name (unconfirmed)").first()).toBeVisible();
+  await privateLead.getByRole("button", { name: /Open the full account/ }).click();
   // The named person research sourced arrives once, with the quote that names them.
   await expect(page.getByRole("listitem").filter({ hasText: "Head of Assets" }).filter({ hasText: "said Robin Sample, Head of Assets" })).toHaveCount(1);
 

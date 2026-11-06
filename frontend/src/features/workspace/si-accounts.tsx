@@ -1,15 +1,15 @@
 "use client";
-import { useCallback, useEffect, useState, useRef } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpRight, Briefcase, Building2, CheckCircle2, CircleHelp, Eye, EyeOff, Globe, Link2, MailPlus, MapPin, Plus, Search, UserPlus } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpRight, Briefcase, Building2, CheckCircle2, CircleHelp, Eye, EyeOff, Globe, Link2, MapPin, Plus, Search, UserPlus } from "lucide-react";
 import { EmptyState, Pill } from "./ds";
 import { safeUrl } from "./radar-model";
-import { BASIS_LABEL, SERVICES, STAGE_LABEL, dayLabel, goto, param, si, type AccountRow, type AccountT } from "./si-api";
+import { BASIS_LABEL, STAGE_LABEL, dayLabel, goto, param, si, type AccountRow, type AccountT } from "./si-api";
 import { ActivityForm, Basis, ContactCard, PageHeader, Panel, TaskRow, Timeline, useUrl } from "./si-shared";
-import { PeopleFinder, newKey } from "./si-people";
+import { PeopleFinder } from "./si-people";
 import { AccountSuppliers } from "./si-atlas";
 import { DossierPanel } from "./si-shadow";
-import { CommitteePanel, GapsPanel, PlayPanel, usePlay } from "./si-intel";
-import { newKey as freshKey } from "./si-people";
+import { CommitteePanel, GapsPanel, usePlay } from "./si-intel";
+import { ActionDock, OpportunityBrief, useOpportunity, useWide } from "./si-living";
 import type { SharedProps } from "./types";
 import { initials } from "./fluid";
 
@@ -64,25 +64,6 @@ function AccountList({ notify }: SharedProps) {
   );
 }
 
-/** Every logged call, email, meeting and visit over the last 26 weeks, one cell per week. Counts only what was recorded. */
-function EngagementStrip({ items }: { items: { occurred_at: string; kind: string }[] }) {
-  const WEEKS = 26;
-  const week = 7 * 86400000;
-  const now = Date.now();
-  const counts = Array.from({ length: WEEKS }, () => 0);
-  for (const x of items) { const w = Math.floor((now - Date.parse(x.occurred_at)) / week); if (w >= 0 && w < WEEKS) counts[WEEKS - 1 - w] += 1; }
-  const total = counts.reduce((a, b) => a + b, 0);
-  const last = items.length ? Math.floor((now - Math.max(...items.map((x) => Date.parse(x.occurred_at)))) / 86400000) : null;
-  return (
-    <section aria-label="Engagement" className="ds-card flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
-      <div className="min-w-[150px]"><p className="text-[12px] text-ds-muted">Engagement, 26 weeks</p>
-        <p className="text-[13px] text-ds-ink"><span className="si-mono">{total}</span> interaction{total === 1 ? "" : "s"}{last !== null && <span className="text-ds-muted"> · last {last === 0 ? "today" : `${last}d ago`}</span>}</p></div>
-      <div className="si-strip min-w-[220px] flex-1" role="img" aria-label={`${total} interactions recorded in the last 26 weeks`}>
-        {counts.map((n, i) => <i key={i} data-l={n === 0 ? 0 : n === 1 ? 1 : n <= 3 ? 2 : 3} title={`${n} in week ${i + 1} of ${WEEKS}`} />)}</div>
-    </section>
-  );
-}
-
 function AccountTable({ rows, sort, setSort }: { rows: AccountRow[]; sort: { key: SortKey; dir: 1 | -1 }; setSort: (s: { key: SortKey; dir: 1 | -1 }) => void }) {
   const value = (r: AccountRow, k: SortKey): string | number => k === "next_due" ? (r.next_due || "9999") : k === "last_activity" ? (r.last_activity || "") : k === "name" || k === "status" ? String(r[k]).toLowerCase() : Number(r[k]);
   const sorted = [...rows].sort((a, b) => { const x = value(a, sort.key), y = value(b, sort.key); return (x < y ? -1 : x > y ? 1 : 0) * sort.dir; });
@@ -118,38 +99,25 @@ function AccountTable({ rows, sort, setSort }: { rows: AccountRow[]; sort: { key
 function AccountRecord({ id, notify }: SharedProps & { id: number }) {
   const [a, setA] = useState<AccountT | null>(null);
   const [error, setError] = useState("");
-  const [panel, setPanel] = useState<"" | "contact" | "site" | "deal">("");
+  const [panel, setPanel] = useState<"" | "contact" | "site">("");
   const [suggest, setSuggest] = useState<{ source: string; name: string; why: string }[]>([]);
   const [investigations, setInvestigations] = useState(0);
   const [play, reloadPlay] = usePlay(id);
   const load = useCallback(async () => {
     try { setA(await si<AccountT>(`/accounts/${id}`)); setError(""); } catch (e) { setError((e as Error).message); }
   }, [id]);
+  // The Living Opportunity for this account: its brief and the one next move, shared with every other screen.
+  const op = useOpportunity(`acct:${id}`, notify, { onChanged: () => { void load(); setInvestigations((n) => n + 1); } });
+  const changed = () => { void load(); void op.reload(); };
+  const [frame, wide] = useWide(1000);
   useEffect(() => { if (a) void reloadPlay(); }, [a, reloadPlay]); // every recorded change can move the play on
   useEffect(() => { void load(); si<{ items: typeof suggest }>(`/accounts/${id}/suggestions`).then((d) => setSuggest(d.items)).catch(() => {}); }, [id, load]);
   if (error) return <div className="ds-root"><button className="ds-btn ghost sm" onClick={() => goto("clients")}><ArrowLeft size={14} /> Accounts</button><p role="alert" className="mt-4 text-ds-red">{error}</p></div>;
   if (!a) return <div className="ds-root space-y-3"><div className="ds-skeleton h-24 rounded-xl" /><div className="ds-skeleton h-64 rounded-xl" /></div>;
   const site = safeUrl(a.website);
 
-  // The play's next step, done from where it is shown.
-  async function act(action: string) {
-    const scroll = (selector: string) => document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    if (action === "investigate") {
-      try {
-        const r = await si<{ job: { reused: boolean } }>(`/accounts/${id}/investigate`, { method: "POST", json: {}, headers: { "Idempotency-Key": freshKey() } });
-        notify(r.job.reused ? "Opening the investigation already saved for this account." : "Investigation started. It keeps running if you leave this page.");
-        setInvestigations((n) => n + 1);
-        setTimeout(() => scroll('[aria-label="Investigation"]'), 300);
-      } catch (e) { notify((e as Error).message, true); }
-    } else if (action === "people") scroll('[aria-label="Find the right people"]');
-    else if (action === "gaps") scroll("#si-gaps");
-    else if (action === "engage") goto("engage", { account: id });
-    else if (action === "log") scroll('form[aria-label="Log an interaction"]');
-    else if (action === "qualify") { setPanel("deal"); window.scrollTo({ top: 0, behavior: "smooth" }); }
-  }
-
   async function call(path: string, method: string, json?: unknown, done?: string) {
-    try { await si(path, { method, json }); if (done) notify(done); await load(); return true; } catch (e) { notify((e as Error).message, true); return false; }
+    try { await si(path, { method, json }); if (done) notify(done); changed(); return true; } catch (e) { notify((e as Error).message, true); return false; }
   }
   return (
     <div className="ds-root space-y-5">
@@ -163,15 +131,16 @@ function AccountRecord({ id, notify }: SharedProps & { id: number }) {
             {a.company_number && <a className="hover:underline" href={`https://find-and-update.company-information.service.gov.uk/company/${a.company_number}`} target="_blank" rel="noreferrer">Company {a.company_number}</a>}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="ds-btn primary" onClick={() => goto("engage", { account: a.id })}><MailPlus size={15} /> Prepare introduction</button>
-          <button className="ds-btn" onClick={() => setPanel(panel === "deal" ? "" : "deal")}><Briefcase size={15} /> Qualify into a deal</button>
+          {/* Qualifying is always possible here; it is offered as the next move only once the customer has stated a requirement. */}
+          {op.brief && op.brief.next.action !== "qualify" && !a.deals.length && <button className="ds-btn ghost" onClick={() => { op.setForm("qualify"); document.querySelector('[aria-label="Next move"]')?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
+            <Briefcase size={15} /> Qualify into a deal</button>}
           <button className="ds-btn ghost" onClick={() => void call(`/accounts/${a.id}`, "PATCH", { watched: !a.watched }, a.watched ? "No longer watching." : "Watching. New intelligence will appear on Today.")}>{a.watched ? <><EyeOff size={15} /> Unwatch</> : <><Eye size={15} /> Watch</>}</button>
         </div>
       </header>
-      <EngagementStrip items={a.activities} />
-      {play && <PlayPanel play={play} onAction={(action) => void act(action)} />}
-
-      {panel === "deal" && <DealForm a={a} notify={notify} onDone={() => setPanel("")} />}
+      <div ref={frame} className={`lo-account ${wide ? "wide" : ""}`}>
+        <OpportunityBrief op={op} afterReveal={wide ? null : <ActionDock op={op} onAccountPage />} />
+        {wide && <div className="lo-dock-col"><ActionDock op={op} onAccountPage /></div>}
+      </div>
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-5">
@@ -195,16 +164,15 @@ function AccountRecord({ id, notify }: SharedProps & { id: number }) {
             </Panel>
           </div>
           <AccountSuppliers accountId={a.id} />
-          <DossierPanel key={`dossier-${investigations}`} accountId={a.id} notify={notify} onChanged={() => void load()} />
-          {play && <GapsPanel play={play} notify={notify} onChanged={() => { void load(); void reloadPlay(); }} />}
-          {play && <CommitteePanel play={play} notify={notify} onChanged={() => { void load(); void reloadPlay(); }} />}
-          <PeopleFinder key={`${a.id}-${a.contacts.map((c) => `${c.id}:${c.status}`).join(",")}`} accountId={a.id} notify={notify} onChanged={() => void load()} />
-          <Panel title="Log an interaction"><ActivityForm accountId={a.id} contacts={a.contacts} notify={notify} onSaved={() => void load()} /></Panel>
+          <DossierPanel key={`dossier-${investigations}`} accountId={a.id} notify={notify} onChanged={changed} />
+          {play && <GapsPanel play={play} notify={notify} onChanged={() => { changed(); void reloadPlay(); }} />}
+          {play && <CommitteePanel play={play} notify={notify} onChanged={() => { changed(); void reloadPlay(); }} />}
+          <PeopleFinder key={`${a.id}-${a.contacts.map((c) => `${c.id}:${c.status}`).join(",")}`} accountId={a.id} notify={notify} onChanged={changed} />
+          <Panel title="Log an interaction"><ActivityForm accountId={a.id} contacts={a.contacts} notify={notify} onSaved={changed} /></Panel>
           <Panel title={`History (${a.activities.length})`}><Timeline items={a.activities} contacts={a.contacts} /></Panel>
         </div>
 
         <div className="space-y-5">
-          <section className="rounded-xl border border-ds-brand-line bg-ds-brand-soft p-4"><p className="text-[12px] font-semibold uppercase tracking-wide text-ds-brand">Next step</p><p className="mt-1 text-[15px] font-semibold text-ds-ink">{a.next_step}</p></section>
           <Panel title={`Follow-ups (${a.tasks.filter((t) => t.status === "open").length})`}>
             {!a.tasks.length ? <p className="text-[13px] text-ds-muted">None scheduled.</p> : <ul className="divide-y divide-ds-border">{a.tasks.map((t) => <TaskRow key={t.id} t={t} onDone={() => void call(`/tasks/${t.id}/complete`, "POST", undefined, "Done.")} />)}</ul>}
           </Panel>
@@ -253,41 +221,6 @@ function SiteForm({ onSave }: { onSave: (s: Record<string, unknown>) => void }) 
       {(["name", "address", "postcode", "uprn", "source_url"] as const).map((k) => <label key={k} className="block"><span className="ds-label">{{ name: "Site name", address: "Address", postcode: "Postcode", uprn: "UPRN (only if confirmed)", source_url: "Source (optional)" }[k]}</span>
         <input className="mt-1 block h-9 w-full rounded-lg border border-ds-border-strong px-2.5 text-[13px]" value={s[k]} required={k === "name"} pattern={k === "uprn" ? "\\d{1,12}" : undefined} onChange={(e) => setS({ ...s, [k]: e.target.value })} /></label>)}
       <button className="ds-btn primary sm">Save site</button>
-    </form>
-  );
-}
-
-function DealForm({ a, notify, onDone }: { a: AccountT; notify: SharedProps["notify"]; onDone: () => void }) {
-  const submission = useRef(newKey());  // one key per form, so a double-click creates one deal
-  const [source, setSource] = useState(a.sources[0]?.key || "");
-  const [q, setQ] = useState({ requirement: "", decision_maker: "", timing: "", budget: "", incumbent: "", drivers: "" });
-  const [services, setServices] = useState<string[]>([]);
-  const [work, setWork] = useState("ppm");
-  const [busy, setBusy] = useState(false);
-  async function create(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const deal = await si<{ id: number }>(`/accounts/${a.id}/deals`, { method: "POST", headers: { "Idempotency-Key": submission.current }, json: { source_key: source || null, services, work_type: work, qualification: q } });
-      notify("Deal created with its evidence and history.");
-      goto("deals", { deal: deal.id });
-    } catch (err) { notify((err as Error).message, true); } finally { setBusy(false); }
-  }
-  const box = (k: keyof typeof q, label: string, hint: string) => <label className="block"><span className="ds-label">{label}</span><input className="mt-1 block h-10 w-full rounded-lg border border-ds-border-strong px-2.5 text-[14px]" placeholder={hint} value={q[k]} onChange={(e) => setQ({ ...q, [k]: e.target.value })} required={k === "requirement"} /></label>;
-  return (
-    <form onSubmit={create} className="ds-card space-y-3 p-4" aria-label="Qualify into a deal">
-      <h2 className="text-[15px] font-semibold text-ds-ink">Qualify into a deal</h2>
-      <p className="text-[13px] text-ds-muted">Record what you have confirmed with the customer. Leave anything you do not know blank; it stays unknown.</p>
-      {box("requirement", "Customer requirement (confirmed)", "e.g. Annual PPM for fire alarms at two sites")}
-      <div className="grid gap-3 sm:grid-cols-2">{box("decision_maker", "Decision maker", "Role or name")}{box("timing", "Timing", "e.g. Decision by March")}{box("budget", "Budget", "Only if stated")}{box("incumbent", "Current provider", "Only if confirmed")}</div>
-      <div><span className="ds-label">Services</span><div className="mt-1 flex flex-wrap gap-1.5">{SERVICES.map(([v, l]) => <button type="button" key={v} aria-pressed={services.includes(v)} onClick={() => setServices((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))}
-        className={`rounded-full border px-3 py-1 text-[12px] font-medium ${services.includes(v) ? "border-ds-brand bg-ds-brand-soft text-ds-brand" : "border-ds-border bg-white text-ds-ink-2"}`}>{l}</button>)}</div></div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block"><span className="ds-label">Type of work</span><select className="ds-select mt-1 w-full" value={work} onChange={(e) => setWork(e.target.value)}>
-          {[["ppm", "Planned preventative maintenance"], ["reactive", "Reactive maintenance"], ["remedial", "Remedial works"], ["installation", "Installation project"], ["multi_site", "Multi-site agreement"], ["monitoring", "Monitoring"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-        <label className="block"><span className="ds-label">Based on</span><select className="ds-select mt-1 w-full" value={source} onChange={(e) => setSource(e.target.value)}><option value="">My own conversations</option>{a.sources.map((s) => <option key={s.key} value={s.key}>{s.title?.slice(0, 70)}</option>)}</select></label>
-      </div>
-      <div className="flex gap-2"><button className="ds-btn primary" disabled={busy}>Create deal</button><button type="button" className="ds-btn ghost" onClick={onDone}>Cancel</button></div>
     </form>
   );
 }

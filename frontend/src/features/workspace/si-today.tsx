@@ -4,26 +4,49 @@ import { ArrowRight, BellRing, Briefcase, CalendarClock, ChevronDown, ChevronRig
 import { DailyResearchBrief } from "./daily-research-brief";
 import { EmptyState, Pill } from "./ds";
 import { fieldLabel } from "./api";
-import { relative } from "./radar-model";
 import { ActivityForm, Panel, TaskRow } from "./si-shared";
 import { STAGE_LABEL, dayLabel, goto, inDays, si, type DealCard, type DiscoverResult, type Lead, type QueueItem, type TodayT } from "./si-api";
 import { Runway } from "./si-runway";
 import { BestOpportunities } from "./si-intel";
 import type { SharedProps } from "./types";
-import { ViewerContext, useCountUp } from "./fluid";
+import { ViewerContext } from "./fluid";
+import "./living.css";
 
-const PER: Record<string, string> = { annual: "a year", quarterly: "a quarter", monthly: "a month" };
+type DigestRow = { account_id: number; name: string; headline: string; next: string; new_events: number; since: string | null; latest: string };
+type Digest = { changed: DigestRow[]; watching: DigestRow[] };
 
-function Cell({ n, label, detail, hot, onClick }: { n: number | null; label: string; detail: string; hot?: boolean; onClick: () => void }) {
-  const shown = useCountUp(n ?? 0);
+/** The intelligence briefing: five short lists, each built only from what is recorded. Nothing here is a forecast. */
+function Briefing({ today, deals, digest }: { today: TodayT | null; deals: DealCard[]; digest: Digest | null }) {
+  const pounds = (v: number) => `£${Math.round(v).toLocaleString("en-GB")}`;
+  const money = [...deals].filter((d) => !["won", "lost"].includes(d.stage)).sort((a, b) => (b.value_total ?? -1) - (a.value_total ?? -1)).slice(0, 3);
+  const col = (title: string, detail: string, n: number | null, items: React.ReactNode, empty: string) => (
+    <section aria-label={title} className="lo-brief-col">
+      <h2><span>{title}</span><span className="n">{n ?? "…"}</span></h2>
+      <p className="lo-brief-detail">{detail}</p>
+      {n === null ? <div className="ds-skeleton mt-2 h-14" /> : n === 0 ? <p className="lo-brief-empty">{empty}</p> : <ul>{items}</ul>}
+    </section>);
   return (
-    <button className={hot ? "hot" : ""} onClick={onClick}>
-      <span className="k"><i className="si-ledger-dot" aria-hidden="true" />{label}</span>
-      <span className="v">{n === null ? <span className="ds-skeleton inline-block h-7 w-10 align-middle" aria-hidden="true" /> : shown}</span>
-      <span className="s">{detail}</span>
-    </button>
+    <div className="lo-briefing" role="group" aria-label="Intelligence briefing">
+      {col("Discovered", "New leads, most time-sensitive first", today ? today.new_leads.length : null,
+        today?.new_leads.slice(0, 3).map((l) => <li key={l.key}><button onClick={() => goto("find", { lead: l.key })}><strong>{l.organisation}</strong><span>{l.why_now}</span></button></li>),
+        "Nothing new found since your last search.")}
+      {col("Changed", "New evidence or activity since you last looked", digest ? digest.changed.length : null,
+        digest?.changed.slice(0, 3).map((r) => <li key={r.account_id}><button onClick={() => goto("clients", { account: r.account_id })}><strong>{r.name}</strong><span>{r.new_events} new{r.latest ? `: ${r.latest}` : ""}</span></button></li>),
+        "Nothing has changed on the accounts you reviewed.")}
+      {col("Needs action", "What you committed to, by due date", today ? today.queue.length : null,
+        today?.queue.slice(0, 3).map((q) => <li key={`${q.kind}-${q.task_id || q.draft_id || q.deal_id || q.account_id}`}><button onClick={() => document.getElementById("si-queue")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+          <strong>{q.title}</strong><span>{q.account ? `${q.account} · ` : ""}{q.due_on ? dayLabel(q.due_on) : q.why}</span></button></li>), "Nothing is due.")}
+      {col("Could move revenue", "Open deals, largest recorded value first", money.length,
+        money.map((d) => <li key={d.id}><button onClick={() => goto("deals", { deal: d.id })}><strong>{d.title}</strong>
+          <span>{d.value_total !== null ? `${pounds(d.value_total)} recorded` : "No value recorded"} · {STAGE_LABEL[d.stage] || d.stage}</span></button></li>), "No open deals yet.")}
+      {col("Worth watching", "Accounts you watch, with their next move", digest ? digest.watching.length : null,
+        digest?.watching.slice(0, 3).map((r) => <li key={r.account_id}><button onClick={() => goto("clients", { account: r.account_id })}><strong>{r.name}</strong><span>Next: {r.next}</span></button></li>),
+        "Watch an account to keep it here.")}
+    </div>
   );
 }
+
+const PER: Record<string, string> = { annual: "a year", quarterly: "a quarter", monthly: "a month" };
 
 const ICON = { follow_up: CalendarClock, draft: FilePenLine, deal: Briefcase, intelligence: BellRing };
 
@@ -41,6 +64,8 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
   const [open, setOpen] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [error, setError] = useState("");
+  const [digest, setDigest] = useState<Digest | null>(null);
+  useEffect(() => { si<Digest>("/brief/digest").then(setDigest).catch(() => setDigest({ changed: [], watching: [] })); }, []);
   const load = useCallback(async () => {
     try {
       const [t, d] = await Promise.all([si<TodayT>("/today"), si<{ items: DealCard[] }>("/deals")]);
@@ -74,7 +99,8 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
           <p className="si-eyebrow">{date} · Daily briefing</p>
           <h1 className="mt-2 text-[32px] font-semibold leading-[1.1] tracking-[-0.035em] text-ds-ink">{greeting()}{first ? `, ${first}` : ""}.</h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-6 text-ds-muted" aria-live="polite">
-            {!counts ? "Getting your day ready…" : counts.follow + counts.drafts + counts.deals === 0 ? "Nothing is waiting on you. Find your next opportunity below."
+            {!counts ? "Getting your day ready…" : counts.follow + counts.drafts + counts.deals === 0
+              ? (today?.new_leads.length ? <>Nothing is due. <strong className="font-semibold text-ds-ink">{today.new_leads.length} new lead{today.new_leads.length === 1 ? "" : "s"}</strong> found: start with what was discovered below.</> : "Nothing is due, and nothing new was found. Search Discover for your next opportunity.")
               : <>You have <strong className="font-semibold text-ds-ink">{counts.follow} follow-up{counts.follow === 1 ? "" : "s"}</strong> due, {counts.drafts} draft{counts.drafts === 1 ? "" : "s"} to finish and {counts.deals} deal{counts.deals === 1 ? "" : "s"} that need a next step.</>}
           </p>
         </div>
@@ -85,12 +111,7 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
         </div>}
       </header>
 
-      <div className="si-ledger" role="group" aria-label="Your day at a glance">
-        <Cell n={counts?.follow ?? null} hot={!!counts?.follow} label="Follow-ups due" detail="Promises you made" onClick={() => document.getElementById("si-queue")?.scrollIntoView({ behavior: "smooth", block: "start" })} />
-        <Cell n={counts?.drafts ?? null} label="Drafts to finish" detail="Introductions in progress" onClick={() => goto("engage")} />
-        <Cell n={counts?.deals ?? null} label="Deals needing a step" detail={`${openDeals.length} open in total`} onClick={() => goto("deals")} />
-        <Cell n={today ? today.new_leads.length : null} label="New leads" detail="Newly found, worth a look" onClick={() => goto("find")} />
-      </div>
+      <Briefing today={today} deals={deals} digest={digest} />
 
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); goto("find", { q }); }} role="search">
         <div className="si-hero-search relative flex-1">

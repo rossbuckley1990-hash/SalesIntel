@@ -106,6 +106,31 @@ def test_a_competitor_held_contract_and_a_shadow_hypothesis_open_as_briefs(local
     assert b['reveal']['key_question']['gap'] == 'relationship_status'
 
 
+def test_a_framework_with_several_suppliers_names_them_all_and_never_one_as_the_holder(local):
+    from sqlalchemy import select
+    from app.models.market_contract import MarketContract
+    _, db, _ = local
+    atlas_fixtures.load(db, TODAY)
+    framework = db.scalar(select(MarketContract).where(MarketContract.title == 'Fire Safety Systems Framework'))
+    framework.facts = {**framework.facts, 'suppliers': ['Kestrel Fire Services Ltd', 'Moorland Fire & Security Ltd']}
+    crowded = db.scalar(select(MarketContract).where(MarketContract.title == 'Sprinkler system servicing'))
+    crowded.facts = {**crowded.facts, 'suppliers': [f'Example Fire Supplier {i} Ltd' for i in range(12)]}
+    db.commit()
+    atlas.ensure_built(db)
+    db.commit()
+    b = brief.build(db, f'mc:{framework.id}')
+    headline = b['reveal']['headline'].lower()
+    assert 'named 2 suppliers' in headline and 'kestrel fire services ltd' in headline and 'moorland fire' in headline
+    assert 'as supplier:' not in headline
+    held = [r for r in b['relationships'] if r['kind'] == 'incumbent']
+    assert len(held) == 2 and all(r['label'] == 'One of 2 suppliers on the published record' for r in held)
+    assert 'which of its 2 suppliers' in b['reveal']['key_question']['question']
+    b = brief.build(db, f'mc:{crowded.id}')
+    assert 'named 12 suppliers' in b['reveal']['headline'] and 'and 9 more' in b['reveal']['headline']
+    held = [r for r in b['relationships'] if r['kind'] == 'incumbent']
+    assert len(held) == 9 and held[-1]['name'] == '4 more suppliers'  # eight named, then a count, never a list of sixty
+
+
 def test_a_shadow_hypothesis_says_it_is_a_hypothesis_and_how_to_test_it(local):
     from app.models.shadow import ShadowHypothesis
     from app.services import shadow_fixtures

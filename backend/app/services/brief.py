@@ -278,25 +278,34 @@ def _contract(db: Session, entity_id: int) -> dict | None:
     from app.models.market_contract import MarketContract
     from app.services import atlas
     contract = db.get(MarketContract, entity_id)
-    party = db.scalar(select(AtlasContractParty).where(AtlasContractParty.contract_id == entity_id)) if contract else None
-    if not contract or not party:
+    parties = db.scalars(select(AtlasContractParty).where(AtlasContractParty.contract_id == entity_id).order_by(AtlasContractParty.id)).all() if contract else []
+    if not contract or not parties:
         return None
-    supplier = db.get(AtlasContractor, party.contractor_id)
-    v = atlas.contract_view(contract, party, supplier.display_name if supplier else (contract.supplier or ''), date.today())
+    # A framework names several suppliers on one notice: name them all, never one of them as if it held the work alone.
+    names = list(dict.fromkeys((k.display_name if (k := db.get(AtlasContractor, p.contractor_id)) else (contract.supplier or '')) for p in parties))
+    names = [n for n in names if n] or [contract.supplier or 'the supplier']
+    v = atlas.contract_view(contract, parties[0], names[0], date.today())
+    several = len(names) > 1
+    listed = ', '.join(names[:3]) + (f' and {len(names) - 3} more' if len(names) > 3 else '') if several else names[0]
     reason = (v['reasons'] or [{}])[0]
     events = [_event(t['date'], 'published' if t['basis'] == 'publication date' else 'first_seen' if t['basis'] == 'retrieval' else 'event', t['event'], basis=t['basis'],
                      establishes=t['event']) for t in v['timeline']]
     return {'kind': 'competitor_contract', 'organisation': {'name': contract.buyer, 'sector': 'Public sector', 'location': v['region'] or v['nation'], 'website': None, 'company_number': None},
-            'events': events, 'happened': {'text': f"{contract.buyer} named {v['supplier']} as supplier: {contract.title}. {v['status']['label']}.", 'detail': '',
+            'events': events, 'happened': {'text': (f"{contract.buyer} named {len(names)} suppliers ({listed}): {contract.title}. {v['status']['label']}." if several
+                                                    else f"{contract.buyer} named {listed} as supplier: {contract.title}. {v['status']['label']}."), 'detail': '',
                                            'date': (v['dates'] or {}).get('published') or '', 'source': (v['sources'] or [{}])[0].get('url', ''), 'basis': 'published'},
-            'interpretation': reason.get('mechanism') or 'A competitor holds this published contract; its term decides when an alternative can be offered.',
+            'interpretation': reason.get('mechanism') or ('Several suppliers are named on this published contract; which of them does the work, and the term, decide when an alternative can be offered.'
+                                                          if several else 'A competitor holds this published contract; its term decides when an alternative can be offered.'),
             'heuristic': None, 'services': _services({s['family'] for s in v['services']}, set()),
             'disprove': list(reason.get('alternatives') or []) + list(reason.get('disconfirming') or []),
-            'questions': [('relationship_status', 'Current status', f"Is {v['supplier']}'s contract still running, and has it been extended or re-let?", 'decisive',
+            'questions': [('relationship_status', 'Current status', (f"Is this contract still running, which of its {len(names)} suppliers does the work, and has it been extended or re-let?"
+                                                                   if several else f"Is {listed}'s contract still running, and has it been extended or re-let?"), 'decisive',
                            'If it has been re-let recently, the next window is years away.'),
                           ('route', 'Route to market', 'How will the buyer procure the service next time, and when will it decide?', 'timing', 'It decides when to engage.')],
-            'relationships': [{'kind': 'incumbent', 'label': 'Supplier on the published record', 'name': v['supplier'], 'basis': 'published',
-                               'source': (v['sources'] or [{}])[0].get('url', '')}],
+            'relationships': [{'kind': 'incumbent', 'label': f'One of {len(names)} suppliers on the published record' if several else 'Supplier on the published record',
+                               'name': n, 'basis': 'published', 'source': (v['sources'] or [{}])[0].get('url', '')} for n in names[:8]]
+                             + ([{'kind': 'incumbent', 'label': 'Also on the published record', 'name': f'{len(names) - 8} more suppliers', 'basis': 'published',
+                                  'source': (v['sources'] or [{}])[0].get('url', '')}] if len(names) > 8 else []),
             'unknowns': list(reason.get('missing') or []), 'first_seen': contract.first_seen, 'updated': contract.last_evaluated, 'people': [], 'routes': []}
 
 

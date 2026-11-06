@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, Bookmark, Building2, CalendarRange, Eye, Globe, Inbox, Info, Landmark, Layers, MailPlus, MousePointerClick, Radar, Rows3, Search, Sparkles, Users, X, XCircle } from "lucide-react";
+import { ArrowUpRight, Bookmark, Building2, CalendarRange, Eye, Globe, Inbox, Info, Landmark, Layers, MailPlus, MousePointerClick, Network, Radar, Rows3, Search, Sparkles, Users, X, XCircle } from "lucide-react";
 import { EmptyState, Pill } from "./ds";
 import { NATIONS, relative, safeUrl, valueLine } from "./radar-model";
 import { BASIS_LABEL, SERVICES, SERVICE_NAME, dayLabel, goto, param, si, type DiscoverResult, type Lead } from "./si-api";
@@ -10,6 +10,7 @@ import { authMode } from "@/lib/session";
 import { JobStatus, newKey, useJob, type JobT } from "./si-people";
 import { ShadowCard } from "./si-shadow";
 import { Runway } from "./si-runway";
+import { SiAtlas } from "./si-atlas";
 
 const KIND_SHORT: Record<string, string> = { published_procurement: "Live tender", contract_ending: "Contract ending", private_signal: "Signal", customer_expansion: "Customer", unverified_candidate: "Unverified" };
 const KIND_TONE: Record<string, "green" | "blue" | "amber" | "violet" | "neutral" | "brand"> = { published_procurement: "green", contract_ending: "blue", private_signal: "violet", customer_expansion: "brand", unverified_candidate: "amber" };
@@ -44,7 +45,33 @@ function BriefView({ lead, onPeople }: { lead: Lead; onPeople: () => void }) {
 type View = { id: number; name: string; filters: Record<string, string> };
 const STATUS: [string, string][] = [["active", "Active"], ["new", "New"], ["watching", "Watching"], ["investigating", "Investigating"], ["dismissed", "Dismissed"]];
 
-export function SiDiscover({ notify }: SharedProps) {
+/** Discover has two modes: the opportunities list, and the Contract Atlas of who holds the work today. */
+export function SiDiscover(props: SharedProps) {
+  const [mode, setMode] = useState<"opportunities" | "atlas">(() => (param("mode") === "atlas" ? "atlas" : "opportunities"));
+  useEffect(() => {
+    const sync = () => setMode(param("mode") === "atlas" ? "atlas" : "opportunities");
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
+  function choose(next: "opportunities" | "atlas") {
+    setMode(next);
+    const url = new URL(window.location.href);
+    for (const k of ["mode", "q", "contractor", "customer", "lead", "source", "layout"]) url.searchParams.delete(k);
+    if (next === "atlas") url.searchParams.set("mode", "atlas");
+    window.history.pushState({}, "", url);
+  }
+  return (
+    <div>
+      <div className="ds-tabs mb-4" role="group" aria-label="Discover mode">
+        <button aria-pressed={mode === "opportunities"} onClick={() => choose("opportunities")}><Layers size={14} aria-hidden="true" />Opportunities</button>
+        <button aria-pressed={mode === "atlas"} onClick={() => choose("atlas")}><Network size={14} aria-hidden="true" />Contract Atlas</button>
+      </div>
+      {mode === "atlas" ? <SiAtlas notify={props.notify} /> : <DiscoverOpportunities {...props} />}
+    </div>
+  );
+}
+
+function DiscoverOpportunities({ notify }: SharedProps) {
   useUrl();
   const [q, setQ] = useState(param("q") || "");
   const [applied, setApplied] = useState(param("q") || "");

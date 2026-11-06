@@ -74,6 +74,21 @@ def normalise(name: str) -> str:
     return re.sub(r'^the ', '', s)
 
 
+def company_number(value) -> str | None:
+    """A Companies House number in its canonical form, or None for a blank or malformed one (such as "0")."""
+    raw = re.sub(r'\s+', '', str(value or '')).upper()
+    if raw.isdigit() and 0 < len(raw) <= 8 and int(raw) > 0:
+        return raw.zfill(8)
+    return raw if re.fullmatch(r'(?:SC|NI|OC|SO|NC|R|IP|SP|RS|LP|SL|SE|FC|GE|GS|ES|NL|NF|NO|NP|NR|NZ|AC|ZC|SA|SF|SR|SZ|RC|IC|SI|NA|R0|CE|CS|GN|GF)\d{5,6}', raw) else None
+
+
+def stem(name: str) -> str:
+    """The name without branch or trading notes in brackets and without legal suffixes: to find look-alikes, never to merge."""
+    s = re.sub(r'\([^)]*\)', ' ', name or '')
+    s = normalise(re.sub(r'\s[-\u2013]\s*lot\s*\d+.*$', ' ', s, flags=re.I))
+    return ' '.join(w for w in s.split() if w not in {'ltd', 'plc', 'llp', 'uk', 'group', 'and', 'lot'})
+
+
 def region_of(postcode: str | None) -> str:
     m = re.match(r'^([A-Z]{1,2})\d', (postcode or '').strip().upper())
     return AREA_REGION.get(m.group(1), '') if m else ''
@@ -103,12 +118,30 @@ def _release(raw: dict) -> dict:
     return raw
 
 
+REGION_WORDS = {'north east': 'North East', 'north west': 'North West', 'yorkshire': 'Yorkshire and the Humber', 'east midlands': 'East Midlands',
+                'west midlands': 'West Midlands', 'east of england': 'East of England', 'london': 'London', 'south east': 'South East',
+                'south west': 'South West', 'scotland': 'Scotland', 'wales': 'Wales', 'northern ireland': 'Northern Ireland'}
+
+
 def buyer_postcode(raw: dict) -> str:
+    return buyer_location(raw)[0]
+
+
+def buyer_location(raw: dict) -> tuple[str, str]:
+    """(buyer postcode, region as the source publishes it) from a notice's buyer party."""
     rel = _release(raw or {})
     for party in rel.get('parties') or []:
         if isinstance(party, dict) and 'buyer' in (party.get('roles') or []):
-            return str((party.get('address') or {}).get('postalCode') or '')
-    return ''
+            address = party.get('address') or {}
+            return str(address.get('postalCode') or ''), str(address.get('region') or '')
+    return '', ''
+
+
+def region_from_text(text: str) -> str:
+    """A published region field naming exactly one region; a field naming several says nothing about where."""
+    found = {label for part in re.split(r'[,;/]', (text or '').lower()) for word, label in REGION_WORDS.items() if word in part.strip()}
+    found -= {'East of England'} if {'East Midlands', 'East of England'} <= found and 'east of england' not in (text or '').lower() else set()
+    return found.pop() if len(found) == 1 else ''
 
 
 # ------------------------------------------------------------------ build
@@ -145,16 +178,16 @@ def _numbers_from_awards(db: Session, revision_ids: set[int]) -> dict[tuple[int,
                           .join(MarketEntity, MarketEntity.id == MarketAward.supplier_id)
                           .where(MarketAward.source_revision_id.in_(ids[start:start + 500]), MarketEntity.identifier_scheme == 'GB-COH')).all()
         for revision, supplier, number in rows:
-            if supplier and number:
-                out[(revision, normalise(clean_supplier(supplier)))].add(str(number).strip().upper())
+            if supplier and company_number(number):
+                out[(revision, normalise(clean_supplier(supplier)))].add(company_number(number))
     return out
 
 
-def _postcodes(db: Session, revision_ids: set[int]) -> dict[int, str]:
+def _locations(db: Session, revision_ids: set[int]) -> dict[int, tuple[str, str]]:
     out, ids = {}, sorted(revision_ids)
     for start in range(0, len(ids), 200):
         for rid, raw in db.execute(select(SourceRevision.id, SourceRevision.raw).where(SourceRevision.id.in_(ids[start:start + 200]))).all():
-            out[rid] = buyer_postcode(raw if isinstance(raw, dict) else {})
+            out[rid] = buyer_location(raw if isinstance(raw, dict) else {})
     return out
 
 
@@ -166,14 +199,19 @@ def rebuild(db: Session, now: datetime | None = None) -> dict:
                 for c in contracts}
     all_ids = {i for ids in evidence.values() for i in ids}
     award_numbers = _numbers_from_awards(db, all_ids)
-    postcodes = _postcodes(db, {ids[0] for ids in evidence.values() if ids})
+    locations = _locations(db, all_ids)
+    region_by_contract = {}
+    for c in contracts:
+        places = [locations.get(i, ('', '')) for i in evidence[c.id]]
+        found = next((region_of(p) for p, _ in places if region_of(p)), '') or next((region_from_text(t) for _, t in places if region_from_text(t)), '')
+        region_by_contract[c.id] = found or (c.nation if c.nation in ('Scotland', 'Wales', 'Northern Ireland') else '')
 
     # One record per (contract, supplier name), with any number the sources publish for exactly that name.
     records = []
     for c in contracts:
         facts = c.facts or {}
         suppliers = [clean_supplier(s) for s in facts.get('suppliers') or ([c.supplier] if c.supplier else []) if s and clean_supplier(s)]
-        published = [str(n).strip().upper() for n in facts.get('company_numbers') or [] if n]
+        published = [n for n in (company_number(x) for x in facts.get('company_numbers') or []) if n]
         for name in dict.fromkeys(suppliers):
             norm = normalise(name)
             if not norm:
@@ -200,7 +238,7 @@ def rebuild(db: Session, now: datetime | None = None) -> dict:
     by_key: dict[str, list[dict]] = defaultdict(list)
     for r in records:
         by_key[r['key']].append(r)
-    registry = {str(e.identifier_value).upper(): e for e in db.scalars(select(MarketEntity).where(MarketEntity.identifier_scheme == 'GB-COH'))}
+    registry = {company_number(e.identifier_value): e for e in db.scalars(select(MarketEntity).where(MarketEntity.identifier_scheme == 'GB-COH'))}
     parents = _groups(db)
     db.execute(delete(AtlasContractParty))
     db.execute(delete(AtlasAlias))
@@ -238,7 +276,7 @@ def rebuild(db: Session, now: datetime | None = None) -> dict:
             nations[c.nation or 'Not stated'] += 1
             text = f"{c.title} {(c.facts or {}).get('description') or ''}"
             db.add(AtlasContractParty(contractor_id=contractor.id, contract_id=c.id, supplier_name_seen=r['name'][:255], match_basis=r['basis'],
-                                      customer_key=normalise(c.buyer)[:255], region=region_of(postcodes.get(r['revision'] or -1)),
+                                      customer_key=normalise(c.buyer)[:255], region=region_by_contract[c.id],
                                       disciplines=families_, scope=scope_of(text), route=route_of(c)))
         contractor.disciplines, contractor.nations = dict(disciplines), dict(nations)
         contractor.contract_count = len({c for (cid, c) in linked if cid == contractor.id})
@@ -246,11 +284,25 @@ def rebuild(db: Session, now: datetime | None = None) -> dict:
     for norm, numbers in numbers_by_name.items():
         if len(numbers) > 1:
             ids = sorted({contractors[f'coh:{n}'].id for n in numbers} | ({contractors[f'name:{norm}'].id} if f'name:{norm}' in contractors else set()))
-            db.add(AtlasIdentityConflict(normalised=norm[:255], names=sorted({r['name'] for r in records if r['norm'] == norm}),
+            db.add(AtlasIdentityConflict(normalised=norm[:255], kind='two_numbers', names=sorted({r['name'] for r in records if r['norm'] == norm}),
                                          company_numbers=sorted(numbers), contractor_ids=ids, status='unresolved'))
             conflicts += 1
+    stems: dict[str, set[str]] = defaultdict(set)
+    for key in contractors:
+        for r in by_key[key]:
+            if stem(r['name']):
+                stems[stem(r['name'])].add(key)
+    similar = 0
+    already = [{f'coh:{n}' for n in numbers} | {f'name:{norm}'} for norm, numbers in numbers_by_name.items() if len(numbers) > 1]
+    for s_, keys in stems.items():
+        if len(keys) > 1 and not any(keys <= group for group in already):
+            rows = [contractors[k] for k in sorted(keys)]
+            db.add(AtlasIdentityConflict(normalised=f'stem:{s_}'[:255], kind='similar_names', names=sorted({c.display_name for c in rows}),
+                                         company_numbers=sorted({c.company_number for c in rows if c.company_number}), contractor_ids=sorted(c.id for c in rows),
+                                         status='unresolved'))
+            similar += 1
     db.flush()
-    return {'contracts': len(contracts), 'contractors': len(contractors), 'links': len(linked), 'conflicts': conflicts,
+    return {'contracts': len(contracts), 'contractors': len(contractors), 'links': len(linked), 'conflicts': conflicts, 'similar_names': similar,
             'with_company_number': sum(1 for k in contractors if k.startswith('coh:'))}
 
 
@@ -568,7 +620,11 @@ def contractor_record(db: Session, contractor_id: int, *, prefs: dict | None = N
                      'basis_label': 'Companies House number published on the procurement records' if contractor.company_number else 'Name only: no company number published for this name',
                      'aliases': [{'name': a.alias, 'source': 'Supplier name on a published contract'} for a in aliases],
                      'group': contractor.group or None,
-                     'conflicts': [{'names': c.names, 'company_numbers': c.company_numbers, 'note': 'This name is published with more than one company number. They are kept apart until a person confirms which is which.'} for c in conflicts]},
+                     'conflicts': [{'kind': c.kind, 'names': c.names, 'company_numbers': c.company_numbers, 'contractor_ids': c.contractor_ids,
+                                    'note': ('This name is published with more than one company number. They are kept apart until a person confirms which is which.'
+                                             if c.kind == 'two_numbers' else
+                                             'Similar names kept apart: a branch, trading name or different company can look alike. A person can confirm whether they are one company.')}
+                                   for c in conflicts]},
         'services': [{'family': k, 'label': FAMILY_LABEL.get(k, k), 'contracts': n, 'basis': 'Named in the contract title or description'} for k, n in services.most_common()],
         'nations': contractor.nations, 'contracts': contracts, 'relationships': [_relationship_view(r) for r in shown],
         'unsupported_relationships': sum(1 for r in relationships if r.status == 'unsupported'),
@@ -578,7 +634,7 @@ def contractor_record(db: Session, contractor_id: int, *, prefs: dict | None = N
             'private': (f"Published case studies and announcements researched on {research['when']}." if research and research['status'] == 'succeeded'
                         else 'Published case studies and announcements not researched yet.'),
             'subcontracts': 'Subcontract and FM delivery links appear only where a source states them.',
-            'regions': 'Regions come from the buyer\'s postcode area and are approximate at some boundaries.',
+            'regions': "Regions come from the buyer's postcode area (approximate at some boundaries), or the region the notice publishes when it names just one.",
             'values': 'Values are shown only as published, with their basis. A framework ceiling is never revenue.'},
         'research': research}
 

@@ -6,6 +6,7 @@ import { safeUrl } from "./radar-model";
 import { BASIS_LABEL, SERVICES, STAGE_LABEL, dayLabel, goto, param, si, type AccountRow, type AccountT } from "./si-api";
 import { ActivityForm, Basis, ContactCard, PageHeader, Panel, TaskRow, Timeline, useUrl } from "./si-shared";
 import { PeopleFinder, newKey } from "./si-people";
+import { AccountSuppliers } from "./si-atlas";
 import { DossierPanel } from "./si-shadow";
 import { CommitteePanel, GapsPanel, PlayPanel, usePlay } from "./si-intel";
 import { newKey as freshKey } from "./si-people";
@@ -193,6 +194,7 @@ function AccountRecord({ id, notify }: SharedProps & { id: number }) {
               <ul className="space-y-1.5">{a.to_confirm.map((k) => <li key={k} className="flex gap-2 text-[13px] leading-5 text-ds-ink-2"><span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-ds-amber" />{k}</li>)}</ul>
             </Panel>
           </div>
+          <AccountSuppliers accountId={a.id} />
           <DossierPanel key={`dossier-${investigations}`} accountId={a.id} notify={notify} onChanged={() => void load()} />
           {play && <GapsPanel play={play} notify={notify} onChanged={() => { void load(); void reloadPlay(); }} />}
           {play && <CommitteePanel play={play} notify={notify} onChanged={() => { void load(); void reloadPlay(); }} />}

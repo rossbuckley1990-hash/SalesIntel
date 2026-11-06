@@ -66,10 +66,12 @@ class AtlasContractParty(Base):
 
 
 class AtlasIdentityConflict(Base):
-    """One legal name published with more than one company number. Left apart until a person decides."""
+    """Names a person should look at: one legal name published with two company numbers, or similar names (a branch or
+    trading note, a missing "Ltd") kept apart because they may be different companies. Never merged automatically."""
     __tablename__ = 'atlas_identity_conflicts'
     id: Mapped[int] = mapped_column(primary_key=True)
     normalised: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    kind: Mapped[str] = mapped_column(String(24), nullable=False, default='two_numbers')  # two_numbers, similar_names
     names: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     company_numbers: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     contractor_ids: Mapped[list[int]] = mapped_column(JSON, nullable=False, default=list)

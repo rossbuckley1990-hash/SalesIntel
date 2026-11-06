@@ -39,7 +39,8 @@ def upgrade():
                     sa.Column('route', sa.String(32), nullable=False),
                     sa.UniqueConstraint('contractor_id', 'contract_id', name='uq_atlas_contract_party'))
     op.create_table('atlas_identity_conflicts', sa.Column('id', sa.Integer(), primary_key=True),
-                    sa.Column('normalised', sa.String(255), nullable=False, unique=True), sa.Column('names', sa.JSON(), nullable=False),
+                    sa.Column('normalised', sa.String(255), nullable=False, unique=True), sa.Column('kind', sa.String(24), nullable=False, server_default='two_numbers'),
+                    sa.Column('names', sa.JSON(), nullable=False),
                     sa.Column('company_numbers', sa.JSON(), nullable=False), sa.Column('contractor_ids', sa.JSON(), nullable=False),
                     sa.Column('status', sa.String(16), nullable=False, server_default='unresolved'))
     op.create_table('atlas_relationships', sa.Column('id', sa.Integer(), primary_key=True),

@@ -148,6 +148,25 @@ def test_a_customer_shows_published_reported_and_unknown_suppliers_separately(ma
     assert atlas.customer_record(db, 'northmoor care group', today=TODAY)['incumbent']['state'] == 'unknown'
 
 
+def test_a_framework_with_several_suppliers_lists_each_supplier_once(tmp_path):
+    # A framework names several suppliers on one notice. The customer's record lists one row per supplier, and each row has
+    # its own party_id: lists keyed by the contract alone repeat a key, and the browser may then drop or duplicate rows.
+    from app.models.market_contract import MarketContract
+    engine = create_engine(f"sqlite:///{tmp_path / 'atlas.db'}")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        atlas_fixtures.load(db, TODAY)
+        framework = db.scalar(select(MarketContract).where(MarketContract.title == 'Fire Safety Systems Framework'))
+        framework.facts = {**framework.facts, 'suppliers': ['Kestrel Fire Services Ltd', 'Moorland Fire & Security Ltd']}
+        db.commit()
+        atlas.ensure_built(db)
+        db.commit()
+        rows = [c for c in atlas.customer_record(db, 'pennine procurement partnership', today=TODAY)['contracts'] if c['key'] == f'mc:{framework.id}']
+        assert sorted(r['supplier'].lower() for r in rows) == ['kestrel fire services ltd', 'moorland fire & security ltd']
+        assert len({r['party_id'] for r in rows}) == 2
+    engine.dispose()
+
+
 # ------------------------------------------------------------------ private relationships from public pages
 
 def test_private_research_keeps_only_what_the_pages_say(market):

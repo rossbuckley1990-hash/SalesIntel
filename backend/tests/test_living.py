@@ -414,6 +414,28 @@ def test_undo_is_atomic_with_linked_decision_action_outcome(client):
     )
 
 
+def test_undo_restores_every_column_exactly_even_a_timestamp_that_looks_unchanged(client):
+    """A change made in the same second as the original leaves updated_at as it was; undoing it a second later must not
+    stamp the undo's own time on the restored row. (This raced in CI whenever the clock ticked between steps.)"""
+    from datetime import datetime
+    from sqlalchemy import update
+    from app.models.living import Outcome
+    from app.services.living import audit
+    old = datetime(2020, 1, 1, 9, 0, 0)
+    with client.sessions() as db:
+        db.execute(update(Outcome).where(Outcome.id == 1).values(updated_at=old))
+        db.commit()
+        row = db.get(Outcome, 1)
+        before = audit.record(row)
+        db.execute(update(Outcome).where(Outcome.id == 1).values(owner="Someone else", updated_at=old))  # same timestamp, as within one second
+        db.commit()
+        db.refresh(row)
+        event = audit.commit_event(db, "outcome_update", "Test", [{"table": "living_outcomes", "id": 1, "before": before, "after": audit.record(row)}])
+    assert client.post(f"/api/living/audit/{event.id}/undo").status_code == 200
+    with client.sessions() as db:
+        assert audit.record(db.get(Outcome, 1)) == before  # every column, the timestamp included
+
+
 def test_undo_refuses_intervening_source_edits(client):
     result = client.post(
         "/api/living/actions",

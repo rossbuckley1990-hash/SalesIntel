@@ -225,6 +225,58 @@ GAP_FINDINGS = {
 USAGE = {"input_tokens": 31_000, "output_tokens": 2_600, "server_tool_use": {"web_search_requests": 6}}
 
 
+# Contract Atlas: what fictional public pages say about a fictional contractor's customers. Each case tests a rule:
+# a confirmed quote, an FM subcontract, an old case study, a paraphrased quote, a customer the page never names, and a
+# source the search never returned.
+ATLAS_PAGES = {
+    "https://kestrel-fire.example/case-studies/northmoor": {"title": "Northmoor Care Group case study | Kestrel Fire Services", "date": "2025-03-12",
+        "text": "Kestrel Fire Services currently maintains the fire alarm and emergency lighting systems across Northmoor Care Group's 14 care homes in North Yorkshire, under a planned maintenance agreement awarded in March 2025."},
+    "https://trade.example/news/castleford-brightline": {"title": "Castleford FM brings in Kestrel for Brightline Retail", "date": "2024-09-02",
+        "text": "Castleford FM Services has appointed Kestrel Fire Services to deliver fire alarm servicing at Brightline Retail stores in the North East, as part of Castleford's facilities contract with Brightline Retail."},
+    "https://kestrel-fire.example/case-studies/harbour-point": {"title": "Harbour Point Hotels sprinkler project | Kestrel Fire Services", "date": "2019-06-20",
+        "text": "In 2019 Kestrel Fire Services installed and commissioned a new sprinkler system at the Harbour Point Hotels flagship hotel in Whitby."},
+    "https://kestrel-fire.example/customers": {"title": "Our customers | Kestrel Fire Services", "date": "2025-01-10",
+        "text": "Our customers include Northmoor Care Group, Brightline Retail and Pennine Leisure."},
+    "https://kestrel-fire.example/news/awards": {"title": "Award shortlist | Kestrel Fire Services", "date": "2024-11-01",
+        "text": "Kestrel Fire Services was shortlisted for a regional fire safety award in 2024."},
+}
+PAGES.update(ATLAS_PAGES)
+ATLAS_SEARCH = {"kestrel": list(ATLAS_PAGES), "northmoor": ["https://kestrel-fire.example/case-studies/northmoor", "https://kestrel-fire.example/customers"]}
+_KESTREL = "Kestrel Fire Services Ltd"
+ATLAS_ANSWERS = {
+    "kestrel": {"searched_for": ["Kestrel Fire Services case study", "Kestrel Fire Services customers"], "not_found": ["No published contract terms for any customer"],
+                "relationships": [
+        {"supplier": _KESTREL, "customer": "Northmoor Care Group", "kind": "direct_customer", "intermediary": "", "services": ["fire_alarm", "emergency_lighting"],
+         "sites_mentioned": "14 care homes in North Yorkshire", "published_on": "2025-03", "duration_stated": "", "currency": "stated_ongoing",
+         "source_url": "https://kestrel-fire.example/case-studies/northmoor", "source_type": "supplier_case_study",
+         "quote": "Kestrel Fire Services currently maintains the fire alarm and emergency lighting systems across Northmoor Care Group's 14 care homes in North Yorkshire", "unknowns": []},
+        {"supplier": _KESTREL, "customer": "Brightline Retail", "kind": "subcontract", "intermediary": "Castleford FM Services", "services": ["fire_alarm"],
+         "sites_mentioned": "stores in the North East", "published_on": "2024-09-02", "duration_stated": "", "currency": "not_stated",
+         "source_url": "https://trade.example/news/castleford-brightline", "source_type": "trade_press",
+         "quote": "Castleford FM Services has appointed Kestrel Fire Services to deliver fire alarm servicing at Brightline Retail stores in the North East", "unknowns": []},
+        {"supplier": _KESTREL, "customer": "Harbour Point Hotels", "kind": "direct_customer", "intermediary": "", "services": ["sprinklers"],
+         "sites_mentioned": "flagship hotel in Whitby", "published_on": "2019-06-20", "duration_stated": "", "currency": "stated_ongoing",
+         "source_url": "https://kestrel-fire.example/case-studies/harbour-point", "source_type": "supplier_case_study",
+         "quote": "In 2019 Kestrel Fire Services installed and commissioned a new sprinkler system at the Harbour Point Hotels flagship hotel in Whitby.", "unknowns": []},
+        {"supplier": _KESTREL, "customer": "Pennine Leisure", "kind": "direct_customer", "intermediary": "", "services": ["fire_alarm"],
+         "sites_mentioned": "", "published_on": "", "duration_stated": "a five-year agreement", "currency": "stated_ongoing",
+         "source_url": "https://kestrel-fire.example/customers", "source_type": "supplier_customer_page",
+         "quote": "Kestrel has maintained Pennine Leisure's fire alarms on a five-year agreement", "unknowns": []},
+        {"supplier": _KESTREL, "customer": "Fenwick Housing Trust", "kind": "direct_customer", "intermediary": "", "services": ["fire_alarm"],
+         "sites_mentioned": "", "published_on": "2024", "duration_stated": "", "currency": "stated_ongoing",
+         "source_url": "https://kestrel-fire.example/news/awards", "source_type": "supplier_case_study",
+         "quote": "Kestrel Fire Services was shortlisted for a regional fire safety award in 2024.", "unknowns": []},
+        {"supplier": _KESTREL, "customer": "Moorgate Logistics", "kind": "direct_customer", "intermediary": "", "services": ["cctv"],
+         "sites_mentioned": "", "published_on": "", "duration_stated": "", "currency": "not_stated",
+         "source_url": "https://kestrel-fire.example/made-up-page", "source_type": "other", "quote": "Kestrel installs CCTV for Moorgate Logistics", "unknowns": []}]},
+    "northmoor": {"searched_for": ["Northmoor Care Group fire alarm maintenance"], "not_found": [], "relationships": [
+        {"supplier": _KESTREL, "customer": "Northmoor Care Group", "kind": "direct_customer", "intermediary": "", "services": ["fire_alarm", "emergency_lighting"],
+         "sites_mentioned": "14 care homes in North Yorkshire", "published_on": "2025-03", "duration_stated": "", "currency": "stated_ongoing",
+         "source_url": "https://kestrel-fire.example/case-studies/northmoor", "source_type": "supplier_case_study",
+         "quote": "Kestrel Fire Services currently maintains the fire alarm and emergency lighting systems across Northmoor Care Group's 14 care homes in North Yorkshire", "unknowns": []}]},
+}
+
+
 def _target(text: str, known: dict) -> str | None:
     low = text.lower()
     return next((k for k in known if k in low), None)
@@ -266,6 +318,16 @@ def replay_post(payload: dict[str, Any]) -> dict[str, Any]:
             return next((q["id"] for q in questions if word and word in q["question"].lower()), questions[0]["id"] if questions else "q1")
         findings = [{**f, "question_id": qid(word)} for word, f in INVESTIGATION_FINDINGS.get(org, [])]
         return {"content": [{"type": "text", "text": json.dumps({"findings": findings})}], "stop_reason": "end_turn", "usage": {"input_tokens": 12_000, "output_tokens": 2_200}}
+    if "Relationship Researcher" in system:
+        try:
+            stated = str(json.loads(payload["messages"][0]["content"]).get("subject") or "")
+        except (ValueError, KeyError, TypeError, AttributeError):
+            stated = message
+        subject = _target(stated, ATLAS_SEARCH)
+        if payload.get("tools"):
+            return _research_answer(ATLAS_SEARCH.get(subject, []))
+        answer = ATLAS_ANSWERS.get(subject, {"relationships": [], "searched_for": [], "not_found": ["Nothing published was found"]})
+        return {"content": [{"type": "text", "text": json.dumps(answer)}], "stop_reason": "end_turn", "usage": {"input_tokens": 8_000, "output_tokens": 1_400}}
     navigator = "Contact Navigator" in system
     if payload.get("tools"):
         if navigator:

@@ -38,6 +38,7 @@ SHARED_PUBLIC_TABLES = frozenset({
     'market_opportunities', 'market_opportunity_revisions', 'market_contracts', 'market_contract_links', 'market_source_states',
     'market_source_revisions', 'market_entities', 'market_awards', 'market_entity_evidence', 'market_relationships',
     'market_observations', 'market_hypotheses', 'market_hypothesis_revisions', 'shadow_hypotheses', 'shadow_hypothesis_revisions',
+    'atlas_contractors', 'atlas_aliases', 'atlas_contract_parties', 'atlas_identity_conflicts',  # Contract Atlas: built by the system, read by workspaces
 })
 IDENTITY_MODELS = (Organisation, User, Membership, Invitation)
 

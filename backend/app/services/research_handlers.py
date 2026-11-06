@@ -71,3 +71,15 @@ def gap_research(run: Run) -> dict:
     meter = research_provider(get_settings()) if run.job.params.get('use_ai', True) else None
     run.attach(meter)
     return gaps.run(run.db, row, meter, seller=_seller(run), step=run.step)
+
+
+@handler('atlas_relationships')
+def atlas_relationships(run: Run) -> dict:
+    """Contract Atlas: what public sources say about one contractor's customers, or one customer's suppliers."""
+    from app.services import atlas_research
+    meter = research_provider(get_settings())
+    if meter is None:
+        raise ValueError('Web research is not available here, so no API credit is used.')
+    run.attach(meter)
+    p = run.job.params
+    return atlas_research.run(run.db, p['direction'], p['subject'], meter, contractor_id=p.get('contractor_id'), job_id=run.job.id, step=run.step)

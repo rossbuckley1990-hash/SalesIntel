@@ -110,6 +110,12 @@ def source_identity(db: Session, entity_type: str, entity_id: int) -> dict | Non
         number = str(row.data.get("company_number") or "").strip().upper() or None
         return {"name": row.name, "company_number": number if number and re.fullmatch(r"[0-9A-Z]{8}", number) else None, "kind": "private",
                 "region": row.data.get("location"), "sector": row.data.get("sector"), "website": row.data.get("website")}
+    if entity_type == "market_contract":
+        from app.models.market_contract import MarketContract
+        contract = db.get(MarketContract, entity_id)
+        if not contract:
+            return None
+        return {"name": contract.buyer, "company_number": None, "kind": "public_body", "region": contract.nation, "sector": "Public sector"}
     if entity_type == "shadow_hypothesis":
         from app.services import shadow
         found = shadow.current(db, entity_id)
@@ -538,9 +544,9 @@ def set_status(db: Session, key: str, status: str) -> None:
 
 def parse_key(key: str) -> tuple[str, int]:
     kind, _, raw = key.partition(":")
-    if kind not in ("mo", "pr", "sh") or not raw.isdigit():
+    if kind not in ("mo", "pr", "sh", "mc") or not raw.isdigit():
         raise LookupError("Unknown record")
-    return {"mo": "market_opportunity", "pr": "prospect", "sh": "shadow_hypothesis"}[kind], int(raw)
+    return {"mo": "market_opportunity", "pr": "prospect", "sh": "shadow_hypothesis", "mc": "market_contract"}[kind], int(raw)
 
 
 # ---------------------------------------------------------------- accounts
@@ -566,6 +572,22 @@ def linked_summary(db: Session, link: AccountLink) -> dict | None:
                 "evidence": [{"label": e["label"], "url": e["source_url"], "date": e["published"], "basis": e["basis"]} for e in a["timeline"] if e["role"] in ("anchor", "supports")][:6],
                 "missing": a["unknown"], "hypothesis": a["hypothesis"], "alternatives": a["alternatives"], "link_basis": link.basis, "confirmed": link.confirmed,
                 "name_seen": link.name_seen}
+    if link.entity_type == "market_contract":
+        from datetime import date as _date
+        from app.models.atlas import AtlasContractParty, AtlasContractor
+        from app.models.market_contract import MarketContract
+        from app.services import atlas
+        contract = db.get(MarketContract, link.entity_id)
+        party = db.scalar(select(AtlasContractParty).where(AtlasContractParty.contract_id == link.entity_id)) if contract else None
+        if not contract or not party:
+            return None
+        supplier = db.get(AtlasContractor, party.contractor_id)
+        view = atlas.contract_view(contract, party, supplier.display_name if supplier else (contract.supplier or ""), _date.today())
+        reason = (view["reasons"] or [{}])[0]
+        return {"key": f"mc:{contract.id}", "type": "public", "title": contract.title, "why_now": reason.get("title") or view["status"]["label"],
+                "category_label": "Competitor-held contract", "timing": view["status"].get("end"), "supplier": view["supplier"], "value": view["value"],
+                "basis": "published", "evidence": [{"label": s["label"], "url": s["url"], "date": s["published"]} for s in view["sources"]],
+                "missing": reason.get("missing") or [], "link_basis": link.basis, "confirmed": link.confirmed, "name_seen": link.name_seen}
     if link.entity_type == "prospect":
         row = db.get(Prospect, link.entity_id)
         if not row:

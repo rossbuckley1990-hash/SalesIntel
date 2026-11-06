@@ -4,6 +4,7 @@ from decimal import Decimal
 from fastapi import HTTPException
 from sqlalchemy import Date, DateTime, Numeric, select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.db import Base
 from app.models.living import AuditEvent
@@ -85,6 +86,9 @@ def undo_latest(db: Session, event_id: int) -> dict:
                     elif isinstance(column.type, Numeric):
                         value = Decimal(value)
                 setattr(obj, column.name, value)
+                # Write every column back, even one that looks unchanged: otherwise an onupdate timestamp fires and the
+                # undone row differs from the original whenever the change and the undo fall in different seconds.
+                flag_modified(obj, column.name)
             db.flush()
     latest.undone = True
     db.add(

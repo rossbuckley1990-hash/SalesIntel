@@ -1,0 +1,219 @@
+{
+ "created_at": "2026-11-06T13:25:21.053369+00:00",
+ "code": {
+  "commit": "9dc14034ce4dbe4fd5ed28cb08028ffee267e871",
+  "tracked_changes": false
+ },
+ "rule": "Every contractor named as supplier on at least one fire or security contract in the Market Network, excluding the reference company's own group; stratified by the number of its published contracts (1, 2 to 4, 5 or more) and by identity (a published company number, or a name only); a simple random sample within each stratum, proportional with at least 2 per stratum, from a seed drawn with secrets and recorded before any result was seen. The private-research subset is a second seeded draw from the sample.",
+ "seed": 15922276876787277799,
+ "size": 24,
+ "universe": 1054,
+ "strata": {
+  "1|name_only": {
+   "contractors": 700,
+   "sampled": 12
+  },
+  "1|number": {
+   "contractors": 34,
+   "sampled": 2
+  },
+  "2-4|name_only": {
+   "contractors": 193,
+   "sampled": 4
+  },
+  "2-4|number": {
+   "contractors": 42,
+   "sampled": 2
+  },
+  "5+|name_only": {
+   "contractors": 42,
+   "sampled": 2
+  },
+  "5+|number": {
+   "contractors": 43,
+   "sampled": 2
+  }
+ },
+ "database_sha256": "657177cf9ef9f669f26c9ef1737d7a6e1fa5a3442ce1175ed6bf4e26e5285033",
+ "sample": [
+  {
+   "key": "coh:01543289",
+   "name": "GLEN WILSON LIMITED",
+   "company_number": "01543289",
+   "stratum": "1|number",
+   "published_contracts": 1
+  },
+  {
+   "key": "coh:02886434",
+   "name": "SCHNEIDER ELECTRIC (UK) LIMITED",
+   "company_number": "02886434",
+   "stratum": "1|number",
+   "published_contracts": 1
+  },
+  {
+   "key": "coh:04674757",
+   "name": "Snowdonia Fire Protection",
+   "company_number": "04674757",
+   "stratum": "5+|number",
+   "published_contracts": 6
+  },
+  {
+   "key": "coh:06382267",
+   "name": "ASPECT BUILDING SOLUTIONS LIMITED",
+   "company_number": "06382267",
+   "stratum": "2-4|number",
+   "published_contracts": 4
+  },
+  {
+   "key": "coh:07617741",
+   "name": "Practical Solutions Midlands Limited",
+   "company_number": "07617741",
+   "stratum": "2-4|number",
+   "published_contracts": 2
+  },
+  {
+   "key": "coh:10448718",
+   "name": "BRIGGS FIRE AND SECURITY LIMITED",
+   "company_number": "10448718",
+   "stratum": "5+|number",
+   "published_contracts": 5
+  },
+  {
+   "key": "name:alphacomm systems ltd",
+   "name": "AlphaComm systems LTD",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  },
+  {
+   "key": "name:b and c fire engineering",
+   "name": "B&C Fire Engineering",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  },
+  {
+   "key": "name:bb7 fire ltd",
+   "name": "BB7 FIRE LIMITED",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  },
+  {
+   "key": "name:central security systems ltd",
+   "name": "Central Security Systems Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  },
+  {
+   "key": "name:custom technology solutions ltd",
+   "name": "Custom Technology Solutions Ltd",
+   "company_number": null,
+   "stratum": "2-4|name_only",
+   "published_contracts": 3
+  },
+  {
+   "key": "name:dcf joiners and building services ltd",
+   "name": "DCF Joiners & Building Services Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  },
+  {
+   "key": "name:diamond and company scotland ltd",
+   "name": "Diamond & Company (Scotland) Limited",
+   "company_number": null,
+   "stratum": "2-4|name_only",
+   "published_contracts": 2
+  },
+  {
+   "key": "name:ets health and safety ltd",
+   "name": "ETS Health and Safety Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  },
+  {
+   "key": "name:eyton solutions",
+   "name": "Eyton solutions",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  },
+  {
+   "key": "name:frankham risk management services ltd",
+   "name": "FRANKHAM RISK MANAGEMENT SERVICES LIMITED",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  },
+  {
+   "key": "name:instalrite design ltd",
+   "name": "Instalrite Design Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  },
+  {
+   "key": "name:knightguard security ltd",
+   "name": "Knightguard Security Limited",
+   "company_number": null,
+   "stratum": "2-4|name_only",
+   "published_contracts": 3
+  },
+  {
+   "key": "name:pro fire safety and training ltd",
+   "name": "Pro Fire Safety and Training Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  },
+  {
+   "key": "name:racam security and communications ltd",
+   "name": "RACAM Security & Communications Limited",
+   "company_number": null,
+   "stratum": "2-4|name_only",
+   "published_contracts": 2
+  },
+  {
+   "key": "name:saltash enterprises ltd",
+   "name": "Saltash Enterprises Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  },
+  {
+   "key": "name:secureshield ltd",
+   "name": "Secureshield Ltd",
+   "company_number": null,
+   "stratum": "5+|name_only",
+   "published_contracts": 7
+  },
+  {
+   "key": "name:synectics security ltd",
+   "name": "Synectics Security Limited",
+   "company_number": null,
+   "stratum": "5+|name_only",
+   "published_contracts": 5
+  },
+  {
+   "key": "name:ubisecure ltd",
+   "name": "Ubisecure Ltd",
+   "company_number": null,
+   "stratum": "1|name_only",
+   "published_contracts": 1
+  }
+ ],
+ "private_subset": [
+  "coh:01543289",
+  "coh:02886434",
+  "coh:06382267",
+  "name:b and c fire engineering",
+  "name:bb7 fire ltd",
+  "name:custom technology solutions ltd",
+  "name:knightguard security ltd",
+  "name:pro fire safety and training ltd"
+ ],
+ "private_budget_cents": 1000
+}

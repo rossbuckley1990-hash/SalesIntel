@@ -4,6 +4,15 @@
    Scoped to the hosted shell (.si-shell), its overlays and sign-in, so the single-user workspace
    keeps its own look. Motion is short and purposeful, and switched off when reduced motion is asked for. */
 
+/* The type and signal tokens are read by every .si- component, and those render in the single-user workspace too. Without them
+   here a `font:` shorthand that names one is dropped whole, size and weight included: the Runway's month names came out at 14px.
+   Colours and page titles stay scoped below, so that workspace keeps its own look. */
+:root {
+  --si-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --si-serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --si-ember: #c2410c; --si-ember-soft: #fdf2ec; --si-ember-line: #f3c9b1;
+}
+
 .si-shell, .si-shell .ds-root, .si-shell .m-dialog, .si-palette, .si-auth.ds-root, .si-auth .ds-root {
   --ds-canvas: #f7f6f3;
   --ds-surface: #ffffff;
@@ -279,14 +288,14 @@ details[open] > summary .si-chevron { transform: rotate(180deg); }
 /* Runway: when each opportunity opens. */
 .si-runway { position: relative; border: 1px solid var(--ds-border); border-radius: 10px; background: #fff; overflow: hidden; }
 .si-runway-scroll { position: relative; overflow-x: auto; overscroll-behavior-x: contain; }
-.si-runway-axis { position: relative; height: 30px; border-bottom: 1px solid var(--ds-border); background: #fcfbf9; }
-.si-runway-month { position: absolute; top: 0; bottom: 0; padding: 10px 0 0 6px; border-left: 1px solid var(--ds-border); font: 500 10.5px/1 var(--si-mono); color: var(--ds-muted); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.si-runway-axis { position: relative; height: 44px; border-bottom: 1px solid var(--ds-border); background: #fcfbf9; }
+.si-runway-month { position: absolute; top: 0; bottom: 0; padding: 8px 0 0 6px; border-left: 1px solid var(--ds-border); font: 500 10.5px/1 var(--si-mono); color: var(--ds-muted); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 .si-runway-lane { position: relative; border-bottom: 1px solid var(--ds-border); }
 .si-runway-lane:last-child { border-bottom: 0; }
 .si-runway-lane-label { position: sticky; left: 0; z-index: 3; display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 0 8px; padding: 2px 7px; border-radius: 5px; background: rgba(255, 255, 255, .94); box-shadow: 0 0 0 1px var(--ds-border); font-size: 11.5px; font-weight: 500; color: var(--ds-ink-2); }
 .si-runway-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: #f1efea; pointer-events: none; }
 .si-runway-today { position: absolute; top: 0; bottom: 0; width: 1px; background: #18171c; z-index: 1; pointer-events: none; }
-.si-runway-today span { position: absolute; top: 6px; left: -1px; padding: 4px 6px; border-radius: 0 4px 4px 0; background: #18171c; font: 600 9.5px/1 var(--si-mono); color: #fff; letter-spacing: .06em; }
+.si-runway-today span { position: absolute; top: 23px; left: -1px; padding: 4px 6px; border-radius: 0 4px 4px 0; background: #18171c; font: 600 9.5px/1 var(--si-mono); color: #fff; letter-spacing: .06em; }
 .si-runway-today { z-index: 3; }
 .si-mark { position: absolute; height: 18px; display: flex; align-items: center; border: 0; padding: 0; background: transparent; cursor: pointer; }
 .si-mark .bar { position: absolute; left: 0; right: 0; top: 5px; height: 8px; border-radius: 4px; background: var(--c); opacity: .28; transition: opacity var(--ds-dur-1); }

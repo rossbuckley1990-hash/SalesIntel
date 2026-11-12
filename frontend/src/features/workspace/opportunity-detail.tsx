@@ -7,7 +7,7 @@ import {
 import { DeepResearch } from "./dossier";
 import { Fact, Pill, SourceLink } from "./ds";
 import {
-  CATEGORY, DECISIONS, EVIDENCE_STATES, EXPLANATION_STATES, REVIEW_STATES, formatDate, relative, safeUrl, signalsOf,
+  CATEGORY, DECISIONS, EVIDENCE_STATES, EXPLANATION_STATES, REVIEW_STATES, formatDate, readable, relative, safeUrl, signalsOf,
   timingLabel, titleCase, urgencyTone, valueLine, type Item, type Signal,
 } from "./radar-model";
 
@@ -55,8 +55,8 @@ export function OpportunityDetail({ item, onPromote, onReview, onClose }: {
         <div hidden={tab !== "overview"} className="space-y-6">
           <div className="rounded-xl border border-ds-brand-line bg-ds-brand-soft p-4">
             <p className="flex items-center gap-2 text-[13px] font-semibold text-ds-brand"><Lightbulb size={15} /> Why this is worth your time</p>
-            <p className="mt-1.5 text-[14px] leading-6 text-ds-ink-2">{x.brief.why_it_matters}</p>
-            {x.priority.reasons.length > 0 && <ul className="mt-2.5 flex flex-wrap gap-1.5">{x.priority.reasons.map((r) => <li key={r}><span className="inline-block rounded-md bg-white px-2 py-0.5 text-[12px] text-ds-ink-2 ring-1 ring-ds-brand-line">{r}</span></li>)}</ul>}
+            <p className="mt-1.5 text-[14px] leading-6 text-ds-ink-2">{readable(x.brief.why_it_matters)}</p>
+            {x.priority.reasons.length > 0 && <ul className="mt-2.5 flex flex-wrap gap-1.5">{x.priority.reasons.map((r) => <li key={r}><span className="inline-block rounded-md bg-white px-2 py-0.5 text-[12px] text-ds-ink-2 ring-1 ring-ds-brand-line">{readable(r)}</span></li>)}</ul>}
           </div>
 
           <dl className="grid gap-2.5 sm:grid-cols-2">
@@ -64,9 +64,9 @@ export function OpportunityDetail({ item, onPromote, onReview, onClose }: {
               <span className="flex flex-wrap items-center gap-2">{x.timing ? formatDate(x.timing) : "Not published"}{when && <Pill tone={urgencyTone(x.timing)}>{when}</Pill>}</span>
             </Fact>
             <Fact label="Value" hint={[x.value.basis, x.value.scope_note].filter(Boolean).join(" ")}>{valueLine(x.value)}</Fact>
-            <Fact label="Current supplier">{x.supplier || "Not published"}</Fact>
+            <Fact label="Published supplier">{x.supplier || "Not published"}</Fact>
             <Fact label="Procurement route">{x.brief.procurement_route || "Not published"}</Fact>
-            <Fact label="Contract term">{x.brief.contract_lifecycle || "Not published"}</Fact>
+            <Fact label="Contract term">{readable(x.brief.contract_lifecycle) || "Not published"}</Fact>
             <Fact label="Fit with Mitie" hint={meta.help}>{x.fit === "core" ? "Core service" : x.fit === "framework" ? "Framework" : x.fit === "bundled" ? "Bundled in wider scope" : "To be confirmed"}</Fact>
           </dl>
 
@@ -75,7 +75,7 @@ export function OpportunityDetail({ item, onPromote, onReview, onClose }: {
             <ol className="space-y-2">
               {x.next_actions.map((a, i) => (
                 <li key={a} className="flex gap-3 rounded-lg border border-ds-border bg-white px-3.5 py-2.5 text-[14px] leading-[22px] text-ds-ink-2">
-                  <span className={`grid h-[22px] w-[22px] flex-none place-items-center rounded-full text-[12px] font-semibold ${i === 0 ? "bg-ds-brand text-white" : "bg-ds-subtle text-ds-muted"}`}>{i + 1}</span>{a}
+                  <span className={`grid h-[22px] w-[22px] flex-none place-items-center rounded-full text-[12px] font-semibold ${i === 0 ? "bg-ds-brand text-white" : "bg-ds-subtle text-ds-muted"}`}>{i + 1}</span>{readable(a)}
                 </li>
               ))}
             </ol>
@@ -83,12 +83,12 @@ export function OpportunityDetail({ item, onPromote, onReview, onClose }: {
 
           {x.counter_evidence.length > 0 && <section className="rounded-xl border border-ds-amber-line bg-ds-amber-soft p-4">
             <h3 className="flex items-center gap-2 text-[13px] font-semibold text-ds-amber"><AlertTriangle size={15} /> Check before you invest time</h3>
-            <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[13px] leading-5 text-ds-ink-2">{x.counter_evidence.map((c) => <li key={c}>{c}</li>)}</ul>
+            <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[13px] leading-5 text-ds-ink-2">{x.counter_evidence.map((c) => <li key={c}>{readable(c)}</li>)}</ul>
           </section>}
 
           {x.brief.missing_information.length > 0 && <section>
             <h3 className="mb-2 text-[14px] font-semibold text-ds-ink">Gaps to close</h3>
-            <ul className="space-y-1.5">{x.brief.missing_information.map((m) => <li key={m} className="flex gap-2.5 text-[13px] leading-5 text-ds-ink-2"><span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-ds-faint" />{m}</li>)}</ul>
+            <ul className="space-y-1.5">{x.brief.missing_information.map((m) => <li key={m} className="flex gap-2.5 text-[13px] leading-5 text-ds-ink-2"><span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-ds-faint" />{readable(m)}</li>)}</ul>
           </section>}
 
           {!!x.plausible_competitors?.length && <section>

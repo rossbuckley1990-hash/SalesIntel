@@ -16,7 +16,7 @@ from app.auth import Context, current_context, tenant_db
 from app.config import get_settings
 from app.idempotency import idempotent
 from app.routers.salesintel import Strict, _start, permitted, run
-from app.services import atlas
+from app.services import atlas, field
 from app.services import si_core as core
 from app.services.ai_costs import research_provider
 from app.tenancy import SYSTEM
@@ -53,7 +53,8 @@ def search(q: str = Query('', max_length=120), discipline: str = Query('', max_l
 def contractor(contractor_id: int, db: Session = Depends(tenant_db)):
     def work():
         _ensure(db)
-        return atlas.contractor_record(db, contractor_id, prefs=core.preferences(db))
+        prefs = core.preferences(db)
+        return {**atlas.contractor_record(db, contractor_id, prefs=prefs), 'footprint': field.footprint(db, contractor_id, own_name=prefs.get('company_name') or '')}
     return run(db, work)
 
 

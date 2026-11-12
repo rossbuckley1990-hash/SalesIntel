@@ -5,7 +5,9 @@ import { DailyResearchBrief } from "./daily-research-brief";
 import { EmptyState, Pill } from "./ds";
 import { fieldLabel } from "./api";
 import { ActivityForm, Panel, TaskRow } from "./si-shared";
-import { STAGE_LABEL, dayLabel, goto, inDays, si, type DealCard, type DiscoverResult, type Lead, type QueueItem, type TodayT } from "./si-api";
+import { STAGE_LABEL, dayLabel, goto, inDays, si, type ClockRow, type DealCard, type DiscoverResult, type Lead, type QueueItem, type SignalRow, type TodayT } from "./si-api";
+import { daysLabel } from "./si-notice";
+import { relative } from "./radar-model";
 import { Runway } from "./si-runway";
 import { BestOpportunities } from "./si-intel";
 import type { SharedProps } from "./types";
@@ -28,7 +30,11 @@ function Briefing({ today, deals, digest }: { today: TodayT | null; deals: DealC
   return (
     <div className="lo-briefing" role="group" aria-label="Intelligence briefing">
       {col("Discovered", "New leads, most time-sensitive first", today ? today.new_leads.length : null,
-        today?.new_leads.slice(0, 3).map((l) => <li key={l.key}><button onClick={() => goto("find", { lead: l.key })}><strong>{l.organisation}</strong><span>{l.why_now}</span></button></li>),
+        today?.new_leads.slice(0, 3).map((l) => {
+          const due = l.facts?.deadline && l.facts.deadline.days >= 0 ? l.facts.deadline : null;
+          const stated = [l.worth?.label, due && `${due.label} ${daysLabel(due.days)}`].filter(Boolean).join(" · ");
+          return <li key={l.key}><button onClick={() => goto("find", { lead: l.key })}><strong>{l.organisation}</strong>{stated && <em>{stated}</em>}<span>{l.why_now}</span></button></li>;
+        }),
         "Nothing new found since your last search.")}
       {col("Changed", "New evidence or activity since you last looked", digest ? digest.changed.length : null,
         digest?.changed.slice(0, 3).map((r) => <li key={r.account_id}><button onClick={() => goto("clients", { account: r.account_id })}><strong>{r.name}</strong><span>{r.new_events} new{r.latest ? `: ${r.latest}` : ""}</span></button></li>),
@@ -44,6 +50,71 @@ function Briefing({ today, deals, digest }: { today: TodayT | null; deals: DealC
         "Watch an account to keep it here.")}
     </div>
   );
+}
+
+const fullDate = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}T00:00:00Z`));
+
+/** The dates the published record sets: tender deadlines still ahead, and the largest published contracts by their published end.
+ * Every row is a stored notice; none is a forecast, and a contract's end date is the published one, not a prediction of a re-tender. */
+function Deadlines({ today }: { today: TodayT | null }) {
+  const closing = today?.closing || [], ending = today?.ending || [];
+  if (!closing.length && !ending.length) return null;
+  const row = (r: ClockRow, kind: "closing" | "ending") => (
+    <li key={r.key}><button onClick={() => goto("find", { lead: r.key })}>
+      <span className={`lo-clock-when${kind === "closing" && r.days <= 14 ? " urgent" : ""}`}><b>{kind === "closing" ? daysLabel(r.days) : fullDate(r.date)}</b><span>{kind === "closing" ? fullDate(r.date) : daysLabel(r.days)}</span></span>
+      <span className="lo-clock-main"><strong>{r.organisation}</strong>
+        {r.title && r.title !== r.organisation && <span className="t">{r.title}</span>}
+        <span className="lo-rowfacts">
+          {kind === "closing" && <span>{r.step}</span>}
+          {r.worth && <b>{r.worth.label}</b>}
+          {kind === "ending" && r.supplier ? <span>Published supplier: {r.supplier}</span> : r.place ? <span>{r.place}</span> : null}
+          {r.lots > 1 && <span>{r.lots} lots</span>}
+          {r.same_day > 0 && <span>+{r.same_day} more from this buyer on the same date</span>}
+        </span></span>
+    </button></li>);
+  const col = (title: string, detail: string, rows: ClockRow[], total: number, kind: "closing" | "ending", empty: string, all: string, sort: string) => (
+    <section aria-label={title} className="lo-clock-col">
+      <h3>{title}</h3>
+      <p>{detail}</p>
+      {rows.length ? <ul>{rows.map((r) => row(r, kind))}</ul> : <p className="lo-brief-empty">{empty}</p>}
+      {total > rows.length && <button className="lo-clock-all" onClick={() => goto("find", { sort })}>{all} <ArrowRight size={13} /></button>}
+    </section>);
+  return (
+    <section aria-label="Deadlines and end dates">
+      <div className="si-section-head"><h2>Deadlines and end dates</h2><p>From published notices. Nothing here is a forecast.</p></div>
+      <div className="lo-clock">
+        {col("Closing soonest", "Tenders and market engagements with a published deadline still ahead", closing, today?.closing_total || 0, "closing",
+          "No stored tender states a deadline that is still ahead.", `All ${today?.closing_total || 0}, by next published date`, "closing")}
+        {col("Largest contracts ending", "Published contracts that end in the next 12 months, largest published value first", ending, today?.ending_total || 0, "ending",
+          "No stored contract with a published value ends in the next 12 months.", `All ${today?.ending_total || 0}, by published value`, "value")}
+      </div>
+    </section>);
+}
+
+/** Ways in before any tender: public records that give a reason to ask. Each row is a stored record with its source; none is a
+ * requirement, and the order is by evidence (more than one independent source first), then by the newest record. */
+function Signals({ today }: { today: TodayT | null }) {
+  const rows = today?.signals || [], total = today?.signals_total || 0;
+  if (!rows.length) return null;
+  const row = (r: SignalRow) => (
+    <li key={r.key}><button onClick={() => goto("find", { lead: r.key })}>
+      <span className="lo-clock-when"><b>{r.date ? fullDate(r.date) : "Not dated"}</b><span>{r.date ? relative(r.date) : ""}</span></span>
+      <span className="lo-clock-main"><strong>{r.organisation}</strong>
+        <span className="t two">{r.headline}</span>
+        <span className="lo-rowfacts"><span>{r.source}</span>{r.corroborated ? <b>{r.strength}</b> : <span>{r.strength}</span>}{r.account_id ? <span>Account open</span> : null}</span></span>
+    </button></li>);
+  return (
+    <section aria-label="Before any tender">
+      <div className="si-section-head"><h2>Before any tender</h2><p>Public records that give a reason to ask. None is a published requirement.</p></div>
+      <div className="lo-clock solo">
+        <section aria-label="Public signals" className="lo-clock-col lo-signals">
+          <h3>Public signals</h3>
+          <p>A regulator’s finding, a fire authority’s notice, an early notice or a press report. More than one independent source first, then the newest.</p>
+          <ul>{rows.map(row)}</ul>
+          {total > rows.length && <button className="lo-clock-all" onClick={() => goto("find", { category: "inferred_signal" })}>All {total} public signals <ArrowRight size={13} /></button>}
+        </section>
+      </div>
+    </section>);
 }
 
 const PER: Record<string, string> = { annual: "a year", quarterly: "a quarter", monthly: "a month" };
@@ -112,6 +183,10 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
       </header>
 
       <Briefing today={today} deals={deals} digest={digest} />
+
+      <Deadlines today={today} />
+
+      <Signals today={today} />
 
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); goto("find", { q }); }} role="search">
         <div className="si-hero-search relative flex-1">

@@ -60,7 +60,9 @@ test("discover to contact to deal, with continuity after a reload", async ({ pag
   await page.getByRole("button", { name: "Create deal" }).click();
   await expect(page).toHaveURL(/view=deals&deal=\d+/);
   await expect(page.getByRole("link", { name: /Contracts Finder notice example-synthetic-0001/ })).toBeVisible();
-  await expect(page.getByText("Value:").locator("..")).toContainText("Unknown");
+  // The fixture's award publishes a total and a term, so the deal carries the yearly figure with where it came from: never a guess.
+  await expect(page.getByText("Value:").locator("..")).toContainText("£104,000 a year");
+  await expect(page.getByText("Value:").locator("..")).toContainText("From published value");
 
   // Continuity: reload and everything is still there.
   await page.reload();

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import Context, current_context, tenant_db
 from app.models.brief import BriefReview
+from app.routers.atlas import _ensure as ensure_atlas
 from app.routers.salesintel import permitted, run
 from app.services import brief
 
@@ -53,6 +54,7 @@ def digest(db: Session = Depends(tenant_db), ctx: Context = Depends(current_cont
 def get_brief(key: str, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
     def work():
         seen = _last(db, key, ctx.user_id)
+        ensure_atlas(db)  # the brief reads who holds what from the shared contract index
         return brief.build(db, key, last_review=seen.reviewed_at if seen else None)
     return run(db, work)
 

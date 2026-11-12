@@ -142,6 +142,8 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 .ds-card { background: var(--ds-surface); border: 1px solid var(--ds-border); border-radius: var(--ds-radius); box-shadow: var(--ds-shadow-xs); }
 .ds-pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 550; line-height: 1; white-space: nowrap; border: 1px solid var(--ds-border); background: var(--ds-subtle); color: var(--ds-ink-2); }
 .ds-pill i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+/* A long sentence in a pill wraps inside its container; a short one looks exactly like any other pill. */
+.ds-pill.wrap { height: auto; min-height: 22px; max-width: 100%; padding: 3px 8px; border-radius: 11px; line-height: 14px; white-space: normal; text-align: left; }
 .ds-pill.red { background: var(--ds-red-soft); color: var(--ds-red); border-color: var(--ds-red-line); }
 .ds-pill.amber { background: var(--ds-amber-soft); color: var(--ds-amber); border-color: var(--ds-amber-line); }
 .ds-pill.green { background: var(--ds-green-soft); color: var(--ds-green); border-color: var(--ds-green-line); }
@@ -160,7 +162,7 @@ body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 .m-workspace .ds-input:focus, .ds-input:focus { outline: none; border-color: var(--ds-brand); box-shadow: var(--ds-ring); }
 .m-workspace .ds-select, .ds-select { height: 40px; padding: 0 32px 0 12px; border-radius: 10px; border: 1px solid var(--ds-border-strong); background: #fff; color: var(--ds-ink-2); font-size: 14px; font-weight: 500; box-shadow: var(--ds-shadow-xs); }
 .ds-label { font-size: 12px; font-weight: 600; color: var(--ds-muted); letter-spacing: .01em; }
-.ds-tabs { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--ds-subtle); overflow-x: auto; scrollbar-width: none; }
+.ds-tabs { display: flex; gap: 4px; max-width: 100%; padding: 4px; border-radius: 10px; background: var(--ds-subtle); overflow-x: auto; scrollbar-width: none; }
 .ds-tabs button { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: var(--ds-muted); font-size: 13px; font-weight: 600; white-space: nowrap; }
 .ds-tabs button:hover { color: var(--ds-ink); }
 .ds-tabs button[aria-pressed="true"], .ds-tabs button[aria-selected="true"] { background: #fff; color: var(--ds-ink); box-shadow: var(--ds-shadow-sm); }

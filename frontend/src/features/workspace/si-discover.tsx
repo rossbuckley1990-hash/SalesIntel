@@ -12,9 +12,13 @@ import { ShadowCard } from "./si-shadow";
 import { Runway } from "./si-runway";
 import { SiAtlas } from "./si-atlas";
 import { ActionDock, OpportunityBrief, useOpportunity, useWide, type Opportunity } from "./si-living";
+import { daysLabel } from "./si-notice";
 
 const KIND_SHORT: Record<string, string> = { published_procurement: "Live tender", contract_ending: "Contract ending", private_signal: "Signal", customer_expansion: "Customer", unverified_candidate: "Unverified" };
 const KIND_TONE: Record<string, "green" | "blue" | "amber" | "violet" | "neutral" | "brand"> = { published_procurement: "green", contract_ending: "blue", private_signal: "violet", customer_expansion: "brand", unverified_candidate: "amber" };
+// A notice published ahead of a tender is not a live tender, and a contract your own company holds is not a rival's: the row says which.
+const CATEGORY_SHORT: Record<string, [string, "green" | "blue" | "amber" | "violet" | "neutral" | "brand"]> = { official_early_signal: ["Early notice", "brand"], contract_defence: ["Your contract", "amber"], inferred_signal: ["Public signal", "violet"] };
+const longDate = (iso: string) => (/^\d{4}-\d\d-\d\d/.test(iso) ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso.slice(0, 10)}T00:00:00Z`)) : iso);
 
 function ResearchRow({ job, onDone }: { job: JobT & { params?: { query?: string } }; onDone: () => void }) {
   const [live] = useJob(job, onDone) as [(JobT & { params?: { query?: string } }) | null, unknown];
@@ -34,7 +38,7 @@ function BriefView({ lead }: { lead: Lead }) {
         {!!b.fit.unknown.length && <p className="text-[12px] text-ds-muted">Not yet known: {b.fit.unknown.join("; ")}</p>}</Q>
       <Q q="Why now?"><p className="font-medium">{b.why_now} <span className={`text-[11px] font-semibold uppercase ${b.why_now_basis === "Published" ? "text-ds-green" : "text-ds-amber"}`}>{b.why_now_basis}</span></p>
         {b.inferred_timing && <p className="text-[12px] text-ds-muted">Inferred timing: {b.inferred_timing}</p>}</Q>
-      <Q q="What do we know?"><ul className="space-y-1">{b.known.map((k, i) => { const href = safeUrl(k.source_url || ""); return <li key={i} className="text-[13px]">{k.text}{k.date && <span className="text-ds-muted"> · {k.date}</span>}
+      <Q q="What do we know?"><ul className="space-y-1">{b.known.map((k, i) => { const href = safeUrl(k.source_url || ""); return <li key={i} className="text-[13px]">{k.text}{k.date && <span className="text-ds-muted"> · {longDate(k.date)}</span>}
         {href && <> · <a className="font-medium text-ds-brand hover:underline" href={href} target="_blank" rel="noreferrer">source</a></>}{k.basis !== "published" && k.basis !== "stated" && <span className="text-ds-amber"> (inferred)</span>}</li>; })}</ul></Q>
       <Q q="What remains unknown?"><ul className="list-disc space-y-0.5 pl-5 text-[13px] text-ds-ink-2">{b.unknown.map((u) => <li key={u}>{u}</li>)}</ul></Q>
       <Q q="Who should we contact?"><p className="text-[13px]">{b.who.roles.join(" · ")}</p><p className="text-[12px] text-ds-muted">{b.who.summary}{b.who.people_in_research ? ` · ${b.who.people_in_research} named in research` : ""}</p></Q>
@@ -45,6 +49,11 @@ function BriefView({ lead }: { lead: Lead }) {
 
 type View = { id: number; name: string; filters: Record<string, string> };
 const STATUS: [string, string][] = [["active", "Active"], ["new", "New"], ["watching", "Watching"], ["investigating", "Investigating"], ["dismissed", "Dismissed"]];
+/** The salesperson's own order. Each is a published fact; the default is the platform's own, most time-sensitive first. */
+const SORTS: [string, string][] = [["", "Most time-sensitive first"], ["value", "Largest published value first"], ["closing", "Next published date first"], ["newest", "Newest published first"]];
+/** What kind of opening a row is: the category of the stored record, never a judgement of its worth. */
+const KINDS: [string, string][] = [["", "Any kind"], ["live_procurement", "Live tenders"], ["official_early_signal", "Early notices"], ["pre_tender", "Contracts ending"],
+  ["inferred_signal", "Public signals"], ["contract_defence", "Your contracts"], ["verify_first", "End date to verify"]];
 
 /** Discover has two modes: the opportunities list, and the Contract Atlas of who holds the work today. */
 export function SiDiscover(props: SharedProps) {
@@ -57,7 +66,7 @@ export function SiDiscover(props: SharedProps) {
   function choose(next: "opportunities" | "atlas") {
     setMode(next);
     const url = new URL(window.location.href);
-    for (const k of ["mode", "q", "contractor", "customer", "lead", "source", "layout"]) url.searchParams.delete(k);
+    for (const k of ["mode", "q", "contractor", "customer", "lead", "source", "layout", "sort"]) url.searchParams.delete(k);
     if (next === "atlas") url.searchParams.set("mode", "atlas");
     window.history.pushState({}, "", url);
   }
@@ -80,9 +89,14 @@ function DiscoverOpportunities({ notify }: SharedProps) {
   const [nation, setNation] = useState("");
   const [service, setService] = useState("");
   const [status, setStatus] = useState("active");
+  const [kind, setKind] = useState(() => (KINDS.some(([id]) => id && id === param("category")) ? param("category") as string : ""));
+  const [sort, setSort] = useState(() => (SORTS.some(([id]) => id === param("sort")) ? param("sort") as string : ""));
   const [layout, setLayout] = useState<"list" | "runway">(() => (param("layout") === "runway" ? "runway" : "list"));
   const [result, setResult] = useState<DiscoverResult | null>(null);
   const [selected, setSelected] = useState<string | null>(param("lead"));
+  // A record opened by its key (from Today, from a brief, from the Atlas). It is shown even when the list on screen does not hold it.
+  const [pinned, setPinned] = useState<string | null>(param("lead"));
+  const [pinnedLead, setPinnedLead] = useState<Lead | null>(null);
   const [views, setViews] = useState<View[]>([]);
   const [jobs, setJobs] = useState<(JobT & { params?: { query?: string } })[]>([]);
   const loadJobs = useCallback(async () => {
@@ -94,9 +108,9 @@ function DiscoverOpportunities({ notify }: SharedProps) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ q: applied, source, nation, service, status, limit: "100" });
+    const params = new URLSearchParams({ q: applied, source, nation, service, status, category: kind, sort, limit: "100" });
     try { setResult(await si<DiscoverResult>(`/discover?${params}`)); } catch (e) { notify((e as Error).message, true); } finally { setLoading(false); }
-  }, [applied, source, nation, service, status, notify]);
+  }, [applied, source, nation, service, status, kind, sort, notify]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     si<{ items: View[] }>("/saved-views").then((d) => {
@@ -109,8 +123,22 @@ function DiscoverOpportunities({ notify }: SharedProps) {
   useEffect(() => {
     // On a wide screen the first result opens beside the list. On a phone the detail is a sheet over the page, so it opens only when chosen.
     const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1280px)").matches;
-    if (wide && result?.items.length && !result.items.some((x) => x.key === selected)) setSelected(result.items[0].key);
-  }, [result, selected]);
+    if (wide && result?.items.length && !result.items.some((x) => x.key === selected) && !(selected && selected === pinned)) setSelected(result.items[0].key);
+  }, [result, selected, pinned]);
+  useEffect(() => {
+    // "Open this contract" in a brief, a row on Today, a link from the Atlas: each arrives here as ?lead=<key>.
+    const sync = () => { const key = param("lead"); if (key) { setSelected(key); setPinned(key); } };
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
+  useEffect(() => {
+    // The opened record's own row, when the list does not hold it (filtered out, dismissed, or beyond the first hundred).
+    if (!pinned || !result || result.items.some((x) => x.key === pinned) || !/^(mo|pr|sh):\d+$/.test(pinned)) { setPinnedLead(null); return; }
+    let live = true;
+    si<DiscoverResult>(`/discover?${new URLSearchParams({ key: pinned })}`).then((d) => { if (live) setPinnedLead(d.items[0] || null); }).catch(() => {});
+    return () => { live = false; };
+  }, [pinned, result]);
+  const choose = useCallback((key: string | null) => { setSelected(key); setPinned(null); }, []);
 
   // Keyboard: / to search, j and k to move, o to open the account.
   useEffect(() => {
@@ -119,19 +147,23 @@ function DiscoverOpportunities({ notify }: SharedProps) {
       if (e.key === "/" && !typing) { e.preventDefault(); search.current?.focus(); return; }
       if (typing || !result?.items.length || e.metaKey || e.ctrlKey) return;
       const index = result.items.findIndex((x) => x.key === selected);
-      if (e.key === "j" || e.key === "ArrowDown") { e.preventDefault(); setSelected(result.items[Math.min(index + 1, result.items.length - 1)].key); }
-      if (e.key === "k" || e.key === "ArrowUp") { e.preventDefault(); setSelected(result.items[Math.max(index - 1, 0)].key); }
+      if (e.key === "j" || e.key === "ArrowDown") { e.preventDefault(); choose(result.items[Math.min(index + 1, result.items.length - 1)].key); }
+      if (e.key === "k" || e.key === "ArrowUp") { e.preventDefault(); choose(result.items[Math.max(index - 1, 0)].key); }
       if (e.key === "o" && current) void openAccount(current);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const current = useMemo(() => result?.items.find((x) => x.key === selected) || null, [result, selected]);
-  const op = useOpportunity(current?.key ?? null, notify, { onChanged: () => void load() });
+  const listed = useMemo(() => result?.items.find((x) => x.key === selected) || null, [result, selected]);
+  const outside = !listed && !!selected && selected === pinned; // opened by its key, and not among the results on screen
+  const current = listed || (outside && pinnedLead?.key === selected ? pinnedLead : null);
+  const openKey = listed?.key ?? (outside ? selected : null);
+  const op = useOpportunity(openKey, notify, { onChanged: () => void load() });
 
   async function setLeadStatus(lead: Lead, next: Lead["status"]) {
     setResult((r) => r && { ...r, items: r.items.map((x) => (x.key === lead.key ? { ...x, status: next } : x)) });
+    setPinnedLead((p) => (p && p.key === lead.key ? { ...p, status: next } : p));
     try {
       await si(`/discover/${lead.key}/status`, { method: "POST", json: { status: next } });
       notify(next === "dismissed" ? "Dismissed." : next === "watching" ? "Watching." : "Updated.");
@@ -159,7 +191,7 @@ function DiscoverOpportunities({ notify }: SharedProps) {
     const name = window.prompt("Name this view", applied || "My territory");
     if (!name) return;
     try {
-      const view = await si<View>("/saved-views", { method: "POST", json: { name, filters: { q: applied, source, nation, service, status } } });
+      const view = await si<View>("/saved-views", { method: "POST", json: { name, filters: { q: applied, source, nation, service, status, category: kind, sort } } });
       setViews((v) => [...v, view]);
       notify("View saved.");
     } catch (e) { notify((e as Error).message, true); }
@@ -167,8 +199,12 @@ function DiscoverOpportunities({ notify }: SharedProps) {
   function applyView(v: View) {
     setQ(v.filters.q || ""); setApplied(v.filters.q || ""); setSource((v.filters.source as typeof source) || "all");
     setNation(v.filters.nation || ""); setService(v.filters.service || ""); setStatus(v.filters.status || "active");
+    setSort(SORTS.some(([id]) => id === v.filters.sort) ? v.filters.sort : "");
+    setKind(KINDS.some(([id]) => id === v.filters.category) ? v.filters.category : "");
   }
-  const filtered = !!(applied || nation || service || source !== "all" || status !== "active");
+  const filtered = !!(applied || nation || service || kind || source !== "all" || status !== "active");
+  const detail = openKey && <Detail key={openKey} lead={current} op={op} notify={notify} onStatus={setLeadStatus} onChanged={() => void load()}
+    outside={!outside ? "" : openKey.startsWith("mc:") ? "It is a published contract from the Contract Atlas, so it has no row in this list." : filtered ? "It is not among the results for these filters." : "It is not among the first results in the list."} onBack={() => choose(null)} />;
 
   return (
     <div className="ds-root">
@@ -176,7 +212,7 @@ function DiscoverOpportunities({ notify }: SharedProps) {
         <div>
           <p className="si-eyebrow mb-1.5">Opportunities</p>
           <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ds-ink">Discover</h1>
-          <p className="mt-1.5 text-[14px] text-ds-muted">Public tenders, contract renewals and private-sector research in one list, most time-sensitive first.</p>
+          <p className="mt-1.5 text-[14px] text-ds-muted">Public tenders, contract renewals and private-sector research in one list. Each row shows what its own notice states.</p>
         </div>
         <div className="ds-tabs" role="group" aria-label="Layout">
           <button aria-pressed={layout === "list"} onClick={() => setLayout("list")}><Rows3 size={14} aria-hidden="true" />List</button>
@@ -195,15 +231,17 @@ function DiscoverOpportunities({ notify }: SharedProps) {
           <button className="ds-btn primary !h-11">Search</button>
           <button type="button" className="ds-btn !h-11" onClick={() => void webResearch()} title="Ask Claude to search the web for private-sector companies. Uses API credit."><Globe size={15} /> Research the web</button>
         </form>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="lo-filters flex flex-wrap items-center gap-2">
           <div className="ds-tabs" role="group" aria-label="Source">
             {([["all", "All", Layers], ["shadow", "Shadow Radar", Radar], ["public", "Public procurement", Landmark], ["private", "Private research", Building2]] as const).map(([id, label, Icon]) => (
               <button key={id} aria-pressed={source === id} onClick={() => setSource(id)}><Icon size={14} aria-hidden="true" />{label}{result && id !== "all" && <span>{result.counts[id]}</span>}</button>))}
           </div>
+          <select className="ds-select !h-9" aria-label="Kind" value={kind} onChange={(e) => setKind(e.target.value)}>{KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           <select className="ds-select !h-9" aria-label="Nation" value={nation} onChange={(e) => setNation(e.target.value)}><option value="">All of the UK</option>{NATIONS.map((n) => <option key={n} value={n}>{n}</option>)}</select>
           <select className="ds-select !h-9" aria-label="Service" value={service} onChange={(e) => setService(e.target.value)}><option value="">Any service</option>{SERVICES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           <select className="ds-select !h-9" aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>{STATUS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-          {filtered && <><button className="ds-btn ghost sm" onClick={() => { setQ(""); setApplied(""); setSource("all"); setNation(""); setService(""); setStatus("active"); }}>Clear</button>
+          <select className="ds-select !h-9" aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value)}>{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+          {(filtered || sort) && <><button className="ds-btn ghost sm" onClick={() => { setQ(""); setApplied(""); setSource("all"); setNation(""); setService(""); setStatus("active"); setKind(""); setSort(""); }}>Clear</button>
             <button className="ds-btn ghost sm" onClick={() => void saveView()}><Bookmark size={14} /> Save view</button></>}
         </div>
         {result && applied && (result.interpreted.nations.length + result.interpreted.services.length + result.interpreted.regions.length > 0) && <p className="text-[12px] text-ds-muted">
@@ -214,28 +252,28 @@ function DiscoverOpportunities({ notify }: SharedProps) {
       </section>
 
       {layout === "runway" && <div className="mt-5 space-y-4">
-        {!result ? <div className="ds-skeleton h-72 rounded-xl" /> : <Runway items={result.items} selected={selected} onSelect={setSelected} />}
-        {current && <aside aria-label="Selected opportunity" className="lo-detail !static !max-h-none"><Detail key={current.key} lead={current} op={op} notify={notify} onStatus={setLeadStatus} onChanged={() => void load()} /></aside>}
+        {!result ? <div className="ds-skeleton h-72 rounded-xl" /> : <Runway items={result.items} selected={selected} onSelect={choose} />}
+        {detail && <aside aria-label="Selected opportunity" className="lo-detail !static !max-h-none">{detail}</aside>}
       </div>}
 
       {layout === "list" && <div className="lo-cockpit">
         <section aria-label="Results" className="min-w-0">
           <p className="mb-2 px-1 text-[12px] font-medium text-ds-muted" aria-live="polite">{result ? `${result.total} result${result.total === 1 ? "" : "s"}` : "Loading…"}{result && result.total > 0 && " · j/k to move, o to open"}</p>
+          {sort && result && result.total > 0 && <p className="mb-2 px-1 text-[12px] leading-[18px] text-ds-muted">{SORT_NOTE[sort]}</p>}
           {!result && loading && <div className="space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="ds-skeleton h-[104px] rounded-xl" />)}</div>}
           {result && !result.items.length && <div className="ds-card"><EmptyState icon={<Inbox size={20} />} title="No matches">{result.gaps[result.gaps.length - 1]}</EmptyState></div>}
           <ul className={`si-stagger si-results space-y-2 ${loading ? "opacity-60" : ""}`}>
-            {result?.items.map((lead) => <li key={lead.key}><LeadRow lead={lead} active={lead.key === selected} onClick={() => setSelected(lead.key)} /></li>)}
+            {result?.items.map((lead) => <li key={lead.key}><LeadRow lead={lead} active={lead.key === selected} onClick={() => choose(lead.key)} /></li>)}
           </ul>
         </section>
         <aside aria-label="Selected opportunity" className="lo-detail hidden xl:block">
-          {current ? <Detail key={current.key} lead={current} op={op} notify={notify} onStatus={setLeadStatus} onChanged={() => void load()} />
-            : <EmptyState icon={<MousePointerClick size={20} />} title="Select a result">See what happened, why it could matter, what could disprove it and the one thing to do next.</EmptyState>}
+          {detail || <EmptyState icon={<MousePointerClick size={20} />} title="Select a result">See what happened, why it could matter, what could disprove it and the one thing to do next.</EmptyState>}
         </aside>
-        {current && <button className="si-sheet-backdrop xl:hidden" aria-label="Close details" tabIndex={-1} onClick={() => setSelected(null)} />}
-        {current && <div key={current.key} className="si-sheet fixed inset-x-0 bottom-0 z-40 max-h-[82vh] overflow-y-auto rounded-t-[20px] border-t border-ds-border bg-white shadow-ds-lg xl:hidden" role="region" aria-label="Selected opportunity details">
+        {openKey && <button className="si-sheet-backdrop xl:hidden" aria-label="Close details" tabIndex={-1} onClick={() => choose(null)} />}
+        {openKey && <div key={openKey} className="si-sheet fixed inset-x-0 bottom-0 z-40 max-h-[82vh] overflow-y-auto rounded-t-[20px] border-t border-ds-border bg-white shadow-ds-lg xl:hidden" role="region" aria-label="Selected opportunity details">
           <span className="si-sheet-handle" aria-hidden="true" />
-          <button className="ds-btn ghost sm m-3 mb-0" onClick={() => setSelected(null)}><X size={14} /> Close</button>
-          <Detail lead={current} op={op} notify={notify} onStatus={setLeadStatus} onChanged={() => void load()} />
+          <button className="ds-btn ghost sm m-3 mb-0" onClick={() => choose(null)}><X size={14} /> Close</button>
+          {detail}
         </div>}
       </div>}
     </div>
@@ -243,29 +281,34 @@ function DiscoverOpportunities({ notify }: SharedProps) {
 }
 
 /** The middle and right panels of the cockpit: the Living Opportunity and its Action Dock, with the lead's own record kept below. */
-function Detail({ lead, op, notify, onStatus, onChanged }: { lead: Lead; op: Opportunity; notify: SharedProps["notify"]; onStatus: (l: Lead, s: Lead["status"]) => void; onChanged: () => void }) {
-  const legacy = lead.type === "public" ? { view: "radar", key: "lead", id: lead.key.slice(3) } : lead.type === "private" ? { view: "prospects", key: "prospect", id: lead.key.slice(3) } : null;
+function Detail({ lead, op, notify, onStatus, onChanged, outside = "", onBack }: { lead: Lead | null; op: Opportunity; notify: SharedProps["notify"]; onStatus: (l: Lead, s: Lead["status"]) => void; onChanged: () => void;
+  outside?: string; onBack?: () => void }) {
+  const legacy = !lead ? null : lead.type === "public" ? { view: "radar", key: "lead", id: lead.key.slice(3) } : lead.type === "private" ? { view: "prospects", key: "prospect", id: lead.key.slice(3) } : null;
   const [frame, wide] = useWide(760); // wide: the dock is the third panel; narrow: it follows the reveal, so what happened is read first
   return (
     <div ref={frame} className={`lo-detail-inner ${wide ? "wide" : ""}`}>
       <div className="min-w-0 space-y-4">
-        <div className="lo-lead-bar">
-          <Pill tone={lead.type === "public" ? "blue" : lead.type === "shadow" ? "amber" : "violet"}>{lead.source_label}</Pill>
-          <Pill tone={lead.basis === "published" ? "green" : "amber"}>{lead.basis === "published" ? "Published evidence" : "Inferred: verify"}</Pill>
+        {outside && <p className="lo-outside"><Info size={14} aria-hidden="true" /><span>You opened this record directly. {outside}</span>
+          {onBack && <button className="lo-link inline" onClick={onBack}>Back to the list</button>}</p>}
+        {lead && <div className="lo-lead-bar">
+          {lead.signal ? <><Pill tone="violet">{lead.signal.official ? "Public record" : "Press report"}</Pill><Pill tone="amber">Not a requirement: verify</Pill></> : <>
+            <Pill tone={lead.type === "public" ? "blue" : lead.type === "shadow" ? "amber" : "violet"}>{lead.source_label}</Pill>
+            <Pill tone={lead.basis === "published" ? "green" : "amber"}>{lead.basis === "published" ? "Published evidence" : "Inferred: verify"}</Pill></>}
           {lead.account_id && <Pill tone="green">{BASIS_LABEL[lead.link_basis || ""] || "Account"}</Pill>}
+          {lead.status === "dismissed" && <Pill>Dismissed</Pill>}
           <span className="ml-auto flex gap-1">
             {lead.status !== "watching" && <button className="ds-btn ghost sm" onClick={() => onStatus(lead, "watching")}><Eye size={14} /> Watch</button>}
             {lead.status !== "dismissed" ? <button className="ds-btn ghost sm" onClick={() => onStatus(lead, "dismissed")}><XCircle size={14} /> Dismiss</button>
               : <button className="ds-btn ghost sm" onClick={() => onStatus(lead, "new")}>Restore</button>}
           </span>
-        </div>
+        </div>}
         <OpportunityBrief op={op} afterReveal={wide ? null : <ActionDock op={op} />}>
-          <details className="lo-source-record" aria-label="Source record">
+          {lead && <details className="lo-source-record" aria-label="Source record">
             <summary><ChevronDown size={14} aria-hidden="true" />Source record<span className="lo-meta ml-1 font-normal">{lead.type === "shadow" ? "the Shadow Radar card" : "the six questions, as first found"}</span></summary>
             <div className="mt-3">{lead.type === "shadow" ? <ShadowCard lead={lead} notify={notify} onChanged={onChanged} /> : <LeadRecord lead={lead} />}</div>
             {authMode === "local" && legacy && <button className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ds-brand hover:underline" onClick={() => goto(legacy.view, { [legacy.key]: legacy.id })}>
               {lead.type === "public" ? "Full record, evidence and deep research" : "Full research: signals, timing, people"} <ArrowUpRight size={13} /></button>}
-          </details>
+          </details>}
         </OpportunityBrief>
       </div>
       {wide && <div className="lo-dock-col"><ActionDock op={op} /></div>}
@@ -273,26 +316,55 @@ function Detail({ lead, op, notify, onStatus, onChanged }: { lead: Lead; op: Opp
   );
 }
 
+const SORT_NOTE: Record<string, string> = {
+  value: "Contract values first, largest first. Framework ceilings follow them: a ceiling is the most a whole framework may spend, not a contract. Records with no published figure come last.",
+  closing: "The next published date still ahead comes first: a deadline stated in the notice, otherwise the published end. Dates already past come last.",
+  newest: "Most recently published first. Records without a publication date come last.",
+};
+
+/** The next dated step for a row, in words: the notice's own deadline when it states one, otherwise the published timing. */
+function clock(lead: Lead): { text: string; urgent: boolean } | null {
+  const due = lead.facts?.deadline;
+  if (due && due.days >= 0) return { text: `${due.label} ${daysLabel(due.days)}`, urgent: due.days <= 30 };
+  if (!lead.timing || lead.type !== "public") return null;
+  const past = lead.days !== null && lead.days < 0;
+  const text = past ? relative(lead.timing) : dayLabel(lead.timing);
+  return text ? { text, urgent: lead.days !== null && lead.days >= 0 && lead.days <= 30 } : null;
+}
+
 function LeadRow({ lead, active, onClick }: { lead: Lead; active: boolean; onClick: () => void }) {
-  const urgent = lead.days !== null && lead.days >= 0 && lead.days <= 30;
   const rid = `lead-${lead.key.replace(/[^a-z0-9]/gi, "-")}`;
+  const when = clock(lead);
+  const f = lead.facts || {};
+  // A public signal is titled by what its newest record says, in one sentence; every other public row by its notice's own title.
+  const title = lead.headline || (lead.type === "public" && lead.title && lead.title !== lead.organisation ? lead.title : "");
+  const holder = lead.type === "public" && lead.kind !== "published_procurement" ? lead.supplier : "";
+  const facts = lead.type === "public" && !!(lead.worth || f.place || (f.lots || 0) > 1 || holder);
   return (
     // Named organisation first, so a screen reader hears who before what (and the row is never confused with a source tab).
-    <button onClick={onClick} aria-current={active ? "true" : undefined} aria-labelledby={`${rid}-org ${rid}-meta ${rid}-why`}
+    <button onClick={onClick} aria-current={active ? "true" : undefined} aria-labelledby={`${rid}-org ${title ? `${rid}-title ` : ""}${rid}-meta ${facts ? `${rid}-facts ` : ""}${rid}-why`}
       className={`si-lead w-full rounded-xl border bg-white px-4 py-3 text-left transition duration-200 ${active ? "border-ds-brand" : "border-ds-border shadow-ds-xs hover:border-ds-border-strong"} ${lead.status === "dismissed" ? "opacity-60" : ""}`}>
       <span id={`${rid}-meta`} className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <span className="si-type mr-1" style={{ ["--c" as string]: lead.type === "public" ? (lead.kind === "contract_ending" ? "#1baf7a" : "#2a78d6") : lead.type === "shadow" ? "#eb6834" : "#8e8b93" }}><i aria-hidden="true" />{lead.type === "public" ? "Public" : lead.type === "shadow" ? "Shadow Radar" : "Private"}</span>
+          <span className="si-type mr-1" style={{ ["--c" as string]: lead.type === "public" ? (lead.signal ? "#5925dc" : lead.kind === "contract_ending" ? "#1baf7a" : "#2a78d6") : lead.type === "shadow" ? "#eb6834" : "#8e8b93" }}><i aria-hidden="true" />{lead.type === "public" ? "Public" : lead.type === "shadow" ? "Shadow Radar" : "Private"}</span>
           {lead.type === "shadow" && lead.shadow ? <><Pill>{lead.shadow.state_label}</Pill><Pill tone="violet">{lead.shadow.sensor_name}{lead.shadow.competing?.length ? ` +${lead.shadow.competing.length}` : ""}</Pill></>
-            : <Pill tone={KIND_TONE[lead.kind] || "neutral"}>{KIND_SHORT[lead.kind] || lead.kind_label}</Pill>}
+            : <Pill tone={CATEGORY_SHORT[lead.category]?.[1] || KIND_TONE[lead.kind] || "neutral"}>{CATEGORY_SHORT[lead.category]?.[0] || KIND_SHORT[lead.kind] || lead.kind_label}</Pill>}
           {lead.type === "private" && lead.light && <Pill tone={lead.light === "green" ? "green" : lead.light === "amber" ? "amber" : lead.light === "red" ? "red" : "neutral"} dot>{lead.category_label}</Pill>}
-          {lead.basis === "inferred" && lead.type !== "shadow" && <Pill tone="amber">Inferred</Pill>}
+          {lead.basis === "inferred" && lead.type !== "shadow" && !lead.signal && <Pill tone="amber">Inferred</Pill>}
+          {lead.signal?.corroborated && <Pill tone="green">{lead.signal.sources} independent sources</Pill>}
           {lead.account_id && <Pill tone="green">Account</Pill>}
           {lead.status === "watching" && <Pill>Watching</Pill>}
         </span>
-        {lead.timing && lead.type === "public" && <span className={`flex-none text-[12px] font-semibold ${urgent ? "text-ds-red" : "text-ds-muted"}`}>{lead.days !== null && lead.days < 0 ? relative(lead.timing) : dayLabel(lead.timing)}</span>}
+        {when && <span className={`flex-none text-[12px] font-semibold ${when.urgent ? "text-ds-red" : "text-ds-muted"}`}>{when.text}</span>}
       </span>
       <span id={`${rid}-org`} className="mt-1.5 block truncate text-[14px] font-semibold text-ds-ink">{lead.organisation}</span>
+      {title && <span id={`${rid}-title`} className={`lo-rowtitle${lead.signal ? " two" : ""}`}>{title}</span>}
+      {facts && <span id={`${rid}-facts`} className="lo-rowfacts">
+        {lead.worth && <b>{lead.worth.label}</b>}
+        {f.place && <span>{f.place}</span>}
+        {(f.lots || 0) > 1 && <span>{f.lots} lots</span>}
+        {holder && <span>Published supplier: {holder}</span>}
+      </span>}
       {lead.type === "shadow" && lead.shadow?.site && <span className="mt-0.5 block truncate text-[13px] text-ds-ink-2">{lead.shadow.site}</span>}
       <span id={`${rid}-why`} className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-ds-ink-2"><strong className="font-semibold">Why now: </strong>{lead.type === "shadow" ? lead.shadow?.timeline.find((e) => e.role === "anchor")?.statement : lead.why_now}</span>
     </button>
@@ -303,16 +375,21 @@ function LeadRecord({ lead }: { lead: Lead }) {
   const value = lead.value ? valueLine(lead.value) : "Not published";
   return (
     <div aria-label={lead.organisation}>
-      <Pill tone={KIND_TONE[lead.kind] || "neutral"}>{lead.kind_label}</Pill>
+      <Pill tone={lead.signal ? "violet" : KIND_TONE[lead.kind] || "neutral"}>{lead.kind_label}</Pill>
       <p className="mt-2 text-[14px] font-semibold text-ds-ink">{lead.organisation}</p>
-      <p className="mt-0.5 text-[13px] leading-5 text-ds-ink-2">{lead.title}</p>
+      <p className="mt-0.5 text-[13px] leading-5 text-ds-ink-2">{lead.headline || lead.title}</p>
       <BriefView lead={lead} />
-      <dl className="mt-3 grid gap-2.5 sm:grid-cols-2">
+      {lead.signal ? <dl className="mt-3 grid gap-2.5 sm:grid-cols-2">
+        <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Newest record</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.signal.date ? longDate(lead.signal.date) : "Not dated"}</dd></div>
+        <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Where it comes from</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.signal.source}</dd></div>
+        <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Evidence</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.signal.strength}</dd></div>
+        <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Value and timing</dt><dd className="text-[14px] font-semibold text-ds-ink">None published</dd><dd className="text-[12px] text-ds-muted">A signal is not a contract or a tender.</dd></div>
+      </dl> : <dl className="mt-3 grid gap-2.5 sm:grid-cols-2">
         <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">{lead.type === "public" ? (lead.timing_label ? lead.timing_label[0].toUpperCase() + lead.timing_label.slice(1) : "Timing") : "Timing"}</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.type === "public" ? (lead.timing ? new Date(lead.timing).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Not published") : lead.category_label}</dd></div>
         <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Value</dt><dd className="text-[14px] font-semibold text-ds-ink">{value}</dd></div>
         <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Supplier named</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.supplier || "Unknown"}</dd>{lead.supplier && <dd className="text-[12px] text-ds-muted">Reported, not necessarily today&apos;s incumbent</dd>}</div>
         <div className="rounded-lg bg-ds-canvas px-3 py-2.5"><dt className="text-[12px] text-ds-muted">Where</dt><dd className="text-[14px] font-semibold text-ds-ink">{lead.nation || lead.region || "Not stated"}</dd></div>
-      </dl>
+      </dl>}
       {!!lead.services.length && <div className="mt-3 flex flex-wrap gap-1.5">{lead.services.map((s) => <Pill key={s} tone="brand">{SERVICE_NAME[s] || s}</Pill>)}</div>}
       {lead.type === "private" && <p className="mt-3 text-[13px] text-ds-muted">{lead.people || 0} named people and {lead.contact_routes || 0} published contact routes found by research.</p>}
       {lead.type === "private" && <p className="mt-3 flex items-center gap-1.5 text-[12px] text-ds-muted"><Sparkles size={12} /> Found by AI web research. Check the sources before relying on it.</p>}

@@ -115,6 +115,21 @@ def prepare_introduction(db: Session, account_id: int, *, contact_id: int | None
     if source is None:
         opening = f"I'm getting in touch about fire and security arrangements at {account.name}."
         gaps.append("No sourced reason recorded: add one before sending.")
+    elif source["type"] == "public" and source.get("signal"):
+        # A public record before any tender. Only the buyer's own early notice is mentioned, because the buyer published it. A
+        # regulator's finding, a fire authority's notice or a press report is a reason to ask, never something to put to the
+        # customer as fact, so the draft leaves it out and says so.
+        from app.services.si_core import _services_from_title
+        early = source["signal"].get("engagement")
+        if early:
+            evidence = [e for e in source.get("evidence") or [] if e.get("url") and e.get("url") == early["source_url"]][:1]
+            named = f", \u201c{early['title']}\u201d," if early["title"] else ""
+            opening = f"I saw the early notice {account.name} published{named} and wanted to introduce us before any tender is issued."
+            services = _services_from_title(early["title"])
+        else:
+            opening = f"I'm getting in touch about fire safety and security arrangements at {account.name}."
+        if source["signal"].get("other_records"):
+            gaps.append("The public record behind this lead is not mentioned: it is a reason to ask, not something to put to the customer as fact. Read it before you send.")
     elif source["type"] == "public":
         evidence = [e for e in source.get("evidence") or [] if e.get("url")]
         title = source.get("title") or "fire and security"
@@ -348,7 +363,9 @@ def create_deal(db: Session, account_id: int, data: dict) -> DealRecord:
         existing = None
     if existing:
         return existing
-    title = (data.get("title") or origin.get("title") or f"{account.name} fire and security").strip()[:255]
+    # A signal's headline is a sentence about a record, not the name of a piece of work: only the buyer's own early notice names one.
+    named = (((origin["signal"].get("engagement") or {}).get("title")) if origin.get("signal") else origin.get("title"))
+    title = (data.get("title") or named or f"{account.name} fire and security").strip()[:255]
     if opportunity_id is None and not hosted():
         opp = Opportunity(name=title, buyer_name=account.name[:255], sector=(account.sector or "Unknown")[:120], region=(account.region or "United Kingdom")[:120],
                           source_type="SalesIntel", stage=LEGACY_STAGE["qualify"], owner="Unassigned", recommended_action=qualification.get("requirement", "")[:500])

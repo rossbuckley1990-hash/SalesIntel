@@ -36,7 +36,9 @@ with SessionLocal() as db:
         db.add(version)
         db.flush()
         item.current_revision_id = version.id
-    opportunity("synthetic:1", "EXAMPLE HOUSING TRUST LIMITED", "Fire alarm servicing and maintenance across 14 sheltered schemes", "Sample Fire Services Ltd", 150)
+    opportunity("synthetic:1", "EXAMPLE HOUSING TRUST LIMITED", "Fire alarm servicing and maintenance across 14 sheltered schemes", "Sample Fire Services Ltd", 150,
+                value={"type": "estimated_annualised", "published_total": 312000, "estimated_annualised": 104000, "framework_ceiling": None,
+                       "basis": "Published award value divided by the published term of 3.0 years.", "scope_note": ""})
     opportunity("synthetic:2", "Sample Borough Council", "CCTV maintenance for town centre cameras", None, 220)
     db.add(Prospect(dedup_key="example housing trust", name="Example Housing Trust", status="new", created_at=now, updated_at=now, data={
         "website": "https://www.example-housing.example", "sector": "Housing", "location": "Leeds, England", "company_number": "", "size": "",

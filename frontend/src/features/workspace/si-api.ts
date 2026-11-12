@@ -25,13 +25,23 @@ export type Lead = {
   nation: string | null; region?: string | null; tier: number | null; services: string[]; supplier: string | null; value: Value | null;
   status: LeadStatus; account_id: number | null; link_basis: string | null; people?: number; contact_routes?: number;
   kind: "published_procurement" | "contract_ending" | "private_signal" | "customer_expansion" | "unverified_candidate" | "shadow_signal"; kind_label: string; brief: Brief;
+  /** What the row's own stored notice states. Public records only; absent on private signals. */
+  facts?: RowFacts; worth?: Worth | null; published?: string;
+  /** A public record before any tender: its newest record in one sentence, and how much evidence stands behind it. */
+  headline?: string; signal?: SignalFacts;
 };
+export type SignalFacts = { date: string; source: string; source_url?: string; official: boolean; records: number; sources: number; corroborated: boolean; strength: string };
+export type SignalRow = SignalFacts & { key: string; organisation: string; headline: string; status: LeadStatus; account_id: number | null };
+export type RowFacts = { value?: string; value_amount?: number; value_kind?: "estimate" | "award"; deadline?: { key: string; label: string; date: string; days: number }; place?: string; lots?: number; scoring?: string; term?: string };
+/** One published figure and what kind it is. A framework ceiling is never a contract value. */
+export type Worth = { amount: number; kind: "notice_estimate" | "notice_award" | "published_total" | "framework_ceiling"; label: string; annual?: number };
+export type ClockRow = { key: string; organisation: string; title: string; date: string; days: number; step: string; worth: Worth | null; place: string; supplier: string; status: LeadStatus; account_id: number | null; category: string; lots: number; same_day: number };
 export type Brief = {
   why_customer: string[]; fit: { matched: string[]; gaps: string[]; unknown: string[] }; why_now: string; why_now_basis: string; inferred_timing: string;
   known: { text: string; source_url: string | null; date: string; basis: string }[]; unknown: string[];
   who: { roles: string[]; routes_saved: number; people_in_research: number; summary: string }; next: string;
 };
-export type DiscoverResult = { items: Lead[]; total: number; counts: { public: number; private: number; shadow?: number }; interpreted: { nations: string[]; services: string[]; regions: string[]; keywords: string[] }; gaps: string[] };
+export type DiscoverResult = { items: Lead[]; total: number; counts: { public: number; private: number; shadow?: number }; interpreted: { nations: string[]; services: string[]; regions: string[]; keywords: string[] }; gaps: string[]; sort?: string };
 export type Evidence = { label: string; url: string; date?: string; basis?: string };
 export type SourceSummary = {
   key: string; type: "public" | "private"; title: string; why_now: string; category_label: string; light?: string; timing: string | null; supplier: string | null;
@@ -50,7 +60,7 @@ export type AccountT = {
 };
 export type AccountRow = { id: number; name: string; kind: string; region: string | null; sector: string | null; status: string; watched: boolean; sources: number; contacts: number; open_deals: number; next_due: string | null; overdue: boolean; last_activity: string | null };
 export type QueueItem = { kind: "follow_up" | "draft" | "deal" | "intelligence"; priority: number; title: string; why: string; account: string | null; account_id: number; deal_id?: number | null; task_id?: number; draft_id?: number; due_on?: string };
-export type TodayT = { queue: QueueItem[]; upcoming: TaskT[]; new_leads: Lead[]; as_of: string };
+export type TodayT = { queue: QueueItem[]; upcoming: TaskT[]; new_leads: Lead[]; as_of: string; closing?: ClockRow[]; closing_total?: number; ending?: ClockRow[]; ending_total?: number; signals?: SignalRow[]; signals_total?: number };
 export type ScopeItem = { service: string; field: string; question: string; unit: string; value: string | number | null; basis: string | null };
 export type QuoteLine = { key: string; description: string; quantity: number | null; quantity_basis: string | null; unit: string; rate: string | null; total: string | null; warning: string };
 export type Approval = { version: number; reviewer: string; approved_at: string; subtotal: string | null; superseded_at?: string; superseded_reason?: string };

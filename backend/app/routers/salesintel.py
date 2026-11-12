@@ -69,8 +69,10 @@ def today(db: Session = Depends(tenant_db)):
 @router.get('/discover')
 def discover(q: str = Query('', max_length=300), source: Literal['all', 'public', 'private', 'shadow'] = 'all', nation: str = Query('', max_length=40),
              service: str = Query('', max_length=40), status: Literal['active', 'all', 'new', 'watching', 'investigating', 'dismissed'] = 'active',
-             category: str = Query('', max_length=40), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), db: Session = Depends(tenant_db)):
-    return core.discover(db, q=q, source=source, nation=nation, service=service, status=status, category=category, limit=limit, offset=offset)
+             category: str = Query('', max_length=40), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
+             sort: Literal['', 'value', 'closing', 'newest'] = '', key: str = Query('', max_length=40, pattern=r'^((mo|pr|sh):\d{1,12})?$'),
+             db: Session = Depends(tenant_db)):
+    return core.discover(db, q=q, source=source, nation=nation, service=service, status=status, category=category, limit=limit, offset=offset, sort=sort, key=key)
 
 
 class LeadStatus(Strict):
@@ -660,7 +662,7 @@ class ViewIn(Strict):
 @router.post('/saved-views')
 def save_view(payload: ViewIn, db: Session = Depends(tenant_db)):
     def work():
-        allowed = {'q', 'source', 'nation', 'service', 'status', 'category'}
+        allowed = {'q', 'source', 'nation', 'service', 'status', 'category', 'sort'}
         view = SavedView(name=payload.name, filters={k: v for k, v in payload.filters.items() if k in allowed}, created_at=core.now())
         db.add(view)
         db.flush()

@@ -33,7 +33,18 @@ type Contractor = { id: number; name: string; yours: boolean;
     group: { parent_name: string; parent_number: string | null; basis: string; note: string } | null;
     conflicts: { kind: string; names: string[]; company_numbers: string[]; note: string }[] };
   services: Service[]; contracts: AtlasContract[]; relationships: Relationship[]; unsupported_relationships: number; worth_investigating: AtlasContract[];
-  coverage: Record<string, string>; research: Research };
+  coverage: Record<string, string>; research: Research; footprint?: Footprint | null };
+type FootCard = { key: string; buyer: string; customer_key: string; title: string; end: string; days: number | null; awarded: string; value: string; services: string[];
+  where: string; shared: boolean; status: string };
+/** One supplier's published work, counted: when it comes up, where it is concentrated, the size it wins at, who else is named at its buyers. */
+type Footprint = { contracts: number; frameworks: number; buyers: number;
+  exposure: { months: number; until: string; contracts: number; items: FootCard[]; valued: number; annual: number; lapsed: number; label: string; value_label: string; caveat: string };
+  ends_by_year: { year: string; contracts: number; annual: number; valued: number }[];
+  size: { count: number; contracts: number; label?: string; basis?: string; largest?: FootCard };
+  top_buyers: { key: string; name: string; contracts: number; in_term: number; latest: string }[];
+  regions: { name: string; contracts: number }[]; awards_by_year: { year: string; awards: number }[]; recent: FootCard[];
+  routes: { code: string; label: string; contracts: number }[];
+  rivals: { contractor_id: number; name: string; buyers: number; yours: boolean }[]; rivals_basis: string; coverage: string };
 type Customer = { key: string; name: string; incumbent: { state: string; label: string }; contracts: AtlasContract[]; relationships: Relationship[];
   signals: Reason[]; research: Research; coverage: string };
 type Row = { id?: number; key?: string; name: string; company_number?: string | null; identity_basis?: string; contracts: number; live?: number;
@@ -111,8 +122,8 @@ export function SiAtlas({ notify }: { notify: (m: string, e?: boolean) => void }
         </div>
       </section>
 
-      <div className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-        <div className="space-y-5">
+      <div className="mt-5 grid grid-cols-[minmax(0,1fr)] items-start gap-5 xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-5">
           <Results title="Contractors" icon={<Building2 size={15} aria-hidden="true" />} rows={found?.contractors} empty="No contractor matches."
             render={(r) => <button className="w-full text-left" onClick={() => r.id && open({ type: "contractor", id: r.id })} aria-current={selected?.type === "contractor" && selected.id === r.id ? "true" : undefined}>
               <span className="block truncate text-[14px] font-semibold text-ds-ink">{r.name}</span>
@@ -127,7 +138,7 @@ export function SiAtlas({ notify }: { notify: (m: string, e?: boolean) => void }
         </div>
         <div id="atlas-record" className="min-w-0 scroll-mt-4">
           {!selected ? <div className="ds-card p-6 text-[14px] text-ds-muted">Choose a contractor to see who it works for, or a customer to see who supplies it.</div>
-            : selected.type === "contractor" ? <ContractorRecord key={selected.id} id={selected.id} notify={notify} onCustomer={(key) => open({ type: "customer", key })} />
+            : selected.type === "contractor" ? <ContractorRecord key={selected.id} id={selected.id} notify={notify} onCustomer={(key) => open({ type: "customer", key })} onContractor={(id) => open({ type: "contractor", id })} />
               : <CustomerRecord key={selected.key} customerKey={selected.key} notify={notify} onContractor={(id) => open({ type: "contractor", id })} />}
         </div>
       </div>
@@ -188,12 +199,12 @@ function ContractCard({ c, notify, showSupplier, onOpen }: { c: AtlasContract; n
           <p className="mt-0.5 text-[12px] text-ds-muted">{[c.scope.label, c.route.code !== "direct_award" ? c.route.label : "", c.region || c.nation,
             c.value ? `${c.value.label} ${money(c.value.amount)}${c.value.annual_estimate ? ` (about ${money(c.value.annual_estimate)} a year)` : ""}` : "Value not published"].filter(Boolean).join(" · ")}</p>
         </div>
-        <Pill tone={STATUS_TONE[c.status.code] || "neutral"} title={c.status.detail}>{c.status.label}</Pill>
+        <Pill wrap tone={STATUS_TONE[c.status.code] || "neutral"} title={c.status.detail}>{c.status.label}</Pill>
       </div>
       <div className="mt-1.5 flex flex-wrap gap-1">{c.services.map((s) => <Pill key={s.family}>{s.label}</Pill>)}</div>
       {reason && <p className="mt-2 text-[13px] text-ds-ink"><strong className="font-semibold">Worth investigating:</strong> {reason.title}.</p>}
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {reason && <button className="ds-btn primary sm" onClick={() => void investigate(c, notify)}><Telescope size={13} /> Investigate {c.customer}</button>}
+        {reason && <button className="ds-btn primary sm max-w-full" title={`Investigate ${c.customer}`} onClick={() => void investigate(c, notify)}><Telescope size={13} className="flex-none" /><span className="truncate">Investigate {c.customer}</span></button>}
         <button className="ds-btn ghost sm" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide" : "Show"} evidence and timeline</button>
         {c.sources[0] && safeUrl(c.sources[0].url) && <a className="inline-flex items-center gap-1 text-[12.5px] font-medium text-ds-ink underline decoration-ds-border-strong underline-offset-2"
           href={safeUrl(c.sources[0].url)!} target="_blank" rel="noopener noreferrer">Published notice<ArrowUpRight size={12} /></a>}
@@ -260,7 +271,81 @@ function Section({ title, detail, children, label }: { title: string; detail?: s
   );
 }
 
-export function ContractorRecord({ id, notify, onCustomer }: { id: number; notify: (m: string, e?: boolean) => void; onCustomer: (key: string) => void }) {
+const shortDay = (iso: string) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso.slice(0, 10)}T00:00:00Z`)) : "");
+const compact = (n: number) => (n >= 1e6 ? `£${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, "")}m` : n >= 1e3 ? `£${Math.round(n / 1e3)}k` : `£${Math.round(n)}`);
+
+/** The supplier's book, read as a salesperson would: what comes up and when, where it is concentrated, what size it wins at, and how. */
+function FootprintView({ f, yours, onCustomer, onContractor }: { f: Footprint; yours: boolean; onCustomer: (key: string) => void; onContractor?: (id: number) => void }) {
+  const most = Math.max(1, ...f.ends_by_year.map((y) => y.contracts));
+  const awardsMost = Math.max(1, ...f.awards_by_year.map((y) => y.awards));
+  const row = (x: FootCard, when: string, sub: string) => (
+    <li key={x.key} className="lo-foot-row">
+      <span className="lo-clock-when"><b>{when || "Not published"}</b>{sub && <span>{sub}</span>}</span>
+      <span className="min-w-0">
+        <button className="lo-foot-buyer" onClick={() => onCustomer(x.customer_key)}>{x.buyer}</button>
+        <span className="lo-foot-title">{x.title}</span>
+        <span className="lo-rowfacts">{x.value && <b>{x.value}</b>}{x.where && <span>{x.where}</span>}{x.services.slice(0, 2).map((s) => <span key={s}>{s}</span>)}
+          {x.shared && <span>More than one supplier named</span>}</span>
+      </span>
+      <button className="lo-link inline flex-none" onClick={() => goto("find", { lead: x.key })} aria-label={`Open the contract: ${x.buyer}, ${x.title}`}>Open</button>
+    </li>);
+  return (<>
+    <Section title={yours ? "Contracts reaching a published end" : "When their contracts come up"} label="Contracts reaching a published end"
+      detail={`The next ${f.exposure.months} months, from published end dates. ${yours ? "These are yours to defend." : "Each is a dated reason to speak to the buyer before a re-tender is written."}`}>
+      <p className="text-[14px] font-semibold text-ds-ink">{f.exposure.label}.</p>
+      {f.exposure.value_label && <p className="mt-0.5 text-[13px] text-ds-ink-2">{f.exposure.value_label}</p>}
+      {!!f.exposure.items.length && <ul className="lo-foot-list">{f.exposure.items.map((x) => row(x, shortDay(x.end), x.days === null ? "" : x.days <= 0 ? "today" : `in ${x.days} days`))}</ul>}
+      {f.exposure.contracts > f.exposure.items.length && <p className="mt-2 text-[12.5px] text-ds-muted">The first {f.exposure.items.length} of {f.exposure.contracts}, soonest first. The rest are under Published contracts below.</p>}
+      {f.exposure.lapsed > 0 && <p className="mt-2 text-[12.5px] text-ds-ink-2">{f.exposure.lapsed} more {f.exposure.lapsed === 1 ? "has" : "have"} passed {f.exposure.lapsed === 1 ? "its" : "their"} published end with no replacement on the record: extended, re-let quietly, or lapsed. Worth asking the buyer.</p>}
+      {f.ends_by_year.length > 1 && <div className="mt-4" role="group" aria-label="Published ends by year">
+        <p className="text-[12px] font-semibold text-ds-ink-2">Published ends by year, contracts in term</p>
+        <ul className="lo-bars">{f.ends_by_year.map((y) => <li key={y.year}>
+          <span className="y">{y.year}</span>
+          <span className="bar" aria-hidden="true"><i style={{ width: `${Math.max(4, Math.round((y.contracts / most) * 100))}%` }} /></span>
+          <span className="v">{y.contracts} contract{y.contracts === 1 ? "" : "s"}{y.valued ? ` · about ${compact(y.annual)} a year${y.valued < y.contracts ? ` on ${y.valued} with a value` : ""}` : ""}</span></li>)}</ul>
+      </div>}
+      <p className="mt-3 text-[12px] leading-[18px] text-ds-muted">{f.exposure.caveat}</p>
+    </Section>
+
+    <Section title={yours ? "Where your published work sits" : "Where they are strong"} label="Where the published work sits"
+      detail={`${f.contracts} published contract${f.contracts === 1 ? "" : "s"} with ${f.buyers} buyer${f.buyers === 1 ? "" : "s"}${f.frameworks ? `, and ${f.frameworks} place${f.frameworks === 1 ? "" : "s"} on a framework (a place is not a contract, so it is counted apart)` : ""}.`}>
+      <div className="lo-foot-grid">
+        <div>
+          <h4>Buyers with the most contracts</h4>
+          <ul className="lo-foot-plain">{f.top_buyers.map((b) => <li key={b.key}><button className="lo-foot-buyer" onClick={() => onCustomer(b.key)}>{b.name}</button>
+            <span>{b.contracts} published{b.in_term ? `, ${b.in_term} in term` : ", none in term"}{b.latest ? ` · latest award ${b.latest.slice(0, 4)}` : ""}</span></li>)}</ul>
+        </div>
+        <div>
+          <h4>Where the work is</h4>
+          <ul className="lo-foot-plain">{f.regions.map((r) => <li key={r.name}><strong>{r.name}</strong><span>{r.contracts} contract{r.contracts === 1 ? "" : "s"}</span></li>)}</ul>
+          <h4 className="mt-4">How the work was won</h4>
+          <ul className="lo-foot-plain">{f.routes.map((r) => <li key={r.code}><strong>{r.label}</strong><span>{r.contracts} contract{r.contracts === 1 ? "" : "s"}</span></li>)}</ul>
+        </div>
+        <div>
+          <h4>Typical contract size</h4>
+          {f.size.label ? <p className="mt-1 text-[15px] font-semibold text-ds-ink">{f.size.label}</p> : !f.size.basis && <p className="mt-1 text-[13px] text-ds-ink-2">Not enough published values to state one.</p>}
+          {f.size.basis && <p className={f.size.label ? "mt-0.5 text-[12.5px] leading-[18px] text-ds-muted" : "mt-1 text-[13px] leading-[19px] text-ds-ink-2"}>{f.size.basis}</p>}
+          {f.size.largest && <p className="mt-2 text-[12.5px] leading-[18px] text-ds-ink-2">Largest by yearly value: <button className="lo-foot-buyer" onClick={() => goto("find", { lead: f.size.largest!.key })}>{f.size.largest.buyer}</button>, {f.size.largest.value}.</p>}
+          {!!f.awards_by_year.length && <div className="mt-4" role="group" aria-label="Published awards by year">
+            <h4>Published awards by year</h4>
+            <ul className="lo-bars tight">{f.awards_by_year.map((y) => <li key={y.year}><span className="y">{y.year}</span>
+              <span className="bar" aria-hidden="true">{y.awards > 0 && <i style={{ width: `${Math.max(4, Math.round((y.awards / awardsMost) * 100))}%` }} />}</span><span className="v">{y.awards}</span></li>)}</ul>
+          </div>}
+        </div>
+      </div>
+      {!!f.recent.length && <div className="mt-4"><h4 className="text-[12px] font-semibold text-ds-ink-2">Most recent published awards</h4>
+        <ul className="lo-foot-list">{f.recent.map((x) => row(x, shortDay(x.awarded), "awarded"))}</ul></div>}
+    </Section>
+
+    {!!f.rivals.length && <Section title={yours ? "Who else is named at your buyers" : "Who else is named at their buyers"} label="Named at the same buyers" detail={f.rivals_basis}>
+      <ul className="lo-foot-plain">{f.rivals.map((r) => <li key={r.contractor_id}>
+        {onContractor ? <button className="lo-foot-buyer" onClick={() => onContractor(r.contractor_id)}>{r.name}</button> : <strong>{r.name}</strong>}
+        <span>Named at {r.buyers} of the same buyers{r.yours ? " · your company" : ""}</span></li>)}</ul>
+    </Section>}
+  </>);
+}
+
+export function ContractorRecord({ id, notify, onCustomer, onContractor }: { id: number; notify: (m: string, e?: boolean) => void; onCustomer: (key: string) => void; onContractor?: (id: number) => void }) {
   const [c, setC] = useState<Contractor | null>(null);
   const load = useCallback(() => si<Contractor>(`/atlas/contractors/${id}`).then(setC).catch((e) => notify((e as Error).message, true)), [id, notify]);
   useEffect(() => { void load(); }, [load]);
@@ -286,6 +371,7 @@ export function ContractorRecord({ id, notify, onCustomer }: { id: number; notif
         </dl>
         {!!c.services.length && <div className="mt-3 flex flex-wrap gap-1">{c.services.map((s) => <Pill key={s.family}>{s.label} · {s.contracts}</Pill>)}</div>}
       </header>
+      {c.footprint && <FootprintView f={c.footprint} yours={c.yours} onCustomer={onCustomer} onContractor={onContractor} />}
       {!!c.worth_investigating.length && <Section title="Worth investigating" detail="Contracts in your services and territory where a published date gives a reason to engage. Never a probability: each says what would rule it out.">
         <ul className="space-y-2">{c.worth_investigating.map((x) => <ContractCard key={`${x.key}:${x.party_id}`} c={x} notify={notify} onOpen={() => onCustomer(x.customer_key)} />)}</ul></Section>}
       <Section title="Published contracts" detail="Awarded by the buyer and published on Find a Tender, Contracts Finder or Public Contracts Scotland.">
@@ -317,7 +403,7 @@ export function CustomerRecord({ customerKey, notify, onContractor, compact }: {
       <header className="ds-card p-5">
         <p className="si-eyebrow">Customer</p>
         <h2 className="mt-1 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ds-ink">{c.name}</h2>
-        <p className="mt-2"><Pill tone={tone}>{c.incumbent.label}</Pill></p>
+        <p className="mt-2"><Pill tone={tone} wrap>{c.incumbent.label}</Pill></p>
         <p className="mt-2 text-[12.5px] text-ds-muted">{c.coverage}</p>
       </header>
       <Section title="Published contracts" detail="Who the buyer named as supplier, with the published term.">
@@ -346,7 +432,7 @@ export function AccountSuppliers({ accountId }: { accountId: number }) {
     <section aria-label="Who supplies them" className="ds-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-[14px] font-semibold text-ds-ink">Who supplies them</h3>
         <button className="text-[12.5px] font-semibold text-ds-brand hover:underline" onClick={() => goto("find", { mode: "atlas", customer: c.key })}>Open in Contract Atlas</button></div>
-      <p className="mt-1.5"><Pill tone={c.incumbent.state === "published" ? "green" : c.incumbent.state === "reported" ? "blue" : "neutral"}>{c.incumbent.label}</Pill></p>
+      <p className="mt-1.5"><Pill tone={c.incumbent.state === "published" ? "green" : c.incumbent.state === "reported" ? "blue" : "neutral"} wrap>{c.incumbent.label}</Pill></p>
       {suppliers.some((s) => !c.incumbent.label.includes(s)) && <p className="mt-1.5 text-[12.5px] text-ds-ink-2">Also named: {suppliers.filter((s) => !c.incumbent.label.includes(s)).slice(0, 5).join(" · ")}</p>}
       {!suppliers.length && <p className="mt-1.5 text-[12.5px] text-ds-muted">Nothing published names a current supplier. Research it from Contract Atlas, within your research budget.</p>}
     </section>

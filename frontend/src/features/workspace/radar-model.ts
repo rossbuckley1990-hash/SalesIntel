@@ -39,7 +39,7 @@ export const CATEGORY: Record<string, { label: string; short: string; tone: Tone
   live_procurement: { label: "Live tenders", short: "Live tender", tone: "blue", help: "A tender is open now with a published deadline." },
   official_early_signal: { label: "Early notices", short: "Early notice", tone: "brand", help: "The buyer has published an early notice before a tender." },
   pre_tender: { label: "Pre-tender", short: "Pre-tender", tone: "green", help: "A competitor's contract is ending. Engage before the tender is written." },
-  inferred_signal: { label: "AI signals", short: "AI signal", tone: "violet", help: "Public evidence suggests a need before any tender. Verify before acting." },
+  inferred_signal: { label: "Public signals", short: "Public signal", tone: "violet", help: "A public record gives a reason to ask before any tender. It is not a requirement: verify before acting." },
   verify_first: { label: "Verify first", short: "Verify", tone: "amber", help: "Timing or scope is uncertain. Check the facts before investing time." },
 };
 export const CATEGORY_ORDER = ["contract_defence", "live_procurement", "official_early_signal", "pre_tender", "inferred_signal", "verify_first"];
@@ -108,6 +108,14 @@ export function urgencyTone(date: string | null, today = new Date()): Tone {
   if (days <= 14) return "red";
   if (days <= 120) return "amber";
   return "neutral";
+}
+
+/** Stored sentences carry machine dates and the odd doubled full stop. This is how they should read on screen; the record itself is not rewritten. */
+export function readable(text: string | null | undefined) {
+  return (text || "").replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (iso) => {
+    const parsed = new Date(`${iso}T00:00:00Z`);
+    return Number.isNaN(parsed.getTime()) ? iso : new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(parsed);
+  }).replace(/\.\.(?!\.)/g, ".");
 }
 
 export function formatDate(date: string | null | undefined) {

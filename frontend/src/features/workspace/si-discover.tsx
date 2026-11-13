@@ -18,7 +18,9 @@ const KIND_SHORT: Record<string, string> = { published_procurement: "Live tender
 const KIND_TONE: Record<string, "green" | "blue" | "amber" | "violet" | "neutral" | "brand"> = { published_procurement: "green", contract_ending: "blue", private_signal: "violet", customer_expansion: "brand", unverified_candidate: "amber" };
 // A notice published ahead of a tender is not a live tender, and a contract your own company holds is not a rival's: the row says which.
 const CATEGORY_SHORT: Record<string, [string, "green" | "blue" | "amber" | "violet" | "neutral" | "brand"]> = { official_early_signal: ["Early notice", "brand"], contract_defence: ["Your contract", "amber"], inferred_signal: ["Public signal", "violet"] };
-const longDate = (iso: string) => (/^\d{4}-\d\d-\d\d/.test(iso) ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso.slice(0, 10)}T00:00:00Z`)) : iso);
+/** A stored date written for people: a day ("14 September 2026") or, where only the month is known, the month ("June 2027"). */
+const longDate = (iso: string) => (/^\d{4}-\d\d-\d\d/.test(iso) ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso.slice(0, 10)}T00:00:00Z`))
+  : /^\d{4}-\d\d$/.test(iso) ? new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}-01T00:00:00Z`)) : iso);
 
 function ResearchRow({ job, onDone }: { job: JobT & { params?: { query?: string } }; onDone: () => void }) {
   const [live] = useJob(job, onDone) as [(JobT & { params?: { query?: string } }) | null, unknown];

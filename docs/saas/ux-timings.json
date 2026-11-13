@@ -1,6 +1,6 @@
 {
   "scenario": "A: unadvertised new site, replayed research",
-  "recorded": "2026-11-05",
+  "recorded": "2026-11-13",
   "marks": [
     {
       "step": "Understand why the lead matters",
@@ -14,27 +14,27 @@
     },
     {
       "step": "Review the critical findings",
-      "seconds": 3.3,
+      "seconds": 3.2,
       "clicks": 2
     },
     {
       "step": "Identify a usable contact route",
-      "seconds": 3.3,
+      "seconds": 3.2,
       "clicks": 2
     },
     {
       "step": "Prepare first contact",
-      "seconds": 7.4,
+      "seconds": 7.3,
       "clicks": 5
     },
     {
       "step": "Set the next commercial action",
-      "seconds": 8,
+      "seconds": 7.8,
       "clicks": 7
     },
     {
       "step": "Return and continue",
-      "seconds": 0.3,
+      "seconds": 0.2,
       "clicks": 0
     }
   ]

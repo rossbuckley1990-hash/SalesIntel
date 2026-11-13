@@ -136,7 +136,10 @@ test("private prospect on a phone: brief, durable research, people, partial resu
   await expect(sheet.getByText("Private organisation with an observable signal")).toBeVisible();
   await expect(sheet.getByRole("region", { name: "Why now?" })).toContainText("Announced a 400,000 sq ft distribution centre in Wakefield");
   await expect(sheet.getByRole("region", { name: "Why now?" })).toContainText("Inferred timing:");
-  await expect(sheet.getByRole("region", { name: "What do we know?" })).toContainText("2026-09-14");
+  // Dates are written for people: the stored 2026-09-14 and the month 2027-06 are never shown as machine dates.
+  await expect(sheet.getByRole("region", { name: "What do we know?" })).toContainText("14 September 2026");
+  await expect(sheet.getByRole("region", { name: "What do we know?" })).toContainText("June 2027");
+  await expect(sheet.getByRole("region", { name: "What do we know?" }).getByText(/\d{4}-\d\d/)).toHaveCount(0);
   await expect(sheet.getByRole("region", { name: "What remains unknown?" })).toContainText("not proof of buying intent");
   await page.screenshot({ animations: "disabled", path: `${SHOTS}/4-discover-private-mobile.png` });
   await expect(results.getByRole("button", { name: /Calder Freight Services/ })).toContainText("Unverified");

@@ -1,9 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 // A public record before any tender, on a fictional one (backend/app/services/living_fixtures.py): a regulator's finding about
 // Fenwick Housing Trust and, later, the trust's own early notice. Two records from two independent sources. The trust is also a
 // buyer in the fictional Contract Atlas, so the brief sets the signal beside the published holder without connecting the two.
+// The single-user shell names the employer's workspace; it never appears in published screenshots.
+const shot = (page: Page, name: string) => page.screenshot({ animations: "disabled", path: `../docs/saas/screenshots/${name}`, mask: [page.locator(".m-workspace-name")], maskColor: "#e4e7ec" });
 const HEADLINE = 'Fenwick Housing Trust published an early notice: "Fire alarm replacement and remedial works programme"';
 
 test("a public signal is found on Today and by kind, and is briefed as a record, never as a contract", async ({ page }) => {
@@ -16,6 +18,8 @@ test("a public signal is found on Today and by kind, and is briefed as a record,
   await expect(row).toContainText("2 public records from 2 independent sources");
   await expect(signals).toContainText("None is a published requirement.");
   await expect(briefing).not.toContainText("Fenwick Housing Trust"); // an inference is never listed among the published leads
+  await signals.scrollIntoViewIfNeeded();
+  await shot(page, "27-signal-today-desktop.png");
   await row.click();
 
   // The brief: what the newest record says, why it could matter and no further, and the questions that decide it.
@@ -38,6 +42,7 @@ test("a public signal is found on Today and by kind, and is briefed as a record,
   await expect(detail.getByRole("region", { name: "Path to a deal" })).toContainText("Confirm the problem is still open");
   // The first move is to read the record itself.
   await expect(detail.getByRole("region", { name: "Next move" }).getByRole("button", { name: "Read the record at its source" }).first()).toBeVisible();
+  await shot(page, "28-signal-brief-desktop.png");
   const brief = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
   expect(brief.violations.map((v) => ({ id: v.id, targets: v.nodes.map((n) => n.target) }))).toEqual([]);
 
@@ -60,7 +65,11 @@ test("a public signal is found on Today and by kind, and is briefed as a record,
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const today = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
   expect(today.violations.map((v) => ({ id: v.id, targets: v.nodes.map((n) => n.target) }))).toEqual([]);
+  await page.getByRole("region", { name: "Before any tender" }).scrollIntoViewIfNeeded();
+  await shot(page, "29-signal-today-mobile.png");
   await page.getByRole("region", { name: "Before any tender" }).getByRole("button", { name: /Fenwick Housing Trust/ }).click();
   await expect(page.getByRole("region", { name: "Selected opportunity details" }).getByRole("heading", { name: HEADLINE })).toBeVisible();
+  await page.waitForTimeout(400);
+  await shot(page, "30-signal-brief-mobile.png");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

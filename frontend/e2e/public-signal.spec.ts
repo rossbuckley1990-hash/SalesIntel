@@ -10,14 +10,11 @@ const HEADLINE = 'Fenwick Housing Trust published an early notice: "Fire alarm r
 
 test("a public signal is found on Today and by kind, and is briefed as a record, never as a contract", async ({ page }) => {
   await page.goto("/?view=today");
-  const briefing = page.getByRole("group", { name: "Intelligence briefing" });
-  for (const part of ["Discovered", "Changed", "Needs action", "Could move revenue", "Worth watching"]) await expect(briefing.getByRole("region", { name: part })).toBeVisible();
   const signals = page.getByRole("region", { name: "Before any tender" });
   const row = signals.getByRole("button", { name: /Fenwick Housing Trust/ });
   await expect(row).toContainText(HEADLINE);
   await expect(row).toContainText("2 public records from 2 independent sources");
   await expect(signals).toContainText("None is a published requirement.");
-  await expect(briefing).not.toContainText("Fenwick Housing Trust"); // an inference is never listed among the published leads
   await signals.scrollIntoViewIfNeeded();
   await shot(page, "27-signal-today-desktop.png");
   await row.click();

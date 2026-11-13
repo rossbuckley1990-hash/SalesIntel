@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useContext, useEffect, useState } from "react";
-import { ArrowRight, BellRing, Briefcase, CalendarClock, ChevronDown, ChevronRight, FilePenLine, Inbox, Search, Sparkles } from "lucide-react";
+import { ArrowRight, BellRing, Briefcase, CalendarClock, ChevronDown, ChevronRight, FilePenLine, Inbox, Sparkles } from "lucide-react";
 import { DailyResearchBrief } from "./daily-research-brief";
 import { EmptyState, Pill } from "./ds";
 import { fieldLabel } from "./api";
@@ -10,6 +10,7 @@ import { daysLabel } from "./si-notice";
 import { relative } from "./radar-model";
 import { Runway } from "./si-runway";
 import { BestOpportunities } from "./si-intel";
+import { PatchBrief } from "./si-patch";
 import type { SharedProps } from "./types";
 import { ViewerContext } from "./fluid";
 import "./living.css";
@@ -149,11 +150,12 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
   const [deals, setDeals] = useState<DealCard[]>([]);
   const [ahead, setAhead] = useState<Lead[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
-  const [q, setQ] = useState("");
   const [error, setError] = useState("");
   const [digest, setDigest] = useState<Digest | null>(null);
   const [said, setSaid] = useState<VerdictSummary | null>(null);
-  useEffect(() => { si<VerdictSummary>("/brief/verdicts").then(setSaid).catch(() => setSaid(null)); }, []);
+  const [quietResearch, setQuietResearch] = useState(false);
+  const refreshVerdicts = useCallback(() => { si<VerdictSummary>("/brief/verdicts").then(setSaid).catch(() => setSaid(null)); }, []);
+  useEffect(() => { refreshVerdicts(); }, [refreshVerdicts]);
   useEffect(() => { si<Digest>("/brief/digest").then(setDigest).catch(() => setDigest({ changed: [], watching: [] })); }, []);
   const load = useCallback(async () => {
     try {
@@ -177,6 +179,8 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
   const date = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" }).format(new Date());
   const counts = today ? { follow: today.queue.filter((x) => x.kind === "follow_up").length, drafts: today.queue.filter((x) => x.kind === "draft").length, deals: today.queue.filter((x) => x.kind === "deal").length } : null;
   const openDeals = deals.filter((d) => !["won", "lost"].includes(d.stage));
+  // Worked: something has been set, drafted, qualified or watched. Until then the page is the patch brief and the published record.
+  const worked = !!today && (today.queue.length > 0 || today.upcoming.length > 0 || deals.length > 0 || !!digest?.changed.length || !!digest?.watching.length);
 
   const target = viewer?.target;
   const money = (v: string) => `£${Number(v).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
@@ -189,7 +193,7 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
           <h1 className="mt-2 text-[32px] font-semibold leading-[1.1] tracking-[-0.035em] text-ds-ink">{greeting()}{first ? `, ${first}` : ""}.</h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-6 text-ds-muted" aria-live="polite">
             {!counts ? "Getting your day ready…" : counts.follow + counts.drafts + counts.deals === 0
-              ? (today?.new_leads.length ? <>Nothing is due. <strong className="font-semibold text-ds-ink">{today.new_leads.length} new lead{today.new_leads.length === 1 ? "" : "s"}</strong> found: start with what was discovered below.</> : "Nothing is due, and nothing new was found. Search Discover for your next opportunity.")
+              ? "Nothing is due. Your patch brief is below: say what you think of each lead with one tap."
               : <>You have <strong className="font-semibold text-ds-ink">{counts.follow} follow-up{counts.follow === 1 ? "" : "s"}</strong> due, {counts.drafts} draft{counts.drafts === 1 ? "" : "s"} to finish and {counts.deals} deal{counts.deals === 1 ? "" : "s"} that need a next step.</>}
           </p>
         </div>
@@ -200,7 +204,9 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
         </div>}
       </header>
 
-      <Briefing today={today} deals={deals} digest={digest} />
+      <PatchBrief notify={notify} onChanged={refreshVerdicts} />
+
+      {worked && <Briefing today={today} deals={deals} digest={digest} />}
 
       <Deadlines today={today} />
 
@@ -208,24 +214,21 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
 
       <Verdicts said={said} />
 
-      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); goto("find", { q }); }} role="search">
-        <div className="si-hero-search relative flex-1">
-          <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ds-muted" />
-          <input className="ds-input !h-11 !pl-10 text-[14px]" aria-label="Find opportunities" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find opportunities, e.g. fire alarm maintenance in Scotland" />
-        </div>
-        <button className="ds-btn primary !h-[42px] !px-4">Discover <ArrowRight size={14} /></button>
-      </form>
-
       <BestOpportunities notify={notify} />
 
-      {ahead && !!ahead.length && <section aria-label="Opening soon">
+      {worked && ahead && !!ahead.length && <section aria-label="Opening soon">
         <div className="si-section-head"><h2>Opening in the next six weeks</h2>
           <button className="text-[12px] font-medium text-ds-ink-2 hover:text-ds-ink hover:underline" onClick={() => goto("find", { layout: "runway" })}>Full runway</button></div>
         <Runway compact horizon={42} items={ahead} selected={null} onSelect={(key) => goto("find", { lead: key })} />
       </section>}
       {error && <p role="alert" className="rounded-lg border border-ds-red-line bg-ds-red-soft px-3 py-2 text-[13px] text-ds-red">{error}</p>}
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px] [&>*]:min-w-0">
+      {/* First run: nothing has been worked yet, so the queue is one line and the empty side panels are left out. */}
+      {!worked && today && <section id="si-queue" aria-label="Your queue" className="ds-card scroll-mt-24 px-5 py-3.5">
+        <h2 className="text-[15px] font-semibold text-ds-ink">Your queue</h2>
+        <p className="text-[13px] text-ds-muted">Nothing is due. Follow-ups you set, drafts you start and deals that stall will appear here.</p>
+      </section>}
+      {worked && <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px] [&>*]:min-w-0">
         <section id="si-queue" aria-label="Your queue" className="ds-card scroll-mt-24 overflow-hidden">
           <div className="flex items-center justify-between border-b border-ds-border px-5 py-3.5">
             <div><h2 className="text-[15px] font-semibold text-ds-ink">Your queue</h2><p className="text-[12px] text-ds-muted">Ordered by what you committed to and recorded deadlines</p></div>
@@ -285,11 +288,11 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
                 <span className="text-[12px] text-ds-muted">{fieldLabel(c.field)}: {String(c.before ?? "Unknown")} → {String(c.after ?? "Unknown")} <ChevronRight size={11} className="inline" /></span></button></li>)}</ul>}
           </Panel>}
         </div>
-      </div>
+      </div>}
 
-      <details className="ds-card group" open>
+      <details className="ds-card group" open hidden={quietResearch}>
         <summary className="flex cursor-pointer items-center gap-2 px-5 py-3.5 text-[14px] font-semibold text-ds-ink"><Sparkles size={15} className="text-ds-brand" /> Research follow-ups from AI Research<ChevronDown size={15} className="si-chevron ml-auto text-ds-muted" /></summary>
-        <div className="border-t border-ds-border p-5"><DailyResearchBrief navigate={(v) => goto(v)} /></div>
+        <div className="border-t border-ds-border p-5"><DailyResearchBrief navigate={(v) => goto(v)} onEmpty={setQuietResearch} /></div>
       </details>
     </div>
   );

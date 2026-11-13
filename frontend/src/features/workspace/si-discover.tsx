@@ -90,6 +90,7 @@ function DiscoverOpportunities({ notify }: SharedProps) {
   const [service, setService] = useState("");
   const [status, setStatus] = useState("active");
   const [kind, setKind] = useState(() => (KINDS.some(([id]) => id && id === param("category")) ? param("category") as string : ""));
+  const [region, setRegion] = useState(param("region") || ""); // set from a patch brief: everything held in that region
   const [sort, setSort] = useState(() => (SORTS.some(([id]) => id === param("sort")) ? param("sort") as string : ""));
   const [layout, setLayout] = useState<"list" | "runway">(() => (param("layout") === "runway" ? "runway" : "list"));
   const [result, setResult] = useState<DiscoverResult | null>(null);
@@ -108,9 +109,9 @@ function DiscoverOpportunities({ notify }: SharedProps) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ q: applied, source, nation, service, status, category: kind, sort, limit: "100" });
+    const params = new URLSearchParams({ q: applied, source, nation, service, status, category: kind, region, sort, limit: "100" });
     try { setResult(await si<DiscoverResult>(`/discover?${params}`)); } catch (e) { notify((e as Error).message, true); } finally { setLoading(false); }
-  }, [applied, source, nation, service, status, kind, sort, notify]);
+  }, [applied, source, nation, service, status, kind, region, sort, notify]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     si<{ items: View[] }>("/saved-views").then((d) => {
@@ -191,7 +192,7 @@ function DiscoverOpportunities({ notify }: SharedProps) {
     const name = window.prompt("Name this view", applied || "My territory");
     if (!name) return;
     try {
-      const view = await si<View>("/saved-views", { method: "POST", json: { name, filters: { q: applied, source, nation, service, status, category: kind, sort } } });
+      const view = await si<View>("/saved-views", { method: "POST", json: { name, filters: { q: applied, source, nation, service, status, category: kind, region, sort } } });
       setViews((v) => [...v, view]);
       notify("View saved.");
     } catch (e) { notify((e as Error).message, true); }
@@ -201,8 +202,9 @@ function DiscoverOpportunities({ notify }: SharedProps) {
     setNation(v.filters.nation || ""); setService(v.filters.service || ""); setStatus(v.filters.status || "active");
     setSort(SORTS.some(([id]) => id === v.filters.sort) ? v.filters.sort : "");
     setKind(KINDS.some(([id]) => id === v.filters.category) ? v.filters.category : "");
+    setRegion(v.filters.region || "");
   }
-  const filtered = !!(applied || nation || service || kind || source !== "all" || status !== "active");
+  const filtered = !!(applied || nation || service || kind || region || source !== "all" || status !== "active");
   const detail = openKey && <Detail key={openKey} lead={current} op={op} notify={notify} onStatus={setLeadStatus} onChanged={() => void load()}
     outside={!outside ? "" : openKey.startsWith("mc:") ? "It is a published contract from the Contract Atlas, so it has no row in this list." : filtered ? "It is not among the results for these filters." : "It is not among the first results in the list."} onBack={() => choose(null)} />;
 
@@ -241,7 +243,8 @@ function DiscoverOpportunities({ notify }: SharedProps) {
           <select className="ds-select !h-9" aria-label="Service" value={service} onChange={(e) => setService(e.target.value)}><option value="">Any service</option>{SERVICES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           <select className="ds-select !h-9" aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>{STATUS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           <select className="ds-select !h-9" aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value)}>{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-          {(filtered || sort) && <><button className="ds-btn ghost sm" onClick={() => { setQ(""); setApplied(""); setSource("all"); setNation(""); setService(""); setStatus("active"); setKind(""); setSort(""); }}>Clear</button>
+          {region && <button className="ds-btn sm" onClick={() => setRegion("")} aria-label={`Region: ${region}. Remove this filter`}>{region} <X size={13} aria-hidden="true" /></button>}
+          {(filtered || sort) && <><button className="ds-btn ghost sm" onClick={() => { setQ(""); setApplied(""); setSource("all"); setNation(""); setService(""); setStatus("active"); setKind(""); setRegion(""); setSort(""); }}>Clear</button>
             <button className="ds-btn ghost sm" onClick={() => void saveView()}><Bookmark size={14} /> Save view</button></>}
         </div>
         {result && applied && (result.interpreted.nations.length + result.interpreted.services.length + result.interpreted.regions.length > 0) && <p className="text-[12px] text-ds-muted">

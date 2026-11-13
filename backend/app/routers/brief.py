@@ -2,16 +2,18 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import Context, current_context, tenant_db
 from app.models.brief import BriefReview
 from app.routers.atlas import _ensure as ensure_atlas
-from app.routers.salesintel import permitted, run
-from app.services import brief
+from app.routers.salesintel import Strict, permitted, run
+from app.services import brief, verdicts
 
 router = APIRouter(prefix='/api/si/brief', tags=['brief'], dependencies=[Depends(permitted)])
 
@@ -50,12 +52,35 @@ def digest(db: Session = Depends(tenant_db), ctx: Context = Depends(current_cont
     return run(db, work)
 
 
+class VerdictIn(Strict):
+    verdict: Literal['worth_a_call', 'knew_already', 'wrong', 'cleared']
+    rep: str = Field('', max_length=60)
+
+
+@router.get('/verdicts')
+def verdict_summary(rep: str | None = Query(None, max_length=60), db: Session = Depends(tenant_db)):
+    """How many judged leads were marked "Didn't know, worth a call", in total, by kind of lead and by rep."""
+    return run(db, lambda: verdicts.summary(db, rep))
+
+
 @router.get('/{key}')
-def get_brief(key: str, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+def get_brief(key: str, rep: str = Query('', max_length=60), db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
     def work():
         seen = _last(db, key, ctx.user_id)
         ensure_atlas(db)  # the brief reads who holds what from the shared contract index
-        return brief.build(db, key, last_review=seen.reviewed_at if seen else None)
+        b = brief.build(db, key, last_review=seen.reviewed_at if seen else None)
+        lead = verdicts.lead_of(b)
+        return {**b, 'judgeable': lead is not None, 'verdict': verdicts.current(db, lead, rep.strip())}
+    return run(db, work)
+
+
+@router.post('/{key}/verdict')
+def give_verdict(key: str, payload: VerdictIn, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+    """One tap: "Didn't know, worth a call", "Knew already" or "Wrong", stored with the evidence shown. `cleared` takes it back."""
+    def work():
+        ensure_atlas(db)
+        given = verdicts.record(db, key, payload.verdict, rep=payload.rep, user_id=ctx.user_id)
+        return {'verdict': given, 'summary': verdicts.summary(db)}
     return run(db, work)
 
 

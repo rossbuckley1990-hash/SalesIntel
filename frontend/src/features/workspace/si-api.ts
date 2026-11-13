@@ -30,6 +30,17 @@ export type Lead = {
   /** A public record before any tender: its newest record in one sentence, and how much evidence stands behind it. */
   headline?: string; signal?: SignalFacts;
 };
+/** A rep's one-tap verdict on a lead. Counts are shown as "3 of 7", never as a rate on its own. */
+export type VerdictValue = "worth_a_call" | "knew_already" | "wrong";
+export const VERDICTS: [VerdictValue, string][] = [["worth_a_call", "Didn’t know, worth a call"], ["knew_already", "Knew already"], ["wrong", "Wrong"]];
+export type VerdictT = { value: VerdictValue; label: string; at: string; rep: string };
+export type Tally = { judged: number; worth_a_call: number; knew_already: number; wrong: number };
+export type VerdictSummary = Tally & { headline: string; by_kind: (Tally & { kind: string; label: string })[]; by_rep: (Tally & { rep: string })[];
+  recent: (Partial<VerdictT> & { key: string; organisation: string; headline: string })[] };
+/** The rep whose patch is on screen. Verdicts are recorded against this name; empty until a rep is chosen. */
+let rep = "";
+export const repName = () => rep;
+export const setRepName = (name: string) => { rep = name; };
 export type SignalFacts = { date: string; source: string; source_url?: string; official: boolean; records: number; sources: number; corroborated: boolean; strength: string };
 export type SignalRow = SignalFacts & { key: string; organisation: string; headline: string; status: LeadStatus; account_id: number | null };
 export type RowFacts = { value?: string; value_amount?: number; value_kind?: "estimate" | "award"; deadline?: { key: string; label: string; date: string; days: number }; place?: string; lots?: number; scoring?: string; term?: string };

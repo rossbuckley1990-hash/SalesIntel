@@ -320,6 +320,21 @@
 .lo-clock-all { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--ds-ink-2); }
 .lo-clock-all:hover { color: var(--ds-ink); text-decoration: underline; }
 @media (max-width: 480px) { .lo-clock-col li button { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; } }
+/* The verdict: three plain buttons under what was read. Pressed is the only state that takes colour. */
+.lo-verdict { margin-top: 14px; }
+.lo-verdict.compact { margin-top: 0; }
+.lo-verdict-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.lo-verdict.compact .lo-verdict-row { margin-top: 0; }
+.lo-verdict-row button { min-height: 36px; padding: 0 12px; border: 1px solid var(--ds-border-strong); border-radius: 8px; background: var(--ds-surface); font-size: 13px; font-weight: 600; color: var(--ds-ink); }
+.lo-verdict-row button:hover { background: var(--ds-hover); }
+.lo-verdict-row button:focus-visible { outline: 2px solid var(--ds-brand); outline-offset: 2px; }
+.lo-verdict-row button[aria-pressed="true"] { border-color: var(--ds-brand); background: var(--ds-brand-soft); color: var(--ds-brand); }
+.lo-verdict-row button.no[aria-pressed="true"] { border-color: var(--ds-red-line); background: var(--ds-red-soft); color: var(--ds-red); }
+.lo-verdict-row button:disabled { opacity: 0.6; }
+.lo-tally { margin: 8px 0 0; padding: 0; list-style: none; }
+.lo-tally li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 13px; line-height: 19px; color: var(--ds-ink-2); }
+.lo-tally li + li { border-top: 1px solid var(--ds-border); }
+.lo-tally b { flex: none; font-weight: 600; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
 /* On a phone the filters sit two to a row, so the results are not pushed a screen away. */
 @media (max-width: 640px) { .lo-filters > select { flex: 1 1 calc(50% - 4px); min-width: 0; } }
 /* Public signals: one list, two across on a wide screen. A signal's sentence may run to two lines, since it is the whole point of the row. */

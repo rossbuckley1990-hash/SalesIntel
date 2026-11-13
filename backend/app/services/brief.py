@@ -413,6 +413,24 @@ def _signal_field(seen: dict) -> dict:
     return seen
 
 
+def _joined_contract(holder: dict) -> list[dict]:
+    """The buyer's published fire or security contract, as a dated record beside the signal. It comes from a different source (an
+    award notice), so the lead rests on more than one. It is set beside the signal, never tied to it: nothing says the contract
+    covers what the other record describes."""
+    c = holder['contract']
+    when = c.get('end') or c.get('awarded') or ''
+    if not when:
+        return []
+    who = ' and '.join(core.display_name(n) for n in holder.get('names') or []) or 'A supplier'
+    plural = len(holder.get('names') or []) > 1
+    title = (f"{who} {'hold' if plural else 'holds'} this buyer\u2019s published contract \u201c{c['title']}\u201d, in term to {_long(c['end'])}" if holder['state'] == 'in_term' and c.get('end') else
+             f"{who} {'were' if plural else 'was'} the published supplier on \u201c{c['title']}\u201d, which reached its published end on {_long(c['end'])}" if c.get('end') else
+             f"{who} {'were' if plural else 'was'} awarded this buyer\u2019s published contract \u201c{c['title']}\u201d")
+    return [_event(when, 'event', title, url=c.get('source') or '', source='Award notice', basis='published',
+                   establishes='The buyer has let fire or security work on the published record, to this supplier and for this term.',
+                   not_established='It does not say this contract covers what the other record describes, or who delivers the work today.', effect='context')]
+
+
 def _public_signal(db: Session, item: Any, s: dict) -> dict:
     """A public record that gives a reason to ask before any tender: a regulator's finding, a fire authority's notice, an early
     notice, a press report. It is not a contract, so no end date, holder or renewal pattern is implied, and nothing is added to
@@ -465,6 +483,7 @@ def _public_signal(db: Session, item: Any, s: dict) -> dict:
     if holder.get('state') in ('in_term', 'past'):  # a published holder is a lead on the answer, never the answer: the scope is not established
         answers['incumbent'] = {'answer': f"{holder['text']} {holder['caveat']}", 'complete': False, 'basis': 'records',
                                 'findings': [{'text': holder['contract']['title'], 'source_url': holder['contract'].get('source') or ''}]}
+        events += _joined_contract(holder)
     others = top.get('records', 0) - 1
     strength = (top.get('strength') or '') + ('.' if top.get('strength') else '') + (f" The other{'s are' if others > 1 else ' is'} in the evidence below." if others > 0 else '')
     tests = [STILL_UNKNOWN[e['explanation']] for e in sig.get('explanations') or []

@@ -30,13 +30,16 @@ test("a rep sees five leads for their patch with no typing, judges them with a t
   await expect(fenwick).toContainText("Two or more independent records");
   await expect(fenwick).toContainText("Why now: Early procurement notice");
   const chain = fenwick.getByRole("list", { name: "Evidence for Fenwick Housing Trust" }).getByRole("listitem");
-  await expect(chain).toHaveCount(3);
+  await expect(chain).toHaveCount(4);
   await expect(chain.nth(0)).toContainText("The Regulator of Social Housing graded Fenwick Housing Trust C3");
   await expect(chain.nth(0).getByRole("link")).toHaveAttribute("href", "https://regulator.example/judgements/fenwick-housing-trust");
   await expect(chain.nth(0)).toContainText("Published");
   await expect(chain.nth(1).getByRole("link")).toHaveAttribute("href", "https://procurement.example/notices/fenwick-early-engagement");
-  await expect(chain.nth(2)).toContainText("Inferred");
-  await expect(chain.nth(2).getByRole("link")).toHaveCount(0); // SalesIntel's reading is not a source
+  // The buyer's own award notice, from a different source, set beside the signal: who holds its fire contract, and until when.
+  await expect(chain.nth(2)).toContainText("Kestrel Fire Services Ltd holds this buyer’s published contract");
+  await expect(chain.nth(2).getByRole("link")).toHaveAttribute("href", "https://www.contractsfinder.service.gov.uk/Notice/atlas-fixture-fenwick");
+  await expect(chain.nth(3)).toContainText("Inferred");
+  await expect(chain.nth(3).getByRole("link")).toHaveCount(0); // SalesIntel's reading is not a source
   await expect(fenwick.getByRole("button", { name: /^Next: Read the record at its source/ })).toBeVisible();
   await expect(fenwick.getByRole("group", { name: "Verdict on Fenwick Housing Trust" }).getByRole("button")).toHaveCount(3);
   await expect(brief.getByText(/\d{4}-\d\d-\d\d/)).toHaveCount(0); // no machine dates
@@ -67,7 +70,9 @@ test("a rep sees five leads for their patch with no typing, judges them with a t
   await toast(page, "Patch saved.");
   await expect(brief.getByRole("heading", { name: "Patch brief: My patch" })).toBeVisible();
   await expect(brief).toContainText("Yorkshire and the Humber");
-  await expect(brief.getByRole("article")).toHaveCount(1); // the one lead whose own notice states this region
+  // The tender whose own notice states this region, and the signal placed there by its buyer's published contract.
+  await expect(brief.getByRole("article")).toHaveCount(2);
+  await expect(brief.getByRole("article", { name: "Fenwick Housing Trust" })).toContainText("Yorkshire and the Humber (from this buyer’s other published records)");
   const ashby = brief.getByRole("article", { name: "Ashby Vale Council" });
   await expect(ashby).toContainText("A published deadline still ahead");
   await expect(ashby.getByRole("list", { name: "Evidence for Ashby Vale Council" }).getByRole("listitem")).toHaveCount(2); // a tender needs no reading added
@@ -77,7 +82,8 @@ test("a rep sees five leads for their patch with no typing, judges them with a t
   await toast(page, "Copied. Paste it into an email: SalesIntel sends nothing.");
   const sent = await page.evaluate(() => navigator.clipboard.readText());
   expect(sent).toContain("SalesIntel patch brief for My patch");
-  expect(sent).toContain("1. Ashby Vale Council  [Published tender]");
+  expect(sent).toContain("1. Fenwick Housing Trust  [Public record, before any tender]");
+  expect(sent).toContain("2. Ashby Vale Council  [Published tender]");
   expect(sent).toContain("[Published] https://www.contractsfinder.service.gov.uk/Notice/living-fixture-ashby");
   expect(sent).toContain("A = Didn’t know, worth a call   B = Knew already   C = Wrong");
   expect(sent).not.toMatch(/\d{4}-\d\d-\d\d/);
@@ -85,10 +91,10 @@ test("a rep sees five leads for their patch with no typing, judges them with a t
   // One tap: the lead leaves the five, stays in reach as worth a call, and is counted for this rep.
   await ashby.getByRole("button", { name: "Didn’t know, worth a call" }).click();
   await toast(page, "Verdict recorded. The next lead has moved up.");
-  await expect(brief.getByRole("article")).toHaveCount(0);
+  await expect(brief.getByRole("article")).toHaveCount(1);
+  await expect(brief.getByRole("article", { name: "Ashby Vale Council" })).toHaveCount(0);
   await expect(brief.getByRole("group", { name: "Worth a call" })).toContainText("Ashby Vale Council");
   await expect(brief).toContainText("1 of 1 judged lead: didn’t know, worth a call.");
-  await expect(brief).toContainText("You have judged every lead held for this patch.");
 
   // The verdict was recorded against this rep, and a brief opened anywhere shows it.
   await brief.getByRole("group", { name: "Worth a call" }).getByRole("button", { name: /Ashby Vale Council/ }).click();
@@ -102,8 +108,9 @@ test("a rep sees five leads for their patch with no typing, judges them with a t
   await brief.getByRole("button", { name: "Everything held in Yorkshire and the Humber" }).click();
   await expect(page).toHaveURL(/view=find/);
   const results = page.getByRole("region", { name: "Results" });
-  await expect(results.getByRole("button")).toHaveCount(1);
+  await expect(results.getByRole("button")).toHaveCount(2);
   await expect(results.getByRole("button", { name: /Ashby Vale Council/ })).toBeVisible();
+  await expect(results.getByRole("button", { name: /Fenwick Housing Trust/ })).toBeVisible();
   await page.getByRole("button", { name: /Region: Yorkshire and the Humber/ }).click();
   await expect(results.getByRole("button", { name: /Fernhill Parcels Ltd/ })).toBeVisible();
 

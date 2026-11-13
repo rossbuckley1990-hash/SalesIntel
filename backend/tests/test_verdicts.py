@@ -57,7 +57,8 @@ def test_a_verdict_is_stored_with_the_evidence_that_was_shown(local):
     assert shown['headline'] == before['reveal']['headline'] and shown['why'] == before['reveal']['why'] and shown['next'] == before['next']['label']
     assert shown['organisation'] == living_fixtures.FENWICK and shown['kind_label'] == 'Public record, before any tender'
     # every dated record that was on screen, with its link and whether it was published
-    assert {e['url'] for e in shown['evidence'] if e['url']} == {living_fixtures.FENWICK_EARLY_URL, living_fixtures.FENWICK_FINDING_URL}
+    assert {e['url'] for e in shown['evidence'] if e['url']} == {living_fixtures.FENWICK_EARLY_URL, living_fixtures.FENWICK_FINDING_URL,
+                                                                 'https://www.contractsfinder.service.gov.uk/Notice/atlas-fixture-fenwick'}  # and the buyer's award notice
     assert [(e['title'], e['basis']) for e in shown['evidence'] if e['effect'] == 'supports'] == [('Official market engagement', 'published'),
                                                                                                  ('Regulator finding on fire safety compliance', 'published')]
     assert client.get(f"/api/si/brief/{keys['signal']}").json()['verdict']['value'] == 'worth_a_call'

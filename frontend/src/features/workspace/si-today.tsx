@@ -5,7 +5,7 @@ import { DailyResearchBrief } from "./daily-research-brief";
 import { EmptyState, Pill } from "./ds";
 import { fieldLabel } from "./api";
 import { ActivityForm, Panel, TaskRow } from "./si-shared";
-import { STAGE_LABEL, dayLabel, goto, inDays, si, type ClockRow, type DealCard, type DiscoverResult, type Lead, type QueueItem, type SignalRow, type TodayT } from "./si-api";
+import { STAGE_LABEL, dayLabel, goto, inDays, si, type ClockRow, type DealCard, type DiscoverResult, type Lead, type QueueItem, type SignalRow, type TodayT, type VerdictSummary } from "./si-api";
 import { daysLabel } from "./si-notice";
 import { relative } from "./radar-model";
 import { Runway } from "./si-runway";
@@ -117,6 +117,22 @@ function Signals({ today }: { today: TodayT | null }) {
     </section>);
 }
 
+/** What was said about the leads shown: the measure of whether SalesIntel told a rep something worth a call. Counts, not rates. */
+function Verdicts({ said }: { said: VerdictSummary | null }) {
+  if (!said?.judged) return null;
+  return (
+    <section aria-label="Verdicts">
+      <div className="si-section-head"><h2>Verdicts</h2><p>What was said about the leads shown. A verdict never changes the order of a list.</p></div>
+      <div className="lo-clock solo">
+        <section aria-label="Verdicts so far" className="lo-clock-col">
+          <h3>{said.headline}</h3>
+          <p>{said.knew_already} knew already · {said.wrong} wrong</p>
+          <ul className="lo-tally">{said.by_kind.map((k) => <li key={k.kind}><span>{k.label}</span><b>{k.worth_a_call} of {k.judged} worth a call</b></li>)}</ul>
+        </section>
+      </div>
+    </section>);
+}
+
 const PER: Record<string, string> = { annual: "a year", quarterly: "a quarter", monthly: "a month" };
 
 const ICON = { follow_up: CalendarClock, draft: FilePenLine, deal: Briefcase, intelligence: BellRing };
@@ -136,6 +152,8 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
   const [q, setQ] = useState("");
   const [error, setError] = useState("");
   const [digest, setDigest] = useState<Digest | null>(null);
+  const [said, setSaid] = useState<VerdictSummary | null>(null);
+  useEffect(() => { si<VerdictSummary>("/brief/verdicts").then(setSaid).catch(() => setSaid(null)); }, []);
   useEffect(() => { si<Digest>("/brief/digest").then(setDigest).catch(() => setDigest({ changed: [], watching: [] })); }, []);
   const load = useCallback(async () => {
     try {
@@ -187,6 +205,8 @@ export function SiToday({ data, notify, inspect }: SharedProps) {
       <Deadlines today={today} />
 
       <Signals today={today} />
+
+      <Verdicts said={said} />
 
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); goto("find", { q }); }} role="search">
         <div className="si-hero-search relative flex-1">

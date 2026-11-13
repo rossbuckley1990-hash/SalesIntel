@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { AlertTriangle, ArrowUpRight, Briefcase, CalendarPlus, Check, ChevronDown, CircleDot, Clock3, FilePenLine, FileSearch, History, Loader2, Minus, MessageSquare, Search, Sparkles,
   TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
 import { hostOf, safeUrl } from "./radar-model";
-import { SERVICES, dayLabel, goto, inDays, si } from "./si-api";
+import { SERVICES, dayLabel, goto, inDays, si, VERDICTS, repName, type VerdictT, type VerdictValue } from "./si-api";
 import { ActivityForm } from "./si-shared";
 import { JobStatus, newKey, useJob, type JobT } from "./si-people";
 import { FieldView, NoticeFacts, type FieldT, type NoticeT } from "./si-notice";
@@ -30,6 +30,8 @@ export type BriefT = {
   story: { date: string; kind: string; text: string; detail: string }[]; stakeholders: { name: string; role: string; status: string; source: string | null; route: string }[];
   unknowns: string[]; recorded_requirement: string; sources: { key: string; title: string }[]; since_last_review: { since: string | null; new_events: number };
   notice?: NoticeT | null; field?: FieldT | null;
+  /** Whether this record came from a lead (only a lead can be judged), and the standing verdict on it. */
+  judgeable?: boolean; verdict?: VerdictT | null;
 };
 type Notify = (m: string, e?: boolean) => void;
 type Running = { label: string; job: JobT; gapRequestId?: number };
@@ -79,7 +81,7 @@ export function useOpportunity(key: string | null, notify: Notify, { markReviewe
   const load = useCallback(async () => {
     if (!key) return;
     try {
-      const b = await si<BriefT>(`/brief/${key}`);
+      const b = await si<BriefT>(`/brief/${key}${repName() ? `?${new URLSearchParams({ rep: repName() })}` : ""}`);
       if (latest.current !== key) return; // a slower answer for a lead no longer selected
       setBrief(b); setError("");
       shownAt.current = shownAt.current || Date.now();
@@ -187,6 +189,19 @@ export function useOpportunity(key: string | null, notify: Notify, { markReviewe
     } catch (e) { notify((e as Error).message, true); } finally { setBusy(""); }
   }
 
+  /** One tap. The server stores it with the evidence shown; "Wrong" hides the lead, and tapping a verdict again takes it back. */
+  async function judge(verdict: VerdictValue | "cleared") {
+    if (!brief || !key) return;
+    const was = brief.verdict?.value;
+    setBusy("verdict");
+    try {
+      const r = await si<{ verdict: VerdictT | null }>(`/brief/${key}/verdict`, { method: "POST", json: { verdict, rep: repName() } });
+      setBrief((b) => (b ? { ...b, verdict: r.verdict } : b));
+      notify(verdict === "cleared" ? "Verdict taken back." : verdict === "wrong" ? "Marked wrong. It is hidden from your lists." : "Verdict recorded.");
+      if (verdict === "wrong" || was === "wrong") changed.current?.();
+    } catch (e) { notify((e as Error).message, true); } finally { setBusy(""); }
+  }
+
   const finished = useCallback(async () => {
     const gapId = running?.gapRequestId;
     if (gapId) await si(`/gaps/${gapId}`).catch(() => {}); // brings the request's status up to date with its job
@@ -194,7 +209,7 @@ export function useOpportunity(key: string | null, notify: Notify, { markReviewe
     await refresh();
   }, [running, refresh]);
 
-  return { key, brief, error, running, finished, form, setForm, busy, run, research, ensureAccount, refresh, reload: load, notify };
+  return { key, brief, error, running, finished, form, setForm, busy, run, research, judge, ensureAccount, refresh, reload: load, notify };
 }
 export type Opportunity = ReturnType<typeof useOpportunity>;
 
@@ -284,9 +299,27 @@ function Reveal({ b, op }: { b: BriefT; op: Opportunity }) {
             {op.brief && kq.action === "research" && <button className="lo-link" onClick={() => document.getElementById(`lo-gaps-${b.key}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}>See every open question</button>}</>}
         </section>
       </div>
+      <Verdict op={op} />
       <p className="lo-fresh"><Clock3 size={12} aria-hidden="true" />Latest sourced evidence {f.latest_evidence ? month(f.latest_evidence) : "none dated"}
         {f.first_seen && <> · first seen {month(f.first_seen)}</>} · {f.last_researched ? `last researched ${month(f.last_researched)}` : "not researched yet"}</p>
     </header>
+  );
+}
+
+/** The rep's verdict, asked right after what was read. It is the measure of whether a lead was worth showing. */
+export function Verdict({ op, compact = false }: { op: Pick<Opportunity, "brief" | "busy" | "judge">; compact?: boolean }) {
+  const b = op.brief;
+  if (!b?.judgeable) return null;
+  const given = b.verdict?.value;
+  return (
+    <section className={`lo-verdict${compact ? " compact" : ""}`} aria-label="Your verdict">
+      {!compact && <h3 className="lo-q">Your verdict</h3>}
+      <div className="lo-verdict-row" role="group" aria-label="Verdict on this lead">
+        {VERDICTS.map(([id, label]) => <button key={id} type="button" className={id === "wrong" ? "no" : ""} aria-pressed={given === id} disabled={op.busy === "verdict"}
+          onClick={() => void op.judge(given === id ? "cleared" : id)}>{label}</button>)}
+      </div>
+      {!compact && <p className="lo-note">{given ? "Recorded with the evidence shown here. Tap it again to take it back." : "One tap. It is stored with the evidence shown here, and never changes the order of a list."}</p>}
+    </section>
   );
 }
 

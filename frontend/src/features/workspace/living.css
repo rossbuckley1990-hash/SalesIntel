@@ -199,8 +199,89 @@
 .lo-account.wide > .lo-dock-col { position: sticky; top: 76px; }
 .lo-account > .lo { padding: 22px; border: 1px solid var(--lo-hair); border-radius: 12px; background: var(--ds-surface); }
 
+/* What the notice says: the buyer's own figures first, then the detail as an editorial brief. */
+.lo-figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 14px 22px; margin: 2px 0 14px; }
+.lo-fig { min-width: 0; padding-top: 9px; border-top: 1px solid var(--ds-ink); }
+.lo-fig dt { margin-bottom: 5px; }
+.lo-fig dd { display: flex; flex-direction: column; gap: 3px; margin: 0; }
+.lo-fig .v { font-size: 20px; font-weight: 600; line-height: 24px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ds-ink); overflow-wrap: anywhere; }
+.lo-fig .v.sm { font-size: 14.5px; line-height: 20px; letter-spacing: -.005em; }
+.lo-fig .n { font-size: 12px; line-height: 17px; color: var(--ds-muted); }
+.lo-fig .n b { font-weight: 600; color: var(--ds-ink-2); }
+.lo-fig[data-tone="urgent"] .n b { color: var(--ds-red); }
+.lo-fig[data-tone="soon"] .n b { color: var(--ds-amber); }
+.lo-scorebar { display: flex; gap: 2px; height: 4px; margin-top: 4px; }
+.lo-scorebar i { display: block; min-width: 2px; border-radius: 1px; background: var(--ds-ink); }
+.lo-scorebar i.p { background: var(--ds-border-strong); }
+.lo-rows { margin-top: 0; }
+.lo-rows > section > * + * { margin-top: 6px; }
+.lo-rows > section > .lo-q + * { margin-top: 0; }
+@container lo (min-width: 470px) { .lo-rows > section > .lo-q { grid-row: 1 / span 24; } }
+.lo-clamp { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.lo-lede { font-size: 14px; line-height: 21px; font-weight: 500; color: var(--ds-ink); }
+.lo-dates, .lo-score ul, .lo-lots, .lo-points, .lo-docs, .lo-contracts, .lo-winners, .lo-prices { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.lo-dates li, .lo-score li, .lo-lots li { display: grid; align-items: baseline; column-gap: 12px; padding: 5px 0; font-size: 13px; line-height: 19px; }
+.lo-dates li + li, .lo-score li + li, .lo-lots li + li, .lo-winners li + li, .lo-prices li + li, .lo-contract + .lo-contract { border-top: 1px dashed var(--lo-hair); }
+.lo-dates li { grid-template-columns: minmax(0, 1fr) auto 86px; }
+.lo-dates .what, .lo-score .what, .lo-lots .what { min-width: 0; color: var(--ds-ink); font-weight: 500; }
+.lo-dates small, .lo-score small, .lo-lots small, .lo-prices small { display: block; font-size: 12px; line-height: 17px; font-weight: 400; color: var(--ds-muted); }
+.lo-dates .when, .lo-dates .left, .lo-score .w, .lo-lots .w, .lo-lots .id, .lo-prices .v { font-family: var(--lo-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.lo-dates .when { color: var(--ds-ink-2); white-space: nowrap; }
+.lo-dates .left { text-align: right; color: var(--ds-muted); white-space: nowrap; }
+.lo-dates li[data-past] .what, .lo-dates li[data-past] .when { color: var(--ds-muted); font-weight: 400; }
+.lo-score li { grid-template-columns: minmax(0, 1fr) auto 78px; }
+.lo-score .kind { font-size: 11.5px; color: var(--ds-muted); text-transform: capitalize; }
+.lo-score .w { text-align: right; color: var(--ds-ink); font-weight: 500; white-space: nowrap; }
+.lo-score-lot { font-size: 12.5px; font-weight: 600; color: var(--ds-ink-2); }
+.lo-score + .lo-score { margin-top: 10px; }
+.lo-lots li { grid-template-columns: 44px minmax(0, 1fr) auto; }
+.lo-lots .id { color: var(--ds-muted); white-space: nowrap; }
+.lo-lots .w { text-align: right; color: var(--ds-ink); font-weight: 500; white-space: nowrap; }
+.lo-points { gap: 7px; }
+.lo-points li { font-size: 13px; line-height: 20px; }
+.lo-points strong { font-weight: 600; color: var(--ds-ink); }
+.lo-docs { gap: 5px; }
+.lo-docs li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 12.5px; line-height: 19px; }
+.lo-docs .lo-source { margin-left: 0; gap: 4px; font-size: 13px; font-weight: 600; color: var(--ds-ink); }
+.lo-docs .lo-source svg:first-child { color: var(--ds-muted); align-self: center; }
+.lo-docs .lo-muted { font-size: 12px; line-height: 17px; }
+
+/* The competitive field: suppliers are doors into the Contract Atlas, never a claim about who delivers today. */
+.lo-co { display: inline; padding: 0; font-size: inherit; font-weight: 600; line-height: inherit; text-align: left; color: var(--ds-ink); text-decoration: underline; text-decoration-color: var(--ds-border-strong); text-underline-offset: 3px; }
+.lo-co:hover { text-decoration-color: currentColor; }
+.lo-you, .lo-here { display: inline-block; margin-left: 6px; padding: 0 5px; border: 1px solid var(--lo-hair); border-radius: 4px; font: 500 10px/16px var(--lo-mono); letter-spacing: .03em; text-transform: uppercase; text-decoration: none; vertical-align: 1px; color: var(--ds-ink-2); background: var(--ds-canvas); }
+.lo-you { border-color: var(--ds-green-line); color: var(--ds-green); background: var(--ds-green-soft); }
+.lo-cos { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; font-size: 13.5px; }
+.lo-last { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; margin: 8px 0 2px; padding: 10px 12px; border: 1px solid var(--lo-hair); border-radius: 8px; background: var(--ds-canvas); }
+.lo-last dt { font: 500 10.5px/1.4 var(--lo-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ds-muted); }
+.lo-last dd { margin: 1px 0 0; font-size: 13px; line-height: 19px; color: var(--ds-ink); }
+.lo-contract { padding: 8px 0; }
+.lo-contracts { margin-top: 4px; }
+.lo-contract .t, .lo-prices .t { display: block; padding: 0; text-align: left; font-size: 13.5px; font-weight: 600; line-height: 19px; color: var(--ds-ink); }
+.lo-contract .t:hover, .lo-prices .t:hover { text-decoration: underline; text-decoration-color: var(--ds-border-strong); text-underline-offset: 3px; }
+.lo-contract .m { margin-top: 1px; font-size: 13px; line-height: 19px; color: var(--ds-ink-2); }
+.lo-contract .m .lo-co { font-weight: 500; }
+.lo-contract .s { margin-top: 1px; font-size: 12px; line-height: 18px; color: var(--ds-muted); }
+.lo-contract .s [data-code="end_approaching"], .lo-contract .s [data-code="in_extension"] { color: var(--ds-amber); font-weight: 500; }
+.lo-contract .s [data-code="active"] { color: var(--ds-ink-2); font-weight: 500; }
+.lo-winners { counter-reset: w; }
+.lo-winners li { display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 6px; padding: 7px 0; counter-increment: w; }
+.lo-winners li::before { content: counter(w); grid-row: 1 / span 2; padding-top: 1px; font: 500 11.5px/19px var(--lo-mono); color: var(--ds-faint); }
+.lo-winners .who { font-size: 13.5px; line-height: 19px; }
+.lo-winners .what { font-size: 12px; line-height: 18px; color: var(--ds-muted); }
+.lo-range strong { font-size: 17px; font-weight: 600; letter-spacing: -.012em; font-variant-numeric: tabular-nums; color: var(--ds-ink); }
+.lo-prices li { display: grid; grid-template-columns: 148px minmax(0, 1fr); column-gap: 12px; align-items: baseline; padding: 7px 0; }
+.lo-prices .v { color: var(--ds-ink); font-weight: 500; line-height: 18px; }
+.lo-link.inline { margin-top: 0; }
+.lo-coverage { margin-top: 10px; }
+
 @media (max-width: 640px) {
   .lo-headline { font-size: 26px; }
+  .lo-prices li { grid-template-columns: minmax(0, 1fr); }
+  .lo-dates li { grid-template-columns: minmax(0, 1fr) auto; }
+  .lo-dates .left { grid-column: 1 / -1; text-align: left; }
+  .lo-score li { grid-template-columns: minmax(0, 1fr) auto; }
+  .lo-score .kind { display: none; }
   .lo-event { grid-template-columns: 64px 14px minmax(0, 1fr); column-gap: 8px; }
   .lo-story li { grid-template-columns: 14px 64px minmax(0, 1fr); }
   .lo-account > .lo, .lo-detail-inner { padding: 16px; }
@@ -208,3 +289,67 @@
   .lo-rel-basis { grid-column: 2; align-items: flex-start; text-align: left; flex-direction: row; gap: 6px; }
 }
 @media (prefers-reduced-motion: reduce) { .lo *, .lo-dock * { transition: none !important; animation-duration: .001ms !important; } }
+
+/* Discover rows: what the row's own notice states, on one quiet line under the title. */
+.lo-rowtitle { display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 20px; color: var(--ds-ink-2); }
+.lo-rowfacts { display: flex; flex-wrap: wrap; row-gap: 1px; margin-top: 4px; font-size: 12.5px; line-height: 18px; color: var(--ds-muted); }
+.lo-rowfacts > *:not(:last-child)::after { content: "\00b7"; margin: 0 7px; font-weight: 400; color: var(--ds-faint); }
+.lo-rowfacts b { font-weight: 600; color: var(--ds-ink); }
+.lo-outside { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; border: 1px solid var(--ds-border); border-radius: 10px; background: var(--ds-canvas); padding: 8px 12px; font-size: 12.5px; line-height: 18px; color: var(--ds-ink-2); }
+.lo-outside svg { flex: none; color: var(--ds-muted); }
+.lo-outside span { flex: 1 1 220px; min-width: 0; }
+
+/* Today: the dates the published record sets. Two quiet lists, date first. */
+.lo-brief-col li em { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: normal; font-size: 12px; font-weight: 500; line-height: 17px; color: var(--ds-ink-2); }
+.lo-clock { display: grid; gap: 1px; overflow: hidden; border: 1px solid var(--ds-border); border-radius: 12px; background: var(--ds-border); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 960px) { .lo-clock { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.lo-clock-col { min-width: 0; padding: 14px 16px 12px; background: var(--ds-surface); }
+.lo-clock-col h3 { font-size: 13.5px; font-weight: 600; color: var(--ds-ink); }
+.lo-clock-col > p { margin-top: 2px; font-size: 12px; line-height: 17px; color: var(--ds-muted); }
+.lo-clock-col ul { margin: 8px -8px 0; padding: 0; list-style: none; }
+.lo-clock-col li + li { border-top: 1px solid var(--ds-border); }
+.lo-clock-col li button { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; width: 100%; padding: 9px 8px; border-radius: 8px; text-align: left; }
+.lo-clock-col li button:hover { background: var(--ds-hover); }
+.lo-clock-when b { display: block; font-size: 13px; font-weight: 600; line-height: 19px; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+.lo-clock-when.urgent b { color: var(--ds-red); }
+.lo-clock-when span { display: block; font-size: 12px; line-height: 17px; color: var(--ds-muted); font-variant-numeric: tabular-nums; }
+.lo-clock-main { min-width: 0; }
+.lo-clock-main strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 600; line-height: 19px; color: var(--ds-ink); }
+.lo-clock-main .t { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; line-height: 18px; color: var(--ds-ink-2); }
+.lo-clock-main .lo-rowfacts { margin-top: 2px; }
+.lo-clock-all { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--ds-ink-2); }
+.lo-clock-all:hover { color: var(--ds-ink); text-decoration: underline; }
+@media (max-width: 480px) { .lo-clock-col li button { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; } }
+/* On a phone the filters sit two to a row, so the results are not pushed a screen away. */
+@media (max-width: 640px) { .lo-filters > select { flex: 1 1 calc(50% - 4px); min-width: 0; } }
+/* Public signals: one list, two across on a wide screen. A signal's sentence may run to two lines, since it is the whole point of the row. */
+.lo-clock.solo { grid-template-columns: minmax(0, 1fr); }
+.lo-clock-main .t.two, .lo-rowtitle.two { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; }
+@media (min-width: 960px) {
+  .lo-signals ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+  .lo-signals li:nth-child(2) { border-top: 0; }
+}
+
+/* Contractor footprint: the supplier's published book, counted. */
+.lo-foot-list { margin: 10px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--ds-border); }
+.lo-foot-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: start; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--ds-border); }
+.lo-foot-buyer { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 600; line-height: 19px; color: var(--ds-ink); text-align: left; text-decoration: underline; text-decoration-color: var(--ds-border-strong); text-underline-offset: 3px; }
+.lo-foot-buyer:hover { text-decoration-color: currentColor; }
+.lo-foot-row .lo-foot-buyer { display: block; }
+.lo-foot-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; line-height: 18px; color: var(--ds-ink-2); }
+.lo-foot-grid { display: grid; gap: 20px 28px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .lo-foot-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.lo-foot-grid h4 { font-size: 12px; font-weight: 600; color: var(--ds-ink-2); }
+.lo-foot-plain { margin: 6px 0 0; padding: 0; list-style: none; }
+.lo-foot-plain li { padding: 5px 0; }
+.lo-foot-plain li + li { border-top: 1px solid var(--ds-border); }
+.lo-foot-plain li > strong, .lo-foot-plain li > .lo-foot-buyer { display: block; font-size: 13px; font-weight: 600; line-height: 19px; color: var(--ds-ink); }
+.lo-foot-plain li > span { display: block; font-size: 12px; line-height: 17px; color: var(--ds-muted); }
+.lo-bars { margin: 6px 0 0; padding: 0; list-style: none; }
+.lo-bars li { display: grid; grid-template-columns: 40px minmax(60px, 180px) minmax(0, 1fr); align-items: center; gap: 10px; padding: 3px 0; font-size: 12.5px; line-height: 18px; color: var(--ds-ink-2); font-variant-numeric: tabular-nums; }
+.lo-bars.tight li { grid-template-columns: 40px minmax(40px, 1fr) 24px; }
+.lo-bars .y { font-weight: 600; color: var(--ds-ink); }
+.lo-bars .bar { display: block; height: 6px; border-radius: 3px; background: var(--ds-subtle); }
+.lo-bars .bar i { display: block; height: 6px; border-radius: 3px; background: var(--ds-brand); }
+.lo-bars.tight .v { text-align: right; }
+@media (max-width: 480px) { .lo-foot-row { grid-template-columns: 84px minmax(0, 1fr); } .lo-foot-row > .lo-link { grid-column: 2; } }

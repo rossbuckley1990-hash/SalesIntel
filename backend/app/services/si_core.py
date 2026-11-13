@@ -20,6 +20,7 @@ from app.models.crm import Account, AccountLink, Activity, Contact, DealRecord, 
 from app.models.market_opportunity import MarketOpportunity, MarketOpportunityRevision
 from app.models.prospect import Prospect
 from app.models.tenancy import LeadState
+from app.services import notice, signals
 from app.services.prospect_research import view as prospect_view
 from app.tenancy import hosted
 
@@ -56,13 +57,24 @@ def name_key(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", text).strip()[:255]
 
 
-def display_name(name: str) -> str:
-    """Registers often publish buyers in capitals; show them as people write them."""
+def _capitals_name(name: str) -> str:
+    """The first way capitals were tidied. Kept only as the list's last tie-break, so tidying names better can never move a row."""
     if name != name.upper():
         return name.strip()
     words = name.lower().split()
     keep = {"nhs", "uk", "plc", "llp", "hmrc", "dvla", "cic"}
     return " ".join(w.upper() if w in keep else w.capitalize() for w in words)
+
+
+def display_name(name: str) -> str:
+    """Registers often publish buyers in capitals; show them as people write them: "Example Vale and District Council"."""
+    if name != name.upper():
+        return name.strip()
+    keep = {"nhs", "uk", "plc", "llp", "hmrc", "dvla", "cic", "mbc", "mhra", "icb", "chp"}
+    small = {"and", "of", "the", "for", "in", "on", "at", "upon", "under", "with", "by"}
+    def word(i: int, w: str) -> str:
+        return w.upper() if w in keep else w if i and w in small else "-".join(p if j and p in small else p.capitalize() for j, p in enumerate(w.split("-")))
+    return " ".join(word(i, w) for i, w in enumerate(name.lower().split()))
 
 
 ORIGIN = {"shadow_hypothesis": ("sh", "shadow"), "market_opportunity": ("mo", "public"), "prospect": ("pr", "private")}
@@ -257,7 +269,9 @@ def _why_public(s: dict) -> str:
         return f"Published contract{f' with {supplier}' if supplier else ''} ends {when or 'soon'}; the buyer is likely to plan its replacement before then."
     if cat == "verify_first":
         return f"Published term {'ended' if timing and _days(timing, uk_today()) is not None and _days(timing, uk_today()) < 0 else 'ends'} {when or 'on an unpublished date'}; current arrangement not confirmed."
-    return (s.get("brief") or {}).get("why_it_matters") or "Public signal worth checking."
+    if cat == signals.CATEGORY and (top := signals.summary(s)):
+        return top["why"]  # what kind of record, its date, and how much evidence stands behind it
+    return notice.readable((s.get("brief") or {}).get("why_it_matters")) or "Public signal worth checking."
 
 
 def discover_items(db: Session, *, include_private: bool = True, include_public: bool = True, limit: int | None = 200, include_shadow: bool = True) -> list[dict]:
@@ -280,6 +294,7 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
             urgent = s.get("category") in ("contract_defence", "live_procurement") or (days is not None and 0 <= days <= 120)
             items.append({
                 "key": f"mo:{item.id}", "type": "public", "source_label": "Public procurement", "organisation": display_name(s.get("customer") or ""),
+                "_order": _capitals_name(s.get("customer") or ""),
                 "title": s.get("title") or "", "why_now": _why_public(s), "category": s.get("category"), "category_label": s.get("category_label"),
                 "basis": "inferred" if s.get("category") == "inferred_signal" else "published", "timing": s.get("timing"), "days": days, "sector": s.get("sector"),
                 "timing_label": s.get("timing_basis") or "", "nation": s.get("nation"), "tier": (s.get("priority") or {}).get("tier"),
@@ -296,10 +311,17 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
             if s.get("supplier"):
                 known.append({"text": f"Supplier named on the published record: {s['supplier']} (reported, not necessarily today's incumbent)", "source_url": None, "date": "", "basis": "published"})
             if s.get("timing"):
-                known.append({"text": f"{s.get('timing_basis') or 'Timing'}: {s['timing']}", "source_url": None, "date": "", "basis": "published"})
-            it["brief"] = _brief(it, it["kind"], prefs, s.get("sector") or "", known, (s.get("brief") or {}).get("missing_information") or [],
+                basis = s.get("timing_basis") or "Timing"
+                known.append({"text": f"{basis[:1].upper()}{basis[1:]}: {notice.readable(str(s['timing'])[:10])}", "source_url": None, "date": "", "basis": "published"})
+            it["brief"] = _brief(it, it["kind"], prefs, s.get("sector") or "", known, [notice.readable(x) for x in (s.get("brief") or {}).get("missing_information") or []],
                                  routes.get(it["account_id"], 0), 0)
             it["kind_label"] = KIND_LABEL[it["kind"]]
+            if s.get("category") == signals.CATEGORY and (top := signals.summary(s)):
+                _signal_row(it, s, top)
+            evidence = [e for e in s.get("evidence") or [] if isinstance(e, dict)]
+            it["published"] = max(((e.get("published_at") or "")[:10] for e in evidence), default="")
+            it["_evidence"] = evidence
+        _row_facts(db, items, today)
     if include_private:
         for row in db.scalars(select(Prospect)):
             v = prospect_view(row, today)
@@ -336,8 +358,78 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
     if include_shadow:
         items += _shadow_items(db, links, statuses, routes, prefs, today)
     # Published deadlines first, then by how much of the recorded fit matches; never by an invented score.
-    items.sort(key=lambda x: (x["status"] == "dismissed", x["kind"] == "unverified_candidate", x["rank"], -len(x["brief"]["fit"]["matched"]), x["organisation"]))
+    items.sort(key=lambda x: (x["status"] == "dismissed", x["kind"] == "unverified_candidate", x["rank"], -len(x["brief"]["fit"]["matched"]), x.get("_order") or x["organisation"]))
+    for x in items:
+        x.pop("_order", None)
     return items if limit is None else items[:limit]
+
+
+UNSOURCED = "The signal is inferred or unsourced. Verify it before acting."
+
+
+def _signal_row(it: dict, s: dict, top: dict) -> None:
+    """A public record that gives a reason to ask is shown as what it is: its newest record in one sentence, where that came
+    from, and how much evidence stands behind it. Only what is displayed changes; the row keeps its kind and its place."""
+    it["headline"] = top["headline"]
+    it["signal"] = {k: top[k] for k in ("date", "source", "source_url", "official", "records", "sources", "corroborated", "strength")}
+    it["kind_label"] = signals.KIND_LABEL
+    brief = it["brief"]
+    brief["known"] = [{"text": signals.lead_sentence(notice.readable(x["statement"]))[0], "source_url": x.get("source_url") or None, "date": str(x.get("occurred_on") or "")[:10],
+                       "basis": "published" if x.get("reliability") in signals.OFFICIAL else "stated"} for x in signals.records(s)][:6]
+    # The record is published and linked, so it is not "unsourced"; that no requirement is confirmed is already listed.
+    brief["unknown"] = [u for u in brief["unknown"] if u != UNSOURCED]
+    if it["account_id"] is None:
+        brief["next"] = "Read the record at its source before opening an account."
+
+
+def _row_facts(db: Session, items: list[dict], today: date) -> None:
+    """What each row's own stored notice states: value, the next dated step, place, lots. The same notice the brief reads, so a
+    row and its brief can never disagree. Read in one pass and cached by the notice's content."""
+    for it, cited in zip(items, notice.cited(db, [it.pop("_evidence", []) for it in items])):
+        tender = it["category"] in ("live_procurement", "official_early_signal")
+        wanted = ("tender", "planning") if tender else ("award",)
+        found = next((f for f in cited if f.get("stage") in wanted), None) or next(iter(cited), {})
+        it["facts"] = notice.headline(found, today)
+        it["worth"] = _worth(it.get("value"), it["facts"], tender)
+
+
+def _worth(stored: Any, facts: dict, tender: bool) -> dict | None:
+    """One published figure for a row, and what kind of figure it is. A framework ceiling is never passed off as a contract value."""
+    v = stored if isinstance(stored, dict) else {}
+    if tender and facts.get("value_amount"):
+        return {"amount": facts["value_amount"], "kind": "notice_estimate", "label": f"{facts['value']} estimated in the notice"}
+    if v.get("framework_ceiling"):
+        return {"amount": float(v["framework_ceiling"]), "kind": "framework_ceiling", "label": f"{notice.money(float(v['framework_ceiling']))} framework ceiling"}
+    if v.get("published_total"):
+        total, yearly = float(v["published_total"]), float(v.get("estimated_annualised") or 0)
+        label = f"{notice.money(total)} published total" + (f", about {notice.money(yearly)} a year" if yearly and round(yearly) != round(total) else "")
+        return {"amount": total, "kind": "published_total", "label": label, **({"annual": yearly} if yearly else {})}
+    if facts.get("value_amount"):
+        return {"amount": facts["value_amount"], "kind": "notice_award" if facts.get("value_kind") == "award" else "notice_estimate",
+                "label": f"{facts['value']} {'awarded' if facts.get('value_kind') == 'award' else 'estimated in the notice'}"}
+    return None
+
+
+SORTS = ("", "value", "closing", "newest")
+
+
+def _sorted(found: list[dict], sort: str, today: date) -> list[dict]:
+    """The salesperson's own choice of order. Each is a published fact; rows without it keep their place after those with it."""
+    if sort == "value":  # contract values first, largest first; framework ceilings after them; no published figure last
+        def by_value(x: dict) -> tuple:
+            w = x.get("worth")
+            return (2, 0.0) if not w else (1 if w["kind"] == "framework_ceiling" else 0, -w["amount"])
+        return sorted(found, key=by_value)
+    if sort == "closing":  # the next published date still ahead: a deadline in the notice, else the published timing
+        def by_date(x: dict) -> tuple:
+            due = ((x.get("facts") or {}).get("deadline") or {}).get("date") or ""
+            when = due or (x.get("timing") or "" if x.get("days") is not None and x["days"] >= 0 else "")
+            return (0, when) if when and when >= today.isoformat() else (1, "")
+        return sorted(found, key=by_date)
+    if sort == "newest":
+        dated = sorted((x for x in found if x.get("published")), key=lambda x: x["published"], reverse=True)
+        return dated + [x for x in found if not x.get("published")]
+    return found
 
 
 KIND_LABEL = {"published_procurement": "Published procurement opportunity", "contract_ending": "Existing contract approaching a reported end date",
@@ -397,7 +489,7 @@ def _brief(item: dict, kind: str, prefs: dict, sector: str, known: list[dict], u
     if kind in ("private_signal", "unverified_candidate"):
         unknowns = [*unknowns, "Any confirmed requirement: the signal is a reason to investigate, not proof of buying intent."]
     if kind == "unverified_candidate":
-        unknowns = ["The signal is inferred or unsourced. Verify it before acting.", *unknowns]
+        unknowns = [UNSOURCED, *unknowns]
     if item["account_id"] is None:
         nxt = "Open the account and find the right people." if kind != "unverified_candidate" else "Verify the signal before opening an account."
     elif not routes:
@@ -437,7 +529,7 @@ def _shadow_items(db: Session, links: dict, statuses: dict, routes: dict, prefs:
     for (row, a), rivals in primaries:
         link = links.get(("shadow_hypothesis", row.id))
         start = date.fromisoformat(a["window"][0])
-        item = {"key": f"sh:{row.id}", "type": "shadow", "source_label": "Shadow Radar", "organisation": display_name(a["entity_name"]),
+        item = {"key": f"sh:{row.id}", "type": "shadow", "source_label": "Shadow Radar", "organisation": display_name(a["entity_name"]), "_order": _capitals_name(a["entity_name"]),
                 "title": f"{a['sensor_name']}: {a.get('site') or a['hypothesis']}", "why_now": shadow_why(a), "category": a["sensor"], "category_label": a["sensor_name"],
                 "basis": "inferred", "timing": a["window"][0], "days": (start - today).days, "timing_label": "Possible investigation window opens",
                 "nation": None, "region": None, "tier": None, "services": a["services"], "evidenced_services": [],  # services inferred from the building type
@@ -472,7 +564,12 @@ def interpret(q: str) -> dict:
 
 
 def discover(db: Session, *, q: str = "", source: str = "all", nation: str = "", service: str = "", status: str = "active", category: str = "",
-             limit: int = 50, offset: int = 0) -> dict:
+             limit: int = 50, offset: int = 0, sort: str = "", key: str = "") -> dict:
+    """The list. `key` asks for one record by its key, whatever its status and whatever the other filters say: a record opened
+    from Today or from a brief is shown even when the list on screen does not hold it."""
+    if key:
+        found = [x for x in discover_items(db, limit=None) if x["key"] == key]
+        return {"items": found, "total": len(found), "counts": {"public": 0, "private": 0, "shadow": 0}, "interpreted": interpret(""), "gaps": [], "sort": ""}
     meaning = interpret(q)
     items = discover_items(db, include_public=source in ("all", "public"), include_private=source in ("all", "private"), limit=None,
                            include_shadow=source in ("all", "public", "shadow"))
@@ -491,9 +588,9 @@ def discover(db: Session, *, q: str = "", source: str = "all", nation: str = "",
             return False  # research is located by free text, so match the nation there
         if services and not set(services) & set(x["services"]):
             return False
-        hay = " ".join(str(x.get(k) or "") for k in ("organisation", "title", "why_now", "supplier", "region")).lower()
+        hay = " ".join(str(x.get(k) or "") for k in ("organisation", "title", "headline", "why_now", "supplier", "region")).lower()
         return all(k in hay for k in meaning["keywords"])
-    found = [x for x in items if keep(x)]
+    found = _sorted([x for x in items if keep(x)], sort, uk_today())
     gaps = []
     if meaning["regions"]:
         gaps.append(f"Public notices are located by nation, not region, so '{', '.join(meaning['regions'])}' is matched only where it appears in the text.")
@@ -505,7 +602,7 @@ def discover(db: Session, *, q: str = "", source: str = "all", nation: str = "",
         gaps.append("No captured record matches. This does not mean no opportunity exists.")
     counts = {"public": sum(1 for x in found if x["type"] == "public"), "private": sum(1 for x in found if x["type"] == "private"),
               "shadow": sum(1 for x in found if x["type"] == "shadow")}
-    return {"items": found[offset:offset + limit], "total": len(found), "counts": counts, "interpreted": meaning, "gaps": gaps}
+    return {"items": found[offset:offset + limit], "total": len(found), "counts": counts, "interpreted": meaning, "gaps": gaps, "sort": sort}
 
 
 def set_status(db: Session, key: str, status: str) -> None:
@@ -557,9 +654,13 @@ def linked_summary(db: Session, link: AccountLink) -> dict | None:
         if not found:
             return None
         item, s = found
-        return {"key": f"mo:{item.id}", "type": "public", "title": s.get("title"), "why_now": _why_public(s), "category_label": s.get("category_label"),
-                "timing": s.get("timing"), "supplier": s.get("supplier"), "value": s.get("value"), "basis": "published",
-                "evidence": [{"label": f"{e.get('source')} notice {e.get('record_key')}", "url": e.get("source_url"), "date": (e.get("published_at") or "")[:10]} for e in s.get("evidence") or []][:4],
+        top = signals.summary(s) if s.get("category") == signals.CATEGORY else None
+        evidence = ([{"label": notice.readable(x.get("label")) or "Public record", "url": x.get("source_url") or None, "date": str(x.get("occurred_on") or "")[:10]} for x in signals.records(s)]
+                    if top else [{"label": f"{e.get('source')} notice {e.get('record_key')}", "url": e.get("source_url"), "date": (e.get("published_at") or "")[:10]} for e in s.get("evidence") or []])
+        return {"key": f"mo:{item.id}", "type": "public", "title": top["headline"] if top else s.get("title"), "why_now": _why_public(s),
+                "category_label": signals.KIND_LABEL if top else s.get("category_label"),
+                "timing": s.get("timing"), "supplier": s.get("supplier"), "value": s.get("value"), "basis": "published", "evidence": evidence[:4],
+                **({"signal": {"engagement": signals.engagement(s), "other_records": sum(1 for x in signals.records(s) if x.get("signal_type") != "market_engagement")}} if top else {}),
                 "missing": (s.get("brief") or {}).get("missing_information") or [], "link_basis": link.basis, "confirmed": link.confirmed, "name_seen": link.name_seen}
     if link.entity_type == "shadow_hypothesis":
         from app.services import shadow
@@ -726,8 +827,57 @@ def today_queue(db: Session) -> dict:
                           "why": f"Updated {', '.join(sorted(set(changed)))} since you last looked."})
     queue.sort(key=lambda x: (x["priority"], x.get("due_on") or ""))
     upcoming = [task_dict(t) | {"account": names.get(t.account_id)} for t in db.scalars(select(Task).where(Task.status == "open", Task.due_on > today, Task.due_on <= today + timedelta(days=7)).order_by(Task.due_on))]
-    fresh = [x for x in discover_items(db, limit=None) if x["status"] == "new" and x["account_id"] is None and x["rank"][0] <= 1 and x["basis"] == "published"][:6]
-    return {"queue": queue, "upcoming": upcoming, "new_leads": fresh, "as_of": today.isoformat()}
+    leads = discover_items(db, limit=None)
+    fresh = [x for x in leads if x["status"] == "new" and x["account_id"] is None and x["rank"][0] <= 1 and x["basis"] == "published"][:6]
+    return {"queue": queue, "upcoming": upcoming, "new_leads": fresh, "as_of": today.isoformat(), **on_the_clock(leads, today), **before_any_tender(leads)}
+
+
+def before_any_tender(leads: list[dict], limit: int = 4) -> dict:
+    """Public records that give a reason to ask before any tender exists: a regulator's finding, a fire authority's notice, an
+    early notice, a press report. Those resting on more than one independent source come first, then the newest record. What the
+    salesperson dismissed is left out. Nothing here says a requirement exists."""
+    found = sorted((x for x in leads if x.get("signal") and x["status"] != "dismissed"), key=lambda x: (x["signal"]["corroborated"], x["signal"]["date"]), reverse=True)
+    return {"signals": [{"key": x["key"], "organisation": x["organisation"], "headline": x["headline"], "status": x["status"], "account_id": x["account_id"],
+                         **{k: x["signal"][k] for k in ("date", "source", "official", "records", "sources", "corroborated", "strength")}} for x in found[:limit]],
+            "signals_total": len(found)}
+
+
+def on_the_clock(leads: list[dict], today: date) -> dict:
+    """Two short lists from the published record. `closing`: tenders and market engagements whose published deadline is still
+    ahead, soonest first. `ending`: the largest contracts whose published end falls in the next twelve months. Both leave out
+    what the salesperson dismissed; neither says anything about the chance of winning."""
+    def row(x: dict, date_: str, days: int, step: str) -> dict:
+        facts = x.get("facts") or {}
+        return {"key": x["key"], "organisation": x["organisation"], "title": x["title"], "date": date_, "days": days, "step": step,
+                "worth": x.get("worth"), "place": facts.get("place") or "", "supplier": x.get("supplier") or "", "status": x["status"], "account_id": x["account_id"],
+                "category": x["category"], "lots": facts.get("lots") or 0}
+    live = [x for x in leads if x["type"] == "public" and x["status"] != "dismissed" and x["category"] in ("live_procurement", "official_early_signal")]
+    closing = []
+    for x in live:
+        due = (x.get("facts") or {}).get("deadline")
+        if due and due["key"] in ("submission", "engagement") and due["days"] >= 0:
+            closing.append(row(x, due["date"], due["days"], due["label"]))
+        elif x["category"] == "live_procurement" and x.get("timing") and x.get("days") is not None and x["days"] >= 0:
+            closing.append(row(x, x["timing"], x["days"], x.get("timing_label") or "Published deadline"))
+    closing = _one_per_buyer_and_date(sorted(closing, key=lambda r: (r["date"], r["organisation"])))
+    ending = [row(x, x["timing"], x["days"], "Published end")
+              for x in leads if x["type"] == "public" and x["status"] != "dismissed" and x["category"] in ("pre_tender", "contract_defence")
+              and x.get("timing") and x.get("days") is not None and 0 <= x["days"] <= 365 and (x.get("worth") or {}).get("kind") == "published_total"]
+    ending = _one_per_buyer_and_date(sorted(ending, key=lambda r: (-r["worth"]["amount"], r["date"])))
+    return {"closing": closing[:5], "closing_total": len(closing), "ending": ending[:5], "ending_total": len(ending)}
+
+
+def _one_per_buyer_and_date(rows: list[dict]) -> list[dict]:
+    """Lots of one procurement are published as separate records with the same buyer and date. One row stands for them, and says
+    how many more share its date, so a single buyer cannot fill the list."""
+    first: dict[tuple, dict] = {}
+    for r in rows:
+        k = (r["organisation"].strip().lower(), r["date"])
+        if k in first:
+            first[k]["same_day"] += 1
+        else:
+            first[k] = {**r, "same_day": 0}
+    return list(first.values())
 
 
 def preferences(db: Session) -> dict:

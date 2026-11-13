@@ -8,6 +8,7 @@ import { hostOf, safeUrl } from "./radar-model";
 import { SERVICES, dayLabel, goto, inDays, si } from "./si-api";
 import { ActivityForm } from "./si-shared";
 import { JobStatus, newKey, useJob, type JobT } from "./si-people";
+import { FieldView, NoticeFacts, type FieldT, type NoticeT } from "./si-notice";
 import { authMode } from "@/lib/session";
 import "./living.css";
 
@@ -15,7 +16,7 @@ export type BriefEvent = { date: string; date_kind: string; title: string; detai
   not_established: string; effect: "supports" | "weakens" | "context"; recorded: string | null; new: boolean };
 export type BriefGap = { gap: string; subject: string; question: string; value: "decisive" | "timing" | "access"; value_label: string; why: string;
   status: "open" | "researching" | "resolved" | "stale" | "not_found" | "conflicting" | "partial"; request_id: number | null; job_id: number | null; answer: string;
-  findings: { text?: string; source_url?: string; quote?: string }[]; researched: string | null; action: "research" | "ask_customer" | null; cost_cents: number };
+  findings: { text?: string; source_url?: string; quote?: string }[]; researched: string | null; action: "research" | "ask_customer" | null; cost_cents: number; answered_from?: "notice" | "records" };
 export type BriefAction = { action: string; label: string; why: string; produces: string; available: boolean; unavailable_reason: string; params: Record<string, string | number>;
   cost_cents: number; blocked?: { label: string; reason: string }[] };
 export type BriefT = {
@@ -28,6 +29,7 @@ export type BriefT = {
   relationships: { kind: string; label: string; name: string; basis: string; source: string }[]; journey: { label: string; state: "done" | "current" | "later" }[];
   story: { date: string; kind: string; text: string; detail: string }[]; stakeholders: { name: string; role: string; status: string; source: string | null; route: string }[];
   unknowns: string[]; recorded_requirement: string; sources: { key: string; title: string }[]; since_last_review: { since: string | null; new_events: number };
+  notice?: NoticeT | null; field?: FieldT | null;
 };
 type Notify = (m: string, e?: boolean) => void;
 type Running = { label: string; job: JobT; gapRequestId?: number };
@@ -48,8 +50,11 @@ function month(iso: string) {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-GB", iso.length === 7 ? { month: "short", year: "numeric" } : { day: "numeric", month: "short", year: "numeric" });
 }
 function sinceLabel(iso: string) {
-  const day = dayLabel(iso.slice(0, 10));
-  return day === "Today" ? "Nothing new since you looked earlier today" : `Nothing new since ${/^\d/.test(day) ? day : day.toLowerCase()}`;
+  const then = new Date(`${iso.slice(0, 10)}T00:00:00`), today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((today.getTime() - then.getTime()) / 86_400_000);
+  if (days <= 0) return "Nothing new since you looked earlier today";
+  return `Nothing new since you looked ${days === 1 ? "yesterday" : days < 14 ? `${days} days ago` : `on ${month(iso.slice(0, 10))}`}`;
 }
 const future = (iso: string) => !!iso && iso.slice(0, 10) > new Date().toISOString().slice(0, 10);
 
@@ -142,7 +147,19 @@ export function useOpportunity(key: string | null, notify: Notify, { markReviewe
       return setForm("log");
     }
     if (a.action === "set_follow_up") return setForm(form === "follow" ? null : "follow");
-    if (a.action === "qualify") return setForm(form === "qualify" ? null : "qualify");
+    if (a.action === "qualify") {
+      if (form === "qualify") return setForm(null);
+      if (!brief.account_id) { // a deal belongs to an account, so the organisation is saved first
+        setBusy(a.action);
+        try { await ensureAccount(); await refresh(); } catch (e) { notify((e as Error).message, true); return; } finally { setBusy(""); }
+      }
+      return setForm("qualify");
+    }
+    if (a.action === "open_notice") { // reading the buyer's own documents: a new tab, nothing recorded
+      const href = safeUrl(String(a.params.url || ""));
+      if (href) window.open(href, "_blank", "noopener,noreferrer"); else notify("The notice does not give a link to open.", true);
+      return;
+    }
     if (a.action === "research_gap") return research(a.params as { gap: string; subject: string; question: string });
     setBusy(a.action);
     try {
@@ -207,6 +224,8 @@ export function OpportunityBrief({ op, children, afterReveal }: { op: Opportunit
     <article className="lo" aria-label={`Opportunity: ${b.organisation.name}`}>
       <Reveal b={b} op={op} />
       {afterReveal}
+      {b.notice && <NoticeFacts n={b.notice} />}
+      {b.field && <FieldView f={b.field} own={b.source_key || undefined} />}
       <Gaps op={op} />
       <River b={b} />
       <div className="lo-split">
@@ -283,7 +302,7 @@ function GapRow({ g, op }: { g: BriefGap; op: Opportunity }) {
       </div>
       <p className="lo-gap-q">{g.question}</p>
       <p className="lo-note">{g.why}</p>
-      {g.answer && <p className="lo-answer"><span className="lo-q">Answer{g.researched ? `, ${month(g.researched)}` : ""}</span>{g.answer}
+      {g.answer && <p className="lo-answer"><span className="lo-q">{g.answered_from === "notice" ? "From the published notice" : g.answered_from === "records" ? "From published contract records" : `Answer${g.researched ? `, ${month(g.researched)}` : ""}`}</span>{g.answer}
         {g.findings.filter((x) => x.source_url).slice(0, 3).map((x, i) => <Source key={i} url={x.source_url!} />)}</p>}
       {running && op.running && <JobWatch op={op} />}
       {!running && g.action === "research" && <div className="lo-gap-act">
@@ -396,7 +415,7 @@ function JobWatch({ op }: { op: Opportunity }) {
 }
 
 const ACTION_ICON: Record<string, typeof Search> = { research_gap: Search, find_people: Users, prepare_introduction: FilePenLine, log_contact: MessageSquare, complete_follow_up: Check,
-  set_follow_up: CalendarPlus, qualify: Briefcase, investigate: FileSearch, open_account: Briefcase };
+  set_follow_up: CalendarPlus, qualify: Briefcase, investigate: FileSearch, open_account: Briefcase, open_notice: ArrowUpRight };
 
 export function ActionDock({ op, onAccountPage = false }: { op: Opportunity; onAccountPage?: boolean }) {
   const b = op.brief;

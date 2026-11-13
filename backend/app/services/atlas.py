@@ -31,6 +31,7 @@ from app.models.atlas import AtlasAlias, AtlasContractParty, AtlasContractor, At
 from app.models.market_contract import MarketContract
 from app.models.market_graph import MarketRelationship
 from app.models.market_network import MarketAward, MarketEntity, MarketSourceState, SourceRevision
+from app.services import notice
 
 BUILD = 'atlas-1'
 STATE_KEY = 'contract_atlas'
@@ -334,6 +335,11 @@ def _months(days: int) -> int:
     return max(1, round(days / 30.4))
 
 
+def _human(d: date) -> str:
+    """A date for people: 8 September 2027, never an ISO string."""
+    return f'{d.day} {d:%B %Y}'
+
+
 def status_of(contract: MarketContract, route: str, today: date) -> dict:
     """What the published dates show today. None of these says a contract is, or is not, being delivered."""
     facts = contract.facts or {}
@@ -349,21 +355,21 @@ def status_of(contract: MarketContract, route: str, today: date) -> dict:
     if end >= today:
         days = (end - today).days
         if latest and latest > end:
-            return {'code': 'extension_possible', 'label': f'In term to {end}; extension possible to {latest}',
+            return {'code': 'extension_possible', 'label': f'In term to {_human(end)}; extension possible to {_human(latest)}',
                     'detail': f"{facts.get('latest_end_basis') or 'A published extension option'}{basis}.", 'end': str(end), 'latest_end': str(latest)}
         if days <= HORIZON_DAYS:
-            return {'code': 'end_approaching', 'label': f'Published end in {_months(days)} months ({end})', 'detail': f'End date{basis}.', 'end': str(end)}
-        return {'code': 'in_term', 'label': f'In published term to {end}', 'detail': f'End date{basis}.', 'end': str(end)}
+            return {'code': 'end_approaching', 'label': f"Published end in {_months(days)} month{'' if _months(days) == 1 else 's'} ({_human(end)})", 'detail': f'End date{basis}.', 'end': str(end)}
+        return {'code': 'in_term', 'label': f'In published term to {_human(end)}', 'detail': f'End date{basis}.', 'end': str(end)}
     if facts.get('replacement'):
-        return {'code': 'replacement_identified', 'label': f'Published end passed ({end}); a newer similar notice exists',
+        return {'code': 'replacement_identified', 'label': f'Published end passed ({_human(end)}); a newer similar notice exists',
                 'detail': 'A title match, not a confirmed replacement.', 'end': str(end)}
     if latest and latest >= today:
-        return {'code': 'extension_window', 'label': f'Initial term ended {end}; an extension could run to {latest}', 'detail': 'Whether it was extended is not published.',
+        return {'code': 'extension_window', 'label': f'Initial term ended {_human(end)}; an extension could run to {_human(latest)}', 'detail': 'Whether it was extended is not published.',
                 'end': str(end), 'latest_end': str(latest)}
     if (today - end).days <= LOOKBACK_DAYS:
-        return {'code': 'end_passed_unknown', 'label': f'Published end passed ({end}): current status not established',
+        return {'code': 'end_passed_unknown', 'label': f'Published end passed ({_human(end)}): current status not established',
                 'detail': 'It may have been extended, re-let below the advertising threshold, or stopped.', 'end': str(end)}
-    return {'code': 'historical', 'label': f'Historical: published end {end}', 'detail': 'A past relationship, not evidence of a current one.', 'end': str(end)}
+    return {'code': 'historical', 'label': f'Historical: published end {_human(end)}', 'detail': 'A past relationship, not evidence of a current one.', 'end': str(end)}
 
 
 def value_of(facts: dict) -> dict | None:
@@ -421,12 +427,12 @@ def reasons(contract: MarketContract, supplier: str, status: dict) -> list[dict]
     if code not in {'end_approaching', 'extension_possible', 'extension_window', 'end_passed_unknown', 'replacement_identified'}:
         return []
     first = (facts.get('evidence') or [{}])[0]
-    known = [f"{contract.buyer} named {supplier} as supplier ({first.get('source') or 'a published notice'}, published {(first.get('published_at') or '')[:10] or 'date not recorded'})",
+    known = [f"{contract.buyer} named {supplier} as supplier ({first.get('source') or 'a published notice'}, published {notice.readable((first.get('published_at') or '')[:10]) or 'date not recorded'})",
              status['label']]
     v = value_of(facts)
     if v:
         known.append(f"{v['label']}: £{v['amount']:,.0f}. {v['basis']}")
-    checks = list(facts.get('contradictions') or []) + list(facts.get('checks') or [])
+    checks = [notice.readable(x) for x in list(facts.get('contradictions') or []) + list(facts.get('checks') or [])]
     base = {'facts': known, 'disconfirming': ['A published extension, or a new award to the same supplier, would close the window.'] + checks,
             'missing': ['Whether the buyer will extend, re-tender or call off from a framework', 'Who manages the contract day to day',
                         'How satisfied the buyer is: nothing published says either way']}
@@ -486,7 +492,7 @@ def contract_view(contract: MarketContract, party: AtlasContractParty, supplier:
             'region_approximate': bool(party.region), 'value': value_of(facts),
             'dates': {'published': facts.get('published'), 'start': facts.get('start_date'), 'end': facts.get('published_end_date'),
                       'estimated_end': facts.get('estimated_end_date'), 'latest_end': facts.get('latest_end'), 'extension_note': facts.get('extension_note')},
-            'status': status, 'sources': _sources(facts), 'checks': list(facts.get('contradictions') or []) + list(facts.get('checks') or []),
+            'status': status, 'sources': _sources(facts), 'checks': [notice.readable(x) for x in list(facts.get('contradictions') or []) + list(facts.get('checks') or [])],
             'timeline': timeline(contract, today), 'reasons': reasons(contract, supplier, status), 'first_seen': contract.first_seen.date().isoformat()}
 
 

@@ -4,8 +4,8 @@ import { ArrowUpRight } from "lucide-react";
 import type { Tone } from "./radar-model";
 import { hostOf, safeUrl } from "./radar-model";
 
-export function Pill({ tone = "neutral", dot, children, title }: { tone?: Tone; dot?: boolean; children: ReactNode; title?: string }) {
-  return <span className={`ds-pill ${tone}`} title={title}>{dot && <i aria-hidden="true" />}{children}</span>;
+export function Pill({ tone = "neutral", dot, children, title, wrap }: { tone?: Tone; dot?: boolean; children: ReactNode; title?: string; wrap?: boolean }) {
+  return <span className={`ds-pill ${tone}${wrap ? " wrap" : ""}`} title={title}>{dot && <i aria-hidden="true" />}{children}</span>;
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {

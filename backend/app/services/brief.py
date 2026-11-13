@@ -23,12 +23,13 @@ from app.intelligence.renewal_radar import families
 from app.models.crm import Account, AccountLink, Activity, Contact, DealRecord, Draft, Task
 from app.models.gaps import GapRequest
 from app.models.shadow import Dossier
+from app.services import field, notice, signals
 from app.services import si_core as core
 from app.services.atlas import FAMILY_LABEL, normalise
 
 KIND_LABEL = {'private_signal': 'Private-sector signal', 'public_tender': 'Published tender', 'contract_ending': 'Published contract nearing its end',
               'shadow_hypothesis': 'Indirect signal', 'competitor_contract': 'Competitor-held contract', 'customer_expansion': 'Existing customer expansion',
-              'unverified_candidate': 'Unverified research candidate'}
+              'unverified_candidate': 'Unverified research candidate', 'public_signal': signals.KIND_LABEL}
 VALUE_LABEL = {'decisive': 'Could make or break the opportunity', 'timing': 'Decides when and how to engage', 'access': 'Decides who to speak to'}
 VALUE_ORDER = {'decisive': 0, 'timing': 1, 'access': 2}
 STALE_DAYS = 548  # evidence older than 18 months is flagged as possibly out of date
@@ -64,8 +65,8 @@ def _as_date(value: Any) -> date | None:
 
 def _event(date_: Any, date_kind: str, title: str, *, detail: str = '', url: str = '', source: str = '', basis: str = 'reported',
            establishes: str = '', not_established: str = '', effect: str = 'context', recorded: datetime | None = None) -> dict:
-    return {'date': _day(date_), 'date_kind': date_kind, 'title': title[:300], 'detail': detail[:600], 'source': {'url': url, 'label': source} if url else None,
-            'basis': basis, 'establishes': establishes[:400], 'not_established': not_established[:400], 'effect': effect,
+    return {'date': _day(date_), 'date_kind': date_kind, 'title': notice.clip(title, 300), 'detail': notice.clip(notice.readable(detail), 600), 'source': {'url': url, 'label': source} if url else None,
+            'basis': basis, 'establishes': notice.clip(notice.readable(establishes), 400), 'not_established': notice.clip(notice.readable(not_established), 400), 'effect': effect,
             'recorded': recorded.isoformat() if recorded else None}
 
 
@@ -180,11 +181,306 @@ def _prospect(db: Session, entity_id: int) -> dict | None:
     kind = 'private_signal' if supporting else 'unverified_candidate'
     return {'kind': kind, 'organisation': {'name': row.name, 'sector': p.get('sector'), 'location': p.get('location'), 'website': p.get('website'),
                                              'company_number': p.get('company_number')},
-            'events': events, 'happened': happened and {'text': happened.get('title') or '', 'detail': happened.get('detail') or '', 'date': _day(happened.get('date')),
+            'events': events, 'happened': happened and {'text': happened.get('title') or '', 'detail': notice.clip(notice.readable(happened.get('detail')), 600), 'date': _day(happened.get('date')),
                                                         'source': happened.get('source_url') or '', 'basis': happened.get('basis')},
             'interpretation': interpretation, 'heuristic': heuristic, 'services': _services(named, possible), 'disprove': disprove, 'questions': questions,
             'relationships': rels, 'unknowns': list(p.get('unknowns') or []), 'first_seen': row.created_at, 'updated': row.updated_at,
             'people': p.get('people') or [], 'routes': p.get('contact_routes') or []}
+
+
+def _record_answers(tender: bool, facts: dict, seen: dict) -> dict:
+    """Questions the published record already answers. Each keeps its source and says exactly what it rests on, so a
+    salesperson is never asked to pay for research into something the buyer has published."""
+    out: dict[str, dict] = {}
+    url = facts.get('source_url') or ''
+    criteria, term = facts.get('criteria') or {}, facts.get('term') or {}
+    if tender and criteria:
+        first = criteria['lots'][0]['items']
+        listed = '; '.join(f"{i['name']}{(' ' + notice._num(i['weight']) + '%') if i['weight'] is not None else ''}" for i in first[:6])
+        text = (f"The notice scores bids {criteria['summary']}." if criteria.get('split') else f'The notice lists: {listed}.')
+        if criteria.get('split') and len(first) > 2:
+            text += f' Criteria: {listed}.'
+        if criteria['lot_count'] > 1:
+            text += ' The same weighting applies to every lot.' if criteria['same_for_all_lots'] else ' Weightings differ by lot: check the lot you would bid for.'
+        out['evaluation_criteria'] = {'answer': text, 'complete': bool(criteria.get('split')) or all(i['weight'] is not None for i in first), 'basis': 'notice',
+                                      'findings': [{'text': 'Award criteria in the published notice', 'source_url': url}]}
+    if tender and facts.get('requirements'):
+        out['eligibility'] = {'answer': 'The notice states: ' + ' '.join(facts['requirements'][:2]) + ' The tender documents may add more.', 'complete': False, 'basis': 'notice',
+                              'findings': [{'text': 'Conditions of participation in the published notice', 'source_url': url}]}
+    expected = next((d for d in facts.get('deadlines') or [] if d['key'] == 'notice_expected'), None)
+    if tender and facts.get('stage') == 'planning' and expected:
+        how = (facts.get('procedure') or {}).get('method_label') or ''
+        ahead = expected['date'] >= date.today().isoformat()
+        out['route'] = {'answer': (f"The buyer expects to publish the tender notice around {_long(expected['date'])}" + (f', by {how[0].lower() + how[1:]}.' if how else '.')
+                                   if ahead else f"The buyer expected to publish the tender around {_long(expected['date'])}. That date has passed and no tender is matched to this notice yet."),
+                        'complete': ahead and bool(how), 'basis': 'notice', 'findings': [{'text': 'Planned dates in the published notice', 'source_url': url}]}
+    incumbent = seen.get('incumbent') or {}
+    if tender and incumbent.get('state') in ('in_term', 'past'):
+        out['incumbent'] = {'answer': f"{incumbent['text']} {incumbent['caveat']}", 'complete': incumbent['state'] == 'in_term', 'basis': 'records',
+                            'findings': [{'text': incumbent['contract']['title'], 'source_url': incumbent['contract'].get('source') or ''}]}
+    if not tender and (term.get('renewal') or term.get('max_end')):
+        text = f"The award notice gives the term as {term.get('label') or 'published'}"
+        text += f", and says: \u201c{term['renewal']}\u201d." if term.get('renewal') else f", with a latest possible end of {_long(term['max_end'])}."
+        out['contract_end'] = {'answer': text + ' Whether an option has been used is not published.', 'complete': True, 'basis': 'notice',
+                               'findings': [{'text': 'Contract period in the published notice', 'source_url': url}]}
+    elif not tender and term.get('end'):
+        out['contract_end'] = {'answer': f"The award notice gives the term as {term.get('label') or 'published'}, ending {_long(term['end'])}, and publishes no extension option. "
+                                         'Notices often leave options out, so this does not rule one out.', 'complete': False, 'basis': 'notice',
+                               'findings': [{'text': 'Contract period in the published notice', 'source_url': url}]}
+    return out
+
+
+def _still_unknown(unknowns: list[str], facts: dict, seen: dict | None) -> list[str]:
+    """Stored unknowns, minus the points the published notice or contract record now states. A point that is only partly
+    stated is narrowed to what is still missing, never dropped; anything not recognised is left exactly as stored."""
+    incumbent = (seen or {}).get('incumbent') or {}
+    out = []
+    for u in unknowns:
+        point = u.strip().rstrip('.').lower()
+        if point in ('evaluation weightings', 'evaluation criteria') and (facts.get('criteria') or {}).get('summary'):
+            continue
+        if point == 'contract value' and facts.get('value'):
+            continue
+        if point == 'published contract end date' and (facts.get('term') or {}).get('end'):
+            continue
+        if point == 'mandatory accreditations' and facts.get('requirements'):
+            u = 'Any conditions beyond those stated in the notice.'
+        elif point == 'scope and eligibility' and facts.get('description'):
+            u = 'Eligibility conditions beyond those stated in the notice.' if facts.get('requirements') else 'Eligibility conditions.'
+        elif point == 'current supplier' and incumbent.get('state') == 'in_term':
+            u = 'Whether the published holder still delivers the work today.'
+        if u not in out:
+            out.append(u)
+    return out
+
+
+def _planning_window(timing: str, today: date) -> str:
+    """The usual preparation period as dates, from a published or estimated end. A pattern, said as one."""
+    end = _as_date(timing) if len(timing or '') >= 10 else None
+    if end is None or end < today:
+        return ''
+    start, finish = end - timedelta(days=365), end - timedelta(days=183)
+    if finish < today:
+        return ' On that pattern the decision is being made now, or has been.'
+    if start <= today:
+        return f' On that pattern it is preparing now, until about {finish:%B %Y}.'
+    return f' On that pattern, preparation would start around {start:%B %Y}.'
+
+
+def _dated(facts: dict, today: date) -> dict:
+    """The notice's facts with each deadline counted from today."""
+    if not facts:
+        return {}
+    deadlines = [{**d, 'days': (date.fromisoformat(d['date']) - today).days} for d in facts.get('deadlines') or []]
+    return {**facts, 'deadlines': deadlines, 'pointers': _pointers(facts, deadlines)}
+
+
+def _pointers(facts: dict, deadlines: list[dict]) -> list[dict]:
+    """What the notice's own terms mean for a supplier deciding how to approach it. Each rests on one published field."""
+    out = []
+    procedure, by = facts.get('procedure') or {}, {d['key']: d for d in deadlines}
+    engagement = by.get('engagement')
+    if engagement and engagement['days'] >= 0:
+        out.append({'label': 'A way in before the tender', 'text': f"The buyer is asking suppliers for views until {_long(engagement['date'])}. Taking part is the "
+                    'legitimate way to be known, and to shape the requirement, before the competition starts.'})
+    expected = by.get('notice_expected')
+    if expected and expected['days'] >= 0:
+        out.append({'label': 'When the tender is expected', 'text': f"The buyer expects to publish the tender notice around {_long(expected['date'])}. "
+                    'Until then it can still talk to suppliers.'})
+    elif expected and facts.get('stage') == 'planning':
+        out.append({'label': 'Expected date passed', 'text': f"The buyer expected to publish the tender around {_long(expected['date'])}, and that date has passed. "
+                    'It may be late, or out under a notice not matched to this one: check the buyer\u2019s portal.'})
+    enquiries = by.get('enquiries')
+    if enquiries and enquiries['days'] >= 0:
+        out.append({'label': 'Questions', 'text': f"Clarification questions close {_long(enquiries['date'])}. Answers are normally shared with every bidder."})
+    if procedure.get('framework'):
+        places = procedure.get('framework_places')
+        out.append({'label': 'Framework', 'text': ('This sets up a framework' + (f' with {places} supplier place{"s" if places != 1 else ""}' if places else '')
+                    + ': a place on it is the route to the work that follows, not a guarantee of any.')})
+    if procedure.get('method') == 'selective':
+        out.append({'label': 'Two stages', 'text': 'Suppliers are shortlisted first. The first stage tests capability and track record, not price.'})
+    if procedure.get('method') in ('direct', 'limited'):
+        out.append({'label': 'Limited competition', 'text': 'The notice describes a direct award or a limited competition: there may be no open tender to enter.'})
+    if procedure.get('max_lots_per_supplier'):
+        out.append({'label': 'Lots', 'text': f"A supplier may bid for at most {procedure['max_lots_per_supplier']} lots."})
+    if procedure.get('sme_suitable'):
+        out.append({'label': 'Smaller suppliers', 'text': 'The buyer marks this as suitable for small and medium-sized suppliers.'})
+    if procedure.get('reserved'):
+        out.append({'label': 'Reserved', 'text': 'Participation is reserved for certain kinds of supplier: check the notice before spending time on it.'})
+    return out[:6]
+
+
+def _notice_link(kind: str, facts: dict, today: date) -> dict | None:
+    """The buyer's own page to open next, with the reason, for a published tender or early notice."""
+    if kind != 'public_tender' or not facts:
+        return None
+    by = {d['key']: d for d in facts.get('deadlines') or []}
+    url = facts.get('source_url') or ''
+    due = by.get('submission')
+    if facts.get('stage') == 'planning':
+        engagement = by.get('engagement')
+        if engagement and engagement['date'] >= today.isoformat() and url:
+            days = (date.fromisoformat(engagement['date']) - today).days
+            return {'url': url, 'label': f"Respond to the market engagement by {_long(engagement['date'])}", 'stage': 'engagement',
+                    'why': f"The buyer is asking suppliers for views before it writes the tender, and closes in {days} day{'s' if days != 1 else ''}. "
+                           'Taking part is the legitimate way to be known before the competition starts.',
+                    'produces': 'The buyer\u2019s notice, in a new tab, with how to take part. Log your response here afterwards.'}
+        return {'url': url, 'label': 'Read the early notice', 'stage': 'planning', 'why': 'The buyer has announced this before any tender. The notice says what it plans and when.',
+                'produces': 'The buyer\u2019s notice, in a new tab.'} if url else None
+    target = facts.get('portal') or url
+    if not target:
+        return None
+    if due and due['date'] < today.isoformat():
+        return {'url': url or target, 'label': 'See the notice', 'stage': 'closed', 'why': f"The deadline for tenders passed on {_long(due['date'])}. The award notice will show who won and when that contract ends.",
+                'produces': 'The buyer\u2019s notice, in a new tab.'}
+    days = (date.fromisoformat(due['date']) - today).days if due else None
+    lead = f"Tenders are due {_long(due['date'])}{(' at ' + due['time']) if due.get('time') else ''}, in {days} day{'s' if days != 1 else ''}. " if due else ''
+    return {'url': target, 'label': 'Open the tender portal' if facts.get('portal') else 'Open the tender notice', 'stage': 'open', 'days': days,
+            'why': lead + 'The mandatory requirements and the specification are in the buyer\u2019s documents: read them before deciding to bid.',
+            'produces': 'The buyer\u2019s own documents, in a new tab. Come back to record the bid decision.'}
+
+
+# What else could explain a record, said as something still unknown. Keyed by the stored explanation; "the contractor is at fault"
+# is deliberately absent: a public record about an organisation is never turned into a claim about a company.
+STILL_UNKNOWN = {'ageing_assets': 'Whether the systems are ageing or at the end of their life.',
+                 'deferred_compliance': 'Whether the backlog sits with the organisation itself rather than with a contractor.',
+                 'capital_programme': 'Whether a capital programme is planned.', 'estate_change': 'Whether the estate is changing.',
+                 'routine_procurement': 'Whether this is a routine re-procurement.', 'corporate_change': 'Whether a change of ownership or structure is behind it.'}
+SOCIAL_HOUSING_GRADE = re.compile(r'Regulator of Social Housing graded\b.{0,160}?\bC([34])\b')
+GRADE_MEANING = {'3': ' C3 is the second lowest of that regulator’s four consumer grades, given for serious failings.',
+                 '4': ' C4 is the lowest of that regulator’s four consumer grades, given for very serious failings.'}
+
+
+def _signal_reading(x: dict, customer: str) -> tuple[str, str]:
+    """What one public record establishes, and what it does not."""
+    kind = x.get('signal_type') or ''
+    if x.get('reliability') == 'opinion_press' or x.get('source_group') == 'local_press':
+        return ('A press report says this. The document behind it has not been read.',
+                'It is a report, not the original document. It does not say what the organisation will do, or that any contract will change.')
+    if kind == 'regulator_compliance_finding':
+        return ('The regulator published this finding about the organisation.',
+                'It does not say how the organisation will put this right, who will do the work, or that any contract will change.')
+    if kind == 'fire_enforcement_outcome':
+        return ('The fire and rescue authority recorded this outcome for the named premises.',
+                'It does not say what is required, who is responsible for the premises, or whether the work is already in hand.')
+    if kind == 'market_engagement':
+        return (f'{customer} published this notice itself.', 'It does not say when a tender will follow, or that one will.')
+    return ('A public record states this.', NOT_ESTABLISHED['risk'])
+
+
+def _signal_meaning(found: list[dict]) -> tuple[str, dict]:
+    """Why the records could matter, by what kind of record they are, and which kinds are present. Never more than the records say."""
+    types = {x.get('signal_type') for x in found}
+    text = ' '.join(x['statement'] for x in found)
+    fire = bool(re.search(r'\bfire\b', text, re.I))
+    has = {'press': bool(found) and all(x.get('reliability') == 'opinion_press' or x.get('source_group') == 'local_press' for x in found),
+           'engagement': 'market_engagement' in types, 'regulator': 'regulator_compliance_finding' in types, 'enforcement': 'fire_enforcement_outcome' in types}
+    if has['engagement'] and (has['regulator'] or has['enforcement']):
+        return (f"Two things are on the public record for the same organisation: a {'fire safety ' if fire else ''}compliance record, and its own early procurement notice. "
+                'That is a reason to make contact now, while the buyer can still talk to suppliers. Neither record says the two are connected, what will be bought, or when.'), has
+    if has['regulator']:
+        grade = SOCIAL_HOUSING_GRADE.search(text)
+        return (f"A regulator has published a finding against this organisation{' that names fire safety' if fire else ''}, and the organisation has to answer for putting it right."
+                f"{GRADE_MEANING[grade.group(1)] if grade else ''} That is a reason to ask what is planned, not a published requirement: no tender, budget or change of "
+                'contract is on record.'), has
+    if has['enforcement']:
+        return ('A fire and rescue authority has recorded formal fire safety action at a named site. Whoever is responsible for the premises has to deal with it, which is a '
+                'reason to ask what is planned. The record does not say who is responsible, what is required, or that any contract will change.'), has
+    if has['engagement']:
+        return ('The organisation has published an early notice itself, before any tender. Until a tender is published it can still talk to suppliers: this is the time to be '
+                'known and to understand the requirement.'), has
+    if has['press']:
+        return ('This rests on a press report, not on an original document. If the report stands, it is a reason to ask what the organisation plans: read the document behind '
+                'it before relying on it.'), has
+    return 'A public record suggests something has changed at this organisation. That is a reason to ask, not a published requirement.', has
+
+
+def _signal_field(seen: dict) -> dict:
+    """The buyer's published contract record, worded for a signal. No service is named, so 'similar work' would claim too much:
+    what is shown is any published fire or security contract with this buyer."""
+    inc = seen.get('incumbent')
+    if inc:
+        inc['text'] = ('No published fire or security contract with this buyer in the records collected.' if inc['state'] == 'none' else
+                       inc['text'].replace(' for similar work', ' for fire or security work').replace('similar work for this buyer', 'fire or security work for this buyer'))
+        inc['others'] = 0
+        if inc['state'] != 'none':
+            inc['caveat'] = 'From the published record. It does not confirm who delivers the work today, or that this contract covers what the record describes.'
+    for way in seen.get('ways') or []:
+        if way['label'] == 'An earlier opening with this buyer':
+            way['label'] = 'The next published contract end'
+    if not (seen.get('buyer') or {}).get('contracts'):
+        seen['buyer'] = None  # nothing published with this buyer: said once, under the holder, not twice
+    return seen
+
+
+def _public_signal(db: Session, item: Any, s: dict) -> dict:
+    """A public record that gives a reason to ask before any tender: a regulator's finding, a fire authority's notice, an early
+    notice, a press report. It is not a contract, so no end date, holder or renewal pattern is implied, and nothing is added to
+    what the records say. The stored sentences are shown as collected."""
+    sig = s.get('signal') or {}
+    customer = core.display_name(s.get('customer') or '')
+    found = signals.records(s)
+    top = signals.summary(s) or {}
+    events = []
+    for x in found:
+        official = x.get('reliability') in signals.OFFICIAL
+        establishes, missing = _signal_reading(x, customer)
+        events.append(_event(x.get('occurred_on'), 'published' if official else 'reported', notice.readable(x.get('label')) or 'Public record', detail=x['statement'],
+                             url=x.get('source_url') or '', source=signals.SOURCE_LABEL.get(x.get('source_group'), 'Public record'), basis='published' if official else 'stated',
+                             establishes=establishes, not_established=missing, effect='supports'))
+    for c in sig.get('contradicting') or s.get('counter_evidence') or []:
+        text = notice.readable(c if isinstance(c, str) else (c.get('statement') or c.get('text') or ''))
+        if text:
+            first, _rest = signals.lead_sentence(text)
+            url = '' if isinstance(c, str) else (c.get('source_url') or '')
+            events.append(_event('' if isinstance(c, str) else c.get('occurred_on'), 'published', first, detail='' if first == text.rstrip('. ') else text, url=url,
+                                 source='Public record', basis='published' if url else 'reported', establishes='A public record that points the other way.', effect='weakens'))
+    if item.first_seen:
+        events.append(_event(item.first_seen, 'first_seen', 'Found by SalesIntel', basis='research', establishes='When SalesIntel first recorded this.', recorded=item.first_seen))
+    meaning, has = _signal_meaning(found)
+    compliance = has['regulator'] or has['enforcement']
+    disprove = [f'Contrary evidence: {e["title"]}' for e in events if e['effect'] == 'weakens']
+    if has['press']:
+        disprove.append('The report may be wrong or out of date: the document behind it has not been read')
+    disprove += (['The problem may already be put right', 'The work may already be let, or sit inside an existing contract or framework',
+                  'The organisation may do the work with its own staff'] if compliance or has['press'] else
+                 [] if has['engagement'] else ['The record may be out of date', 'The work may already be let, or sit inside an existing contract or framework'])
+    if has['engagement']:
+        disprove += ['The early notice may be delayed, changed or dropped', 'The buyer may use a framework you are not on']
+    questions = [('hypothesis_test', 'Still a live problem', f'Is the problem in the record still open at {customer}, and has it published a plan or a budget to put it right?',
+                  'decisive', 'A problem already fixed, or with the work already let, is not a way in.')] if compliance or has['press'] or not has['engagement'] else []
+    questions.append(('route', 'Route to market', 'When will the tender be published, and by which procedure or framework?', 'decisive' if not questions else 'timing',
+                      'It decides how long there is to be known to the buyer, and whether there is an open competition to enter.') if has['engagement'] else
+                     ('route', 'Route to market', f'How does {customer} buy fire and security work: an existing contract, a framework, or its own tenders?', 'timing',
+                      'It decides whether there is a competition to enter, or a framework to be on.'))
+    questions.append(('incumbent', 'Current supplier', f'Which company currently maintains the fire and security systems for {customer}?', 'access',
+                      'It shows who is in place, and whether the problem sits inside their contract.'))
+    if has['enforcement']:
+        questions.append(('site_operator', 'Who answers for the premises', 'Which organisation is responsible for fire safety at the premises named in the record?', 'access',
+                          'The record names a site, not who answers for it. On a managed or privately financed site that may not be the occupier.'))
+    questions.append(('find_role', 'Head of fire safety or building compliance', f'Who is the head of fire safety or building compliance at {customer}, and how can they be reached?',
+                      'access', 'They own the problem the record describes.'))
+    seen = _signal_field(field.view(db, customer=s.get('customer') or '', title='', nation=s.get('nation') or '', own_name=core.preferences(db).get('company_name') or ''))
+    answers, holder = {}, seen.get('incumbent') or {}
+    if holder.get('state') in ('in_term', 'past'):  # a published holder is a lead on the answer, never the answer: the scope is not established
+        answers['incumbent'] = {'answer': f"{holder['text']} {holder['caveat']}", 'complete': False, 'basis': 'records',
+                                'findings': [{'text': holder['contract']['title'], 'source_url': holder['contract'].get('source') or ''}]}
+    others = top.get('records', 0) - 1
+    strength = (top.get('strength') or '') + ('.' if top.get('strength') else '') + (f" The other{'s are' if others > 1 else ' is'} in the evidence below." if others > 0 else '')
+    tests = [STILL_UNKNOWN[e['explanation']] for e in sig.get('explanations') or []
+             if isinstance(e, dict) and e.get('status') == 'possible' and e.get('explanation') in STILL_UNKNOWN]
+    unknowns = [notice.readable(x) for x in sig.get('unknowns') or []] + tests + ['Whether a budget or a procurement is planned.']
+    nation = s.get('nation') or ''
+    link = {'url': top['source_url'], 'label': 'Read the record at its source', 'stage': 'record', 'days': None,
+            'why': 'Everything here rests on this record. Read what it says, and its date, before acting on it.',
+            'produces': 'The original record, in a new tab.'} if top.get('source_url') else None
+    return {'kind': 'public_signal', 'organisation': {'name': customer, 'sector': '', 'location': '' if nation == 'Not stated' else nation, 'website': None, 'company_number': None},
+            'notice': {}, 'field': seen, 'answers': answers, 'link': link, 'events': events,
+            'happened': {'text': top.get('headline') or f'A public record about {customer}', 'detail': ' '.join(x for x in (notice.clip(top.get('rest') or '', 420), strength) if x),
+                         'date': top.get('date') or '', 'source': top.get('source_url') or '', 'basis': 'published' if top.get('official') else 'stated'},
+            'interpretation': ' '.join(x for x in (meaning, notice.readable(sig.get('caution'))) if x), 'heuristic': None,
+            'services': _services(families(' '.join(x['statement'] for x in found)), set()), 'disprove': disprove, 'questions': questions, 'relationships': [],
+            'unknowns': list(dict.fromkeys(unknowns)), 'first_seen': item.first_seen, 'updated': item.last_evaluated, 'people': [], 'routes': []}
 
 
 def _market(db: Session, entity_id: int) -> dict | None:
@@ -192,6 +488,8 @@ def _market(db: Session, entity_id: int) -> dict | None:
     if not found:
         return None
     _item, s = found
+    if s.get('category') == signals.CATEGORY:
+        return _public_signal(db, _item, s)
     tender = s.get('category') in ('live_procurement', 'official_early_signal')
     customer, title, supplier, timing = s.get('customer') or '', s.get('title') or '', s.get('supplier') or '', _day(s.get('timing'))
     events = [_event(e.get('published_at'), 'published', f"{e.get('source') or 'Notice'} published", detail=title, url=e.get('source_url') or '',
@@ -205,11 +503,20 @@ def _market(db: Session, entity_id: int) -> dict | None:
                              establishes=f"{s.get('timing_basis') or 'Published date'}.", not_established='An extension may change it.' if not tender else '',
                              effect='supports'))
     for c in s.get('counter_evidence') or []:
-        text = c if isinstance(c, str) else (c.get('text') or '')
+        text = notice.readable(c if isinstance(c, str) else (c.get('text') or ''))
         if text:
             events.append(_event('', 'reported', text, basis='published', effect='weakens', establishes=text))
     named = families(title)
     when = _long(timing)
+    cited = notice.cited(db, [s.get('evidence') or []])[0]
+    wanted = ('tender', 'planning') if tender else ('award',)
+    facts = next((f for f in cited if f.get('stage') in wanted), None) or next(iter(cited), {})
+    buyer = facts.get('buyer') or {}
+    seen = field.view(db, customer=customer, title=title, description=facts.get('description') or '', nation=s.get('nation') or '', region=buyer.get('region') or '',
+                      own_name=core.preferences(db).get('company_name') or '', ocids={e.get('ocid') for e in s.get('evidence') or [] if isinstance(e, dict)},
+                      supplier='' if tender else supplier, contract_ending=not tender, this_notice=facts if tender else None)
+    early, defence, label = s.get('category') == 'official_early_signal', s.get('category') == 'contract_defence', ''
+    answers = _record_answers(tender, facts, seen)
     if tender:
         happened = title or f'{customer} published a tender'
         said = f"{customer} published this tender" + (f"; responses are due {when}." if when else '.')
@@ -221,9 +528,20 @@ def _market(db: Session, entity_id: int) -> dict | None:
                      ('evaluation_criteria', 'Evaluation criteria', 'What are the published evaluation criteria and weightings?', 'timing',
                       'They decide how to shape the bid and whether you can compete on quality or price.'),
                      ('incumbent', 'Current supplier', 'Which company currently provides this service?', 'access', 'It shows who you compete against.')]
+        if early:  # nothing to bid for yet: the questions are when, by what route, and who to talk to while talking is still allowed
+            label = 'Early notice, before the tender'
+            said = f"{customer} published an early notice" + (f"; the tender is expected {when}." if when else ', before any tender.')
+            interpretation = ('The buyer has said what it plans to buy before the competition opens. Until the tender is published it can still talk to suppliers: '
+                              'this is the time to be known and to understand the requirement.')
+            disprove = ['The buyer may use a framework you are not on', 'The plan may be delayed, changed or dropped', 'Scope you cannot deliver or price competitively']
+            questions = [('route', 'Route and timing', 'When will the tender be published, and by which procedure or framework?', 'decisive',
+                          'It decides how long there is to be known to the buyer, and whether there is an open competition to enter.'),
+                         ('incumbent', 'Current supplier', 'Which company currently provides this service?', 'access', 'It shows who you compete against.'),
+                         ('find_role', 'Procurement or category manager', 'Who is running this procurement, and how can they be reached?', 'access',
+                          'Before the tender is published the buyer can still talk to suppliers.')]
     else:
         happened = f"Contract{f' with {supplier}' if supplier else ''} " + (f'ends {when}' if when else 'has a published end date')
-        said = f"{customer}'s published contract: {title}." if title else ''
+        said = f"{customer}'s published contract: {title.rstrip('. ')}." if title else ''
         interpretation = 'The buyer will extend, re-tender or call off before the term ends. That decision is a legitimate moment to offer an alternative.'
         disprove = ['An extension may already be agreed', 'A framework call-off without open competition', 'The service moving into a wider facilities contract']
         questions = [('route', 'Route to market', 'Will the buyer extend, re-tender or call off from a framework, and when will it decide?', 'decisive',
@@ -231,17 +549,34 @@ def _market(db: Session, entity_id: int) -> dict | None:
                      ('contract_end', 'Extension options', 'What extension options does the current contract allow?', 'timing', 'An extension moves the window.'),
                      ('find_role', 'Procurement or category manager', 'Who is the procurement or category manager, and how can they be reached?', 'access',
                       'They run the decision.')]
+        if defence:  # the published record names the user's own group: the job is to keep the contract, not to win it from somebody
+            label = 'Your contract, nearing its end'
+            happened = f"Your group's contract{f' ({supplier})' if supplier else ''} " + (f'ends {when}' if when else 'has a published end date')
+            interpretation = ('The published record names your own group as the supplier. The buyer will extend, re-tender or call off before the term ends: '
+                              'a renewal is defended in the year before that decision, not in the tender.')
+            disprove = ['The record may be out of date: the contract may already be extended, re-let or ended', 'A framework call-off without open competition',
+                        'The service moving into a wider facilities contract']
+            questions = [('route', 'Route to market', 'Will the buyer extend, re-tender or call off from a framework, and when will it decide?', 'decisive',
+                          'It decides whether the contract renews quietly or goes back out to competition, and when.'),
+                         ('contract_end', 'Extension options', 'What extension options does the current contract allow?', 'timing',
+                          'An agreed extension is the cheapest renewal there is.'),
+                         ('find_role', 'Procurement or category manager', 'Who is the procurement or category manager, and how can they be reached?', 'access',
+                          'They run the decision, and your competitors will be asking for them too.')]
     disprove = [f'Contrary evidence: {e["title"]}' for e in events if e['effect'] == 'weakens'] + disprove
     rels = [{'kind': 'incumbent', 'label': 'Supplier on the published record', 'name': supplier, 'basis': 'published',
              'source': (s.get('evidence') or [{}])[0].get('source_url', '')}] if supplier else []
-    return {'kind': 'public_tender' if tender else 'contract_ending', 'organisation': {'name': customer, 'sector': 'Public sector', 'location': s.get('nation'), 'website': None,
-                                                                                         'company_number': None},
-            'events': events, 'happened': {'text': happened, 'detail': ' '.join(x for x in (said, (s.get('brief') or {}).get('why_it_matters') or '') if x),
+    place = notice.place(buyer)
+    return {'kind': 'public_tender' if tender else 'contract_ending', **({'kind_label': label} if label else {}),
+            'organisation': {'name': customer, 'sector': buyer.get('type') or 'Public sector', 'location': place or s.get('nation'), 'website': buyer.get('website') or None,
+                             'company_number': None},
+            'notice': facts, 'field': seen, 'answers': answers,
+            'events': events, 'happened': {'text': happened, 'detail': ' '.join(x for x in (said, notice.readable((s.get('brief') or {}).get('why_it_matters'))) if x),
                                            'date': (events[0]['date'] if events else ''),
                                            'source': (s.get('evidence') or [{}])[0].get('source_url', ''), 'basis': 'published'},
-            'interpretation': interpretation, 'heuristic': None if tender else 'Buyers usually prepare this decision 6 to 12 months before the term ends.',
+            'interpretation': interpretation,
+            'heuristic': None if tender else ('Buyers usually prepare this decision 6 to 12 months before the term ends.' + _planning_window(timing, date.today())),
             'services': _services(named, set()), 'disprove': disprove, 'questions': questions, 'relationships': rels,
-            'unknowns': list((s.get('brief') or {}).get('missing_information') or []), 'first_seen': _item.first_seen, 'updated': _item.last_evaluated,
+            'unknowns': [notice.readable(x) for x in (s.get('brief') or {}).get('missing_information') or []], 'first_seen': _item.first_seen, 'updated': _item.last_evaluated,
             'people': [], 'routes': []}
 
 
@@ -290,7 +625,15 @@ def _contract(db: Session, entity_id: int) -> dict | None:
     reason = (v['reasons'] or [{}])[0]
     events = [_event(t['date'], 'published' if t['basis'] == 'publication date' else 'first_seen' if t['basis'] == 'retrieval' else 'event', t['event'], basis=t['basis'],
                      establishes=t['event']) for t in v['timeline']]
-    return {'kind': 'competitor_contract', 'organisation': {'name': contract.buyer, 'sector': 'Public sector', 'location': v['region'] or v['nation'], 'website': None, 'company_number': None},
+    cited = notice.cited(db, [(contract.facts or {}).get('evidence') or []])[0]
+    facts = next((f for f in cited if f.get('stage') == 'award'), None) or next(iter(cited), {})
+    buyer = facts.get('buyer') or {}
+    seen = field.view(db, customer=contract.buyer, title=contract.title, description=facts.get('description') or '', nation=contract.nation or '',
+                      region=v['region'] or buyer.get('region') or '', own_name=core.preferences(db).get('company_name') or '', ocids={contract.ocid or ''},
+                      contract_id=contract.id, contract_ending=True)
+    return {'kind': 'competitor_contract', 'organisation': {'name': contract.buyer, 'sector': buyer.get('type') or 'Public sector', 'location': v['region'] or v['nation'],
+                                                            'website': buyer.get('website') or None, 'company_number': None},
+            'notice': facts, 'field': seen, 'answers': {},
             'events': events, 'happened': {'text': (f"{contract.buyer} named {len(names)} suppliers ({listed}): {contract.title}. {v['status']['label']}." if several
                                                     else f"{contract.buyer} named {listed} as supplier: {contract.title}. {v['status']['label']}."), 'detail': '',
                                            'date': (v['dates'] or {}).get('published') or '', 'source': (v['sources'] or [{}])[0].get('url', ''), 'basis': 'published'},
@@ -346,10 +689,31 @@ def rank_gaps(questions: list[tuple], requests: list[GapRequest], now: datetime)
                     'researched': r.created_at.date().isoformat() if r else None,
                     'action': 'ask_customer' if status in ('not_found', 'conflicting') else 'research' if status in ('open', 'stale', 'partial', 'not_run') else None,
                     'cost_cents': GAP_COST_CENTS})
-    # Open first, by decision value; a question public sources could not answer is next (ask the customer); answered last.
-    rank = {'open': 0, 'stale': 0, 'partial': 0, 'not_run': 0, 'researching': 1, 'not_found': 2, 'conflicting': 2, 'resolved': 3}
-    out.sort(key=lambda g: (rank[g['status']], VALUE_ORDER[g['value']]))
+    out.sort(key=_gap_order)
     return out
+
+
+# Open first, by decision value; a question public sources could not answer is next (ask the customer); answered last.
+_GAP_RANK = {'open': 0, 'stale': 0, 'partial': 0, 'not_run': 0, 'researching': 1, 'not_found': 2, 'conflicting': 2, 'resolved': 3}
+
+
+def _gap_order(g: dict) -> tuple:
+    return _GAP_RANK[g['status']], VALUE_ORDER[g['value']]
+
+
+def answer_from_record(gaps: list[dict], answers: dict) -> list[dict]:
+    """Fill in the questions the published record already answers, so nobody pays to research what the buyer has
+    published. The team's own research always stands: a record answer never replaces it."""
+    for g in gaps:
+        a = answers.get(g['gap'])
+        if not a:
+            continue
+        if a['complete'] and g['status'] in ('open', 'not_run', 'stale', 'partial', 'not_found'):
+            g.update(status='resolved', answer=a['answer'], findings=a['findings'], action=None, answered_from=a['basis'], researched=None)
+        elif not a['complete'] and g['status'] in ('open', 'not_run', 'stale'):
+            g.update(status='partial', answer=a['answer'], findings=a['findings'], action='research', answered_from=a['basis'], researched=None)
+    gaps.sort(key=_gap_order)
+    return gaps
 
 
 # ------------------------------------------------------------------ the next move, decided once
@@ -367,18 +731,30 @@ def next_move(state: dict) -> tuple[dict, list[dict]]:
     if state['requirement'] and not state['deal']:
         candidates.append(_action('qualify', 'Qualify into a deal', 'The customer has stated a requirement.',
                                   'A deal that keeps the discovery, the research and what the customer said.'))
-    if state['kind'] == 'public_tender' and not state['deal'] and top and top['gap'] != 'eligibility' and state['has_account']:
-        candidates.append(_action('qualify', 'Decide bid or no bid', 'The requirement is published and the decisive question has been looked at.',
-                                  'A deal with the bid decision recorded, ready for the requirements and the response.'))
     task = state.get('next_task')
     if task:  # a follow-up the team set itself comes before anything SalesIntel suggests
         candidates.append(_action('complete_follow_up', f"{task['title']} (due {task['due']:%-d %b})", 'You set this follow-up. Log what happened to close it.',
                                   'The conversation on record, this follow-up closed, and the next one set.', params={'task_id': task['id'], 'due_on': task['due'].isoformat()}))
+    link = state.get('notice_link')
+    opens = link and _action('open_notice', link['label'], link['why'], link['produces'], params={'url': link['url']})
+    # A live tender is read in the buyer's own documents before anything else; an open market engagement is answered; a public
+    # record that everything rests on is read at its source.
+    if link and ((link['stage'] in ('open', 'planning', 'record') and not state['has_account']) or (link['stage'] == 'engagement' and not state['outbound'])):
+        candidates.append(opens)
+    live = bool(link and link['stage'] == 'open')
+    if state['kind'] == 'public_tender' and not state['deal'] and (live or (top and top['gap'] != 'eligibility' and state['has_account'])):
+        candidates.append(_action('qualify', 'Decide bid or no bid',
+                                  'The requirement and the deadline are published. Record the decision so the team knows where this stands.' if live
+                                  else 'The requirement is published and the decisive question has been looked at.',
+                                  'A deal with the bid decision recorded, ready for the requirements and the response.'
+                                  + ('' if state['has_account'] else ' It saves this as an account first.')))
     if top and top['action'] == 'research':
         candidates.append(_action('research_gap', f"Research: {top['question']}", f"{top['why']} Public sources are checked first; nothing is guessed.",
                                   'A sourced answer, or a clear "not published", saved to this opportunity.'
                                   + ('' if state['has_account'] else ' It saves this as an account first, so the answer is kept.'), available=research_ok, reason=research_reason,
                                   params={'gap': top['gap'], 'subject': top['subject'], 'question': top['question']}, cost_cents=GAP_COST_CENTS))
+    if opens and link['stage'] != 'record':
+        candidates.append(opens)  # always within reach, even once it is no longer the first thing to do
     saves = '' if state['has_account'] else ' It saves this as an account first.'
     if not state['people_covered']:
         candidates.append(_action('find_people', 'Find the right people',
@@ -396,8 +772,10 @@ def next_move(state: dict) -> tuple[dict, list[dict]]:
     if not state['has_account']:
         candidates.append(_action('open_account', 'Save as an account', 'Keep every finding, contact and conversation together without acting yet.',
                                   'An account linked to this record and its evidence.'))
+    if opens:
+        candidates.append(opens)  # a public record, once read, gives way to finding the people; it stays within reach
     candidates.append(_action('log_contact', 'Record what the customer said', 'Keep the story current.', 'An interaction on record.' + saves))
-    if not state['dossier'] and state['kind'] in ('private_signal', 'shadow_hypothesis', 'unverified_candidate', 'customer_expansion'):
+    if not state['dossier'] and state['kind'] in ('private_signal', 'shadow_hypothesis', 'unverified_candidate', 'customer_expansion', 'public_signal'):
         candidates.append(_action('investigate', 'Run a deep investigation', 'Tests the whole hypothesis against public evidence, including evidence against it.',
                                   'A dossier with a verdict: strengthened, weakened or unresolved.' + saves, available=research_ok, reason=research_reason, cost_cents=400))
     seen, ordered = set(), []
@@ -424,6 +802,8 @@ def _journey(kind: str, state: dict) -> list[dict]:
                                 ('Identify the route to market', state['people_covered']), ('Qualify', state['deal'])],
         'shadow_hypothesis': [('Test the hypothesis', decisive_done), ('Establish the need and the buyer', state['requirement']), ('Prepare the approach', state['drafts']),
                               ('Engage', state['outbound']), ('Qualify', state['deal'])],
+        'public_signal': [('Read the record at its source', state['has_account']), ('Confirm the problem is still open', decisive_done), ('Find who owns it', state['people_covered']),
+                          ('Engage', state['outbound']), ('Qualify', state['deal'])],
         'customer_expansion': [('Understand the estate change', decisive_done), ('Review the existing contract', state['has_account']), ('Identify the account stakeholder', state['people_covered']),
                                ('Confirm the scope', state['requirement']), ('Develop the proposal', state['deal'])],
     }.get(kind) or [('Confirm the evidence', decisive_done), ('Establish the need', state['requirement']), ('Engage', state['outbound']), ('Qualify', state['deal'])]
@@ -525,7 +905,8 @@ def build(db: Session, key: str, *, last_review: datetime | None = None, now: da
     story.sort(key=lambda s: s['date'])
     for e in events:
         e['new'] = bool(last_review and e['recorded'] and datetime.fromisoformat(e['recorded']).replace(tzinfo=UTC) > (last_review if last_review.tzinfo else last_review.replace(tzinfo=UTC)))
-    gaps = rank_gaps(record['questions'], requests, now)
+    gaps = answer_from_record(rank_gaps(record['questions'], requests, now), record.get('answers') or {})
+    facts = _dated(record.get('notice') or {}, now.date())
     research_ok, research_reason = _research_available(db)
     # Someone who decides is named: a usable contact on the account, or (before the account exists) a person a source names.
     people_covered = any(c.status != 'do_not_contact' and c.name for c in contacts) or \
@@ -533,7 +914,7 @@ def build(db: Session, key: str, *, last_review: datetime | None = None, now: da
     state = {'kind': record['kind'], 'has_account': account is not None, 'top_gap': gaps[0] if gaps else None, 'research_available': research_ok,
              'research_reason': research_reason, 'requirement': any(a.outcome == 'requirement_captured' or (a.requirements or '').strip() for a in acts),
              'deal': bool(deals), 'people_covered': people_covered, 'drafts': bool(drafts), 'outbound': any(a.direction == 'outbound' for a in acts),
-             'open_task': any(t.status == 'open' for t in tasks), 'dossier': dossier is not None,
+             'open_task': any(t.status == 'open' for t in tasks), 'dossier': dossier is not None, 'notice_link': record.get('link') or _notice_link(record['kind'], facts, now.date()),
              'next_task': next(({'id': t.id, 'title': t.title, 'due': t.due_on} for t in sorted((t for t in tasks if t.status == 'open'), key=lambda t: (t.due_on, t.id))), None)}
     primary, alternatives = next_move(state)
     suppressed = {c.name.strip().lower() for c in contacts if c.status == 'do_not_contact' and c.name}
@@ -548,7 +929,7 @@ def build(db: Session, key: str, *, last_review: datetime | None = None, now: da
     stale = bool(latest_day and (now.date() - latest_day).days > STALE_DAYS and not ahead)
     happened = record.get('happened') or {}
     return {
-        'key': key, 'account_id': account.id if account else None, 'source_key': source_key, 'kind': record['kind'], 'kind_label': KIND_LABEL.get(record['kind'], 'Opportunity'),
+        'key': key, 'account_id': account.id if account else None, 'source_key': source_key, 'kind': record['kind'], 'kind_label': record.get('kind_label') or KIND_LABEL.get(record['kind'], 'Opportunity'),
         'organisation': record['organisation'],
         'reveal': {'headline': happened.get('text') or record['organisation'].get('name') or '', 'happened': happened or None,
                    'why': record['interpretation'], 'heuristic': record['heuristic'], 'services': record['services'],
@@ -559,11 +940,12 @@ def build(db: Session, key: str, *, last_review: datetime | None = None, now: da
                                  'last_researched': max((r.created_at.date().isoformat() for r in requests), default=None),
                                  'stale': stale, 'note': 'The newest sourced evidence is over 18 months old: check it is still current.' if stale else ''}},
         'next': primary, 'alternatives': alternatives, 'research': {'available': research_ok, 'reason': research_reason}, 'gaps': gaps, 'evidence': events[:60], 'relationships': relationships,
+        'notice': facts or None, 'field': record.get('field'),
         'journey': _journey(record['kind'], state), 'story': story,
         'stakeholders': [{'name': c.name, 'role': c.role, 'status': c.status, 'source': c.source_url, 'route': c.route_kind} for c in contacts if c.status != 'do_not_contact']
                         or [{'name': p.get('name'), 'role': p.get('role'), 'status': 'named by a source', 'source': p.get('source_url'), 'route': ''}
                             for p in record.get('people') or [] if isinstance(p, dict) and p.get('name') and p['name'].strip().lower() not in suppressed][:6],
-        'unknowns': record['unknowns'][:8],
+        'unknowns': _still_unknown(record['unknowns'], facts, record.get('field'))[:8],
         'recorded_requirement': next((a.requirements.strip() for a in reversed(acts) if (a.requirements or '').strip()), ''),
         'sources': [{'key': source_key, 'title': (happened.get('text') or record['organisation'].get('name') or '')[:120]}] if source_key else [],
         'since_last_review': {'since': last_review.isoformat() if last_review else None, 'new_events': sum(1 for e in events if e['new'])},

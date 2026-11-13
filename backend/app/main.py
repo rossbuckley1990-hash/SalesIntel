@@ -92,6 +92,8 @@ def create_app() -> FastAPI:
     application.include_router(atlas_router)
     from app.routers.brief import router as brief_router
     application.include_router(brief_router)
+    from app.routers.patch import router as patch_router
+    application.include_router(patch_router)
     if settings.auth_mode == "dev":
         from app.routers.dev_auth import router as dev_auth_router
         application.include_router(dev_auth_router)

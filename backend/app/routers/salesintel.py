@@ -420,7 +420,7 @@ def drafts(status: Literal['open', 'all'] = 'open', db: Session = Depends(tenant
     if status == 'open':
         query = query.where(Draft.status.in_(['draft', 'approved']))
     names = {a.id: a.name for a in db.scalars(select(Account))}
-    return {'items': [core.draft_dict(d) | {'account': names.get(d.account_id)} for d in db.scalars(query)]}
+    return {'items': [core.draft_dict(d, db) | {'account': names.get(d.account_id)} for d in db.scalars(query)]}
 
 
 class ActivityIn(Strict):

@@ -7,6 +7,11 @@ windows from independent clues that overlap in time narrow down the phase.
 Every clue becomes an explicit window with its rule and basis. Rules are industry rules
 of thumb (system service lives, typical contract terms, budget cycles), not standards,
 and the result is a phase with reasons, never a probability.
+
+The phase is about recurring maintenance. Replacing systems is a separate, later sale: a
+replacement date still years away is shown as context and never holds contact back, and a
+refurbishment says nothing about the age of the systems. A vacancy is not an appointment,
+and an acquisition is not a site opening: each is kept as what it is, a reason to ask.
 """
 from __future__ import annotations
 
@@ -40,7 +45,20 @@ KINDS: dict[str, str] = {
     "site_opening": "New site opening",
     "incident": "Incident",
     "incumbent_distress": "Incumbent in difficulty",
+    "role_vacancy": "Role advertised",
+    "acquisition": "Acquisition",
 }
+# Kinds that are reasons to ask but set no window: what they imply for maintenance is not published.
+NOTES: dict[str, str] = {
+    "role_vacancy": "a vacancy is not an appointment, so no new-leader window starts. Ask who covers the role now and whether it has been filled",
+    "acquisition": "a change of owner is a reason to ask whether inherited maintenance contracts will be kept or consolidated. It is not a site opening, so no pre-opening window applies",
+    "refurbishment": "a refurbishment does not show how old the systems are or when their maintenance is reviewed. Ask who maintains them now and when that arrangement is next reviewed",
+}
+REPLACEMENT = {"system_installed", "building_completed"}  # what replacement windows rest on; a separate sale from maintenance
+_VACANCY = re.compile(r"\b(vacanc|advertis|recruit|hiring|job (?:listing|advert|posting)|listing on|is seeking|seeks? an?\b|looking for an?\b)", re.I)
+_APPOINTED = re.compile(r"\b(appointed|appoints|appointment of|joined|joins|promoted|has started|starts as|named as|takes up|took up)\b", re.I)
+_DOUBT = re.compile(r"[^.]*\b(whether|not known|unknown|unclear|not confirmed|no confirmed|not yet)\b[^.]*\.?", re.I)
+_ACQUIRED = re.compile(r"\b(acquir|acquisition|bought|buys\b|purchas|takeover|taken over|takes over)", re.I)
 # Events that can force a change even inside a recently signed contract.
 OVERRIDES_LOCK = {"incident", "incumbent_distress", "regulatory_deadline", "contract_end_stated"}
 
@@ -87,16 +105,28 @@ def _strength(basis: str, precision: str) -> str:
     return "strong" if precision in ("day", "month") else "moderate"
 
 
+def reclassify(clue: dict) -> dict:
+    """What a clue is, from what it says. Research sometimes files a vacancy as a new leader, or a takeover as a site
+    opening; the words it stored say otherwise. Sentences that only raise a doubt ("whether anyone has been appointed")
+    never count as an appointment."""
+    kind, text = clue.get("kind"), str(clue.get("detail") or "")
+    if kind == "leadership_change" and _VACANCY.search(text) and not _APPOINTED.search(_DOUBT.sub(" ", text)):
+        return {**clue, "kind": "role_vacancy", "filed_as": kind}
+    if kind == "site_opening" and _ACQUIRED.search(text):
+        return {**clue, "kind": "acquisition", "filed_as": kind}
+    return clue
+
+
 def clue_window(clue: dict, today: date) -> dict | None:
     """Turn one clue into a window, the rule behind it, and whether it opens or holds closed."""
     kind = clue.get("kind")
     when = parse_when(clue.get("date"))
-    if kind not in KINDS or when is None:
+    if kind not in KINDS or kind in NOTES or when is None:
         return None
     day, basis = when.day, "stated" if clue.get("basis") == "stated" else "inferred"
     family = clue.get("system_family") if clue.get("system_family") in LIFESPANS else "general"
     polarity, start, end, rule = 1, day, day, ""
-    if kind in ("system_installed", "building_completed", "refurbishment"):
+    if kind in REPLACEMENT:
         low, high, why = LIFESPANS[family]
         start, end, rule = add_years(day, low), add_years(day, high), f"{why}; installed or completed around {day.year}"
     elif kind == "supplier_appointed":
@@ -151,13 +181,17 @@ def convergence(windows: list[dict], today: date, horizon_months: int = 24) -> d
 
 
 def infer_timing(clues: list[dict], today: date) -> dict:
-    """Fuse clue windows into a phase: engage now, prepare, not yet, or unknown."""
+    """Fuse clue windows into a phase for maintenance: engage now, prepare, not yet, or unknown."""
+    clues = [reclassify(c) for c in clues if isinstance(c, dict)]
     windows = [w for w in (clue_window(c, today) for c in clues) if w]
     for w in windows:
         w["status"] = _status(w, today)
         # A deadline that applies to everyone says nothing specific about this organisation
-        # unless a source ties it to them, so an inferred one is context, not evidence.
-        w["context_only"] = w["kind"] == "regulatory_deadline" and w["basis"] != "stated"
+        # unless a source ties it to them, so an inferred one is context, not evidence. A
+        # replacement date still ahead is a separate, later sale: context, never a reason to wait.
+        w["context_only"] = (w["kind"] == "regulatory_deadline" and w["basis"] != "stated") or (w["kind"] in REPLACEMENT and w["status"] == "upcoming")
+    notes = [{**_base(c, c["kind"], "stated" if c.get("basis") == "stated" else "inferred", when), "rule": NOTES[c["kind"]]}
+             for c in clues if c.get("kind") in NOTES and (when := parse_when(c.get("date")))]
     evidence = [w for w in windows if not w["context_only"]]
     positive = [w for w in evidence if w["polarity"] > 0 and w["status"] != "past"]
     active = [w for w in positive if w["status"] == "active"]
@@ -168,7 +202,9 @@ def infer_timing(clues: list[dict], today: date) -> dict:
     context = [w for w in windows if w["context_only"] and w["status"] != "past"]
     reasons: list[str] = []
     if not evidence:
-        phase, reasons = "unknown", ["No dated clue specific to this organisation was found, so timing cannot be inferred yet."]
+        phase = "unknown"
+        if not notes and not context:
+            reasons = ["No dated clue specific to this organisation was found, so timing cannot be inferred yet."]
     elif locks and not overriding:
         phase = "not_yet"
         reasons.append(f"A supplier was appointed recently; expect little appetite to change before {locks[0]['end']:%B %Y}.")
@@ -188,7 +224,16 @@ def infer_timing(clues: list[dict], today: date) -> dict:
         reasons.append(f"{w['label']}: {w['rule']}. Window open until {w['end']:%B %Y}.")
     for w in upcoming[:3]:
         reasons.append(f"{w['label']}: {w['rule']}. Window opens {w['start']:%B %Y}.")
-    for w in context[:1]:
+    said = set()
+    for n in sorted(notes, key=lambda n: n["observed"], reverse=True):  # one line for each kind of note, however many clues say it
+        if n["kind"] not in said and len(said) < 2:
+            said.add(n["kind"])
+            reasons.append(f"{n['label']}: {n['rule']}.")
+    for w in [w for w in context if w["kind"] in REPLACEMENT][:1]:
+        reasons.append(f"Replacement, a separate sale: {w['rule']}. That window opens {w['start']:%B %Y}; it does not set when maintenance is reviewed.")
+    if not evidence and (notes or context):  # the specific reason to ask comes first; this only says what is missing
+        reasons.append("When their maintenance is next reviewed is not published.")
+    for w in [w for w in context if w["kind"] not in REPLACEMENT][:1]:
         reasons.append(f"Context: {w['detail'] or w['label']} ({w['end']:%B %Y}). It applies widely, so confirm it affects them before relying on it.")
     if together:
         reasons.insert(0, f"{len(together['kinds'])} independent clues converge from {together['start']:%B %Y} to {together['end']:%B %Y}: {', '.join(together['labels'])}.")
@@ -203,5 +248,5 @@ def infer_timing(clues: list[dict], today: date) -> dict:
     label = {"engage_now": "Engage now", "prepare": "Prepare", "not_yet": "Not yet", "unknown": "Timing unknown"}[phase]
     return {"phase": phase, "light": light, "label": label, "window": window, "convergence": together,
             "blocked_until": locks[0]["end"] if locks and not overriding else None, "reasons": reasons[:6],
-            "clues": sorted(windows, key=lambda w: w["start"]), "as_of": today,
+            "clues": sorted(windows, key=lambda w: w["start"]), "notes": sorted(notes, key=lambda n: n["observed"]), "as_of": today,
             "method": "Inferred from indirect, dated clues using industry rules of thumb. A phase, not a probability."}

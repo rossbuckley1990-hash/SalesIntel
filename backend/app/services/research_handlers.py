@@ -56,8 +56,18 @@ def prospect_search(run: Run) -> dict:
     run_search(run.db, search, post=meter, settings=settings, seller=_seller(run), replayed=meter.simulated)
     if search.status != 'complete':
         return {'status': 'failed', 'stage': 'Research did not complete', 'message': search.error or 'The research did not complete.', 'prospect_ids': []}
-    return {'status': 'succeeded', 'stage': 'Complete', 'prospect_ids': search.prospect_ids, 'search_id': search.id,
-            'message': f"{len(search.prospect_ids)} organisation(s) found, each with its sources. Signals are reasons to investigate, not confirmed requirements."}
+    return {'status': 'succeeded', 'stage': 'Complete', 'prospect_ids': search.prospect_ids, 'search_id': search.id, **sourced_summary(run.db, search.prospect_ids)}
+
+
+def sourced_summary(db, prospect_ids: list[int]) -> dict:
+    """How many of the organisations found rest on a source a rep can open. Those that do not are named, to be checked first."""
+    from app.models.prospect import Prospect
+    found = [p for p in (db.get(Prospect, i) for i in prospect_ids or []) if p is not None]
+    unsourced = [p for p in found if not any(s.get('source_url') and s.get('basis') == 'stated' for s in (p.data or {}).get('signals') or [])]
+    n, m = len(found), len(unsourced)
+    head = f"{n} organisation{'' if n == 1 else 's'} found" + (f", each with a published source" if not m else
+                                                               f": {n - m} with a published source; {m} need{'s' if m == 1 else ''} checking first ({', '.join(p.name for p in unsourced[:3])})")
+    return {'message': f"{head}. Signals are reasons to investigate, not confirmed requirements.", 'needs_sources': [p.id for p in unsourced]}
 
 
 @handler('gap_research')

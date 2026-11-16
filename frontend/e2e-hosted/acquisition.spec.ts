@@ -126,7 +126,8 @@ test("private prospect on a phone: brief, durable research, people, partial resu
   await toast(page, /keeps running if you leave or refresh/);
   await page.reload();
   await expect(page.getByText(/Web research: “logistics companies with new warehouses in Yorkshire”/)).toBeVisible();
-  await expect(page.getByText(/2 organisation\(s\) found, each with its sources/)).toBeVisible({ timeout: 30000 });
+  // The result says how many rest on a published source, and names the one that does not (it is checked before anyone acts on it).
+  await expect(page.getByText(/2 organisations found: 1 with a published source; 1 needs checking first \(Calder Freight Services/)).toBeVisible({ timeout: 30000 });
   await page.reload();
   const results = page.getByRole("region", { name: "Results" });
   await results.getByRole("button", { name: /Northgate Distribution Ltd/ }).click();

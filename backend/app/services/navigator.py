@@ -80,6 +80,19 @@ def _category(text: str) -> str:
     return ''
 
 
+def phone_key(value: str) -> str:
+    """A UK number however it is written: +44 (0)1757 450000, 0044 1757 450000 and 01757 450000 are one route. Used to match
+    routes only; an opt-out keeps its own fingerprint (`digest`), so no recorded opt-out ever stops matching."""
+    d = re.sub(r'\D', '', value or '')
+    if d.startswith('0044'):
+        d = d[4:]
+    elif d.startswith('44') and len(d) >= 12:
+        d = d[2:]
+    else:
+        return d
+    return '0' + d[1:] if d.startswith('0') else '0' + d
+
+
 def digest(kind: str, value: str) -> str:
     clean = re.sub(r'\D', '', value) if kind == 'phone' else value.strip().lower()
     return hashlib.sha256(f'{kind}:{clean}'.encode()).hexdigest()
@@ -419,7 +432,7 @@ def save(db: Session, account: Account, accepted: list[tuple[Candidate, str, lis
     existing = db.scalars(select(Contact).where(Contact.account_id == account.id)).all()
     by_key = {}
     for e in existing:
-        for k in filter(None, [e.email and ('email', e.email.lower()), e.phone and ('phone', re.sub(r'\D', '', e.phone)),
+        for k in filter(None, [e.email and ('email', e.email.lower()), e.phone and ('phone', phone_key(e.phone)),
                                e.name and not e.email and not e.phone and ('person', e.name.lower()), e.route_kind == 'procurement_notice' and ('notice', e.source_url)]):
             by_key[k] = e
     hashes = suppressed_hashes(db)
@@ -430,7 +443,7 @@ def save(db: Session, account: Account, accepted: list[tuple[Candidate, str, lis
             # The research said this route was a person's; its own source does not name them. Keep it as a role route.
             c = replace(c, person='', role='' if c.role and people.get(c.person.lower()) and c.role == people[c.person.lower()].role else c.role)
             reasons = [*reasons, 'Its source does not name a person, so it is kept as a role or department route.']
-        key = (('email', c.value.lower()) if c.kind == 'email' else ('phone', re.sub(r'\D', '', c.value)) if c.kind in ('phone', 'switchboard')
+        key = (('email', c.value.lower()) if c.kind == 'email' else ('phone', phone_key(c.value)) if c.kind in ('phone', 'switchboard')
                else ('notice', c.value) if c.kind == 'procurement_notice' else ('person', c.value.lower()) if c.kind == 'person' else ('form', c.value))
         role_from = people.get((c.person or '').lower())
         fields = dict(role=(c.role or (role_from.role if role_from else '') or ROUTE_LABEL.get(route_kind(c), ''))[:240],

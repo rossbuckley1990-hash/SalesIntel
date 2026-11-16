@@ -92,7 +92,7 @@ def test_each_lead_carries_its_chain_published_or_inferred_and_every_record_open
     fernhill = leads[keys['fernhill']]
     assert [l['label'] for l in fernhill['chain']] == ['Published', 'Published', 'Published', 'Published', 'Inferred'] and all(l['url'] for l in fernhill['chain'][:4])
     assert [l['text'] for l in fernhill['chain'][:4]] == ['£240m programme for six new automated parcel depots', 'Swindon depot approved', 'Leicester depot opened',
-                                                         'Site opening: Bristol depot due to open']
+                                                         'New site opening: Bristol depot due to open']
     assert fernhill['chain'][4]['text'].startswith('Fernhill Parcels Ltd is adding or changing sites')
     assert fernhill['chain'][4]['text'] != fernhill['why_now'].rstrip('.')  # the timing is said once, in "Why now"
     assert fernhill['against'] == 1  # one record points the other way, and the card says so

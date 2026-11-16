@@ -57,7 +57,9 @@ test("a salesperson signs up, sets a target and takes a public lead to a qualifi
 
   // Log the conversation and qualify it into the pipeline.
   await nav(alice, "Accounts");
-  await alice.getByRole("button", { name: "Example Housing Trust Limited" }).click();
+  // Today also names this lead (its patch-brief card and its contract end), so wait for the Accounts list and take its row exactly.
+  await expect(alice).toHaveURL(/view=clients/);
+  await alice.getByRole("main").getByRole("table").getByRole("button", { name: "Example Housing Trust Limited", exact: true }).click();
   await alice.getByLabel("What happened").fill("Called the assets team about the sheltered schemes");
   await alice.getByLabel("Outcome").selectOption("requirement_captured");
   await alice.getByRole("button", { name: "Save to timeline" }).click();

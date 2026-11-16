@@ -259,6 +259,8 @@ def view(row: Prospect, today: date | None = None) -> dict:
     for clue in timing["clues"]:
         for key in ("start", "end", "observed"):
             clue[key] = clue[key].isoformat()
+    for note in timing["notes"]:
+        note["observed"] = note["observed"].isoformat()
     for key in ("window", "convergence"):
         if timing.get(key):
             timing[key] = {k: (v.isoformat() if isinstance(v, date) else v) for k, v in timing[key].items()}

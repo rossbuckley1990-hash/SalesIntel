@@ -183,7 +183,8 @@ def fits(item: dict, rep: dict) -> bool:
 
 def choose(items: list[dict], rep: dict, judged: set[str], size: int = SIZE) -> tuple[list[tuple[str, dict]], dict]:
     """The leads for the brief, each with the step of the rule that chose it, and how many leads each step had to choose from."""
-    pool = [x for x in items if x['status'] != 'dismissed' and x['key'] not in judged and fits(x, rep)]
+    # Research with no sourced signal needs its sources checked before anyone acts on it, so it is not offered here.
+    pool = [x for x in items if x['status'] != 'dismissed' and x['key'] not in judged and fits(x, rep) and not (x['type'] == 'private' and not x.get('sourced_signals'))]
     steps = {
         'target': [x for x in pool if _is_target(x, rep)],
         'two_records': sorted(sorted((x for x in pool if two_records(x)), key=_newest, reverse=True), key=lambda x: -two_records(x)),
@@ -202,7 +203,7 @@ def choose(items: list[dict], rep: dict, judged: set[str], size: int = SIZE) -> 
                 break
             if x['key'] not in taken:
                 chosen.append((step, x)); taken.add(x['key']); n += 1
-    held = sum(1 for x in items if x['status'] != 'dismissed' and fits(x, rep))  # with the ones already judged
+    held = sum(1 for x in items if x['status'] != 'dismissed' and fits(x, rep) and not (x['type'] == 'private' and not x.get('sourced_signals')))  # with the ones already judged
     counts = {'in_patch': len(pool), 'held': held, **{step: len(found) for step, found in steps.items() if step != 'next'}}
     return chosen, counts
 
@@ -216,7 +217,9 @@ def _newest(x: dict) -> str:
 
 def _deadline(x: dict) -> int | None:
     due = (x.get('facts') or {}).get('deadline')
-    if due and due.get('days') is not None and due['days'] >= 0:
+    # Only a date the buyer sets for suppliers to act by: tenders due, or a market engagement closing. The date a tender notice is
+    # expected is not a deadline (as on Today's "Closing soonest").
+    if due and due.get('key') in ('submission', 'engagement') and due.get('days') is not None and due['days'] >= 0:
         return due['days']
     return x['days'] if x['category'] == 'live_procurement' and x.get('days') is not None and x['days'] >= 0 else None
 

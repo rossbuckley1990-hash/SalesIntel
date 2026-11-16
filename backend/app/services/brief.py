@@ -20,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.intelligence.renewal_radar import families
+from app.intelligence.timing_inference import KINDS as TIMING_KINDS, reclassify
 from app.models.crm import Account, AccountLink, Activity, Contact, DealRecord, Draft, Task
 from app.models.gaps import GapRequest
 from app.models.shadow import Dossier
@@ -109,17 +110,20 @@ def _prospect(db: Session, entity_id: int) -> dict | None:
     stated = [s for s in signals if s.get('basis') == 'stated' and s.get('source_url')]
     supporting = [s for s in stated if s.get('direction') != 'against']
     events = []
+    today_text = date.today().isoformat()
     for s in signals:
         group = 'estate' if s.get('type') in ESTATE_SIGNALS else 'leadership' if s.get('type') in ('leadership_change', 'new_leader') else \
             'risk' if s.get('type') in ('incident', 'enforcement', 'insurer_requirement') else 'default'
         against = s.get('direction') == 'against'
-        events.append(_event(s.get('date'), 'reported', s.get('title') or '', detail=s.get('detail') or '', url=s.get('source_url') or '',
+        when = _day(s.get('date'))
+        ahead = bool(when) and when > today_text[:len(when)]  # a milestone still to come is an expected event, not a report of one
+        events.append(_event(s.get('date'), 'event' if ahead else 'reported', s.get('title') or '', detail=s.get('detail') or '', url=s.get('source_url') or '',
                              source=SIGNALS.get(s.get('type'), (s.get('type') or 'Source', ''))[0], basis='stated' if s.get('basis') == 'stated' else 'inferred',
                              establishes=(s.get('title') or '') if s.get('basis') == 'stated' else 'Nothing on its own: an inference from other evidence.',
                              not_established=NOT_ESTABLISHED[group],
                              effect='weakens' if against else 'supports' if s.get('direction') == 'supports' else 'context'))
-    for c in p.get('timing_clues') or []:
-        events.append(_event(c.get('date'), 'event', f"{(c.get('kind') or 'timing').replace('_', ' ').capitalize()}: {c.get('detail') or ''}", url=c.get('source_url') or '',
+    for c in (reclassify(c) for c in p.get('timing_clues') or [] if isinstance(c, dict)):  # a vacancy is not an appointment, a takeover not an opening
+        events.append(_event(c.get('date'), 'event', f"{TIMING_KINDS.get(c.get('kind'), (c.get('kind') or 'timing').replace('_', ' ').capitalize())}: {c.get('detail') or ''}", url=c.get('source_url') or '',
                              source='Timing clue', basis='stated' if c.get('basis') == 'stated' else 'inferred',
                              establishes=c.get('detail') or '' if c.get('basis') == 'stated' else 'An estimate, not a published date.',
                              not_established='It does not say when the fire and security packages are let.'))
@@ -140,7 +144,6 @@ def _prospect(db: Session, entity_id: int) -> dict | None:
     clues = [c for c in p.get('timing_clues') or [] if c.get('kind') == 'site_opening' and c.get('date')]
     interpretation = (f"{row.name} is adding or changing sites, and new buildings need fire and security systems installed, then maintained." if estate else
                       f'A sourced change at {row.name} may lead to a review of how its fire and security is provided. A need is not confirmed.')
-    today_text = date.today().isoformat()
     planned = sorted((c for c in clues if _day(c['date']) >= today_text[:len(_day(c['date']))]), key=lambda c: _day(c['date']))
     if planned:
         interpretation += (' Still ahead, as reported: ' + '; '.join(f"{(c.get('detail') or 'a site').rstrip('.')} ({_long(c['date'])})" for c in planned[:4]) +
@@ -517,9 +520,14 @@ def _market(db: Session, entity_id: int) -> dict | None:
                                       'It does not say whether the buyer will extend, re-tender or call off.'))
               for e in s.get('evidence') or []]
     if timing:
-        events.append(_event(timing, 'event', ('Tender deadline' if tender else 'End of published term') + f': {_long(timing)}',
+        # Each kind of date keeps its meaning: a bid deadline, the date a tender notice is expected, or the end of a contract term.
+        expected = s.get('category') == 'official_early_signal' or 'expected' in (s.get('timing_basis') or '').lower()
+        label = 'Tender notice expected' if expected else 'Tender deadline' if tender else 'End of published term'
+        events.append(_event(timing, 'event', f'{label}: {_long(timing)}',
                              basis='published' if 'published' in (s.get('timing_basis') or 'published').lower() else 'inferred',
-                             establishes=f"{s.get('timing_basis') or 'Published date'}.", not_established='An extension may change it.' if not tender else '',
+                             establishes=("The buyer's own early notice gives this as the date it expects to publish the tender. It is not a bid deadline."
+                                          if expected else f"{s.get('timing_basis') or 'Published date'}."),
+                             not_established='The buyer may publish later, or not at all.' if expected else 'An extension may change it.' if not tender else '',
                              effect='supports'))
     for c in s.get('counter_evidence') or []:
         text = notice.readable(c if isinstance(c, str) else (c.get('text') or ''))

@@ -104,12 +104,8 @@ def prepare_introduction(db: Session, account_id: int, *, contact_id: int | None
         greeting = f"Dear {contact.name},"
     elif contact and contact.role:
         greeting = f"Dear {contact.role},"
-        gaps.append("No named person: addressed to a role.")
     else:
         greeting = "Dear [name],"
-        gaps.append("No contact selected: add the recipient's name.")
-    if not prefs["company_name"]:
-        gaps.append("Add your name and company under Your details.")
     services = []
     evidence = []
     if source is None:
@@ -160,7 +156,9 @@ def prepare_introduction(db: Session, account_id: int, *, contact_id: int | None
         f"Kind regards,\n{sender}\n{company}",
     ])
     subject = f"{account.name}: fire and security arrangements"
-    return {"subject": subject[:255], "body": body, "evidence": evidence, "gaps": gaps, "source_key": source["key"] if source else None, "contact_id": contact.id if contact else None}
+    # Recipient and sender warnings come from the same rule a saved draft uses, so the two never disagree.
+    return {"subject": subject[:255], "body": body, "evidence": evidence, "gaps": [*who_gaps(db, contact.id if contact else None), *gaps],
+            "source_key": source["key"] if source else None, "contact_id": contact.id if contact else None}
 
 
 def _deal_on_account(db: Session, deal_id: int | None, account_id: int) -> None:
@@ -190,6 +188,7 @@ def save_draft(db: Session, account_id: int, data: dict, draft_id: int | None = 
         for key in ("subject", "body", "contact_id"):
             if key in data:
                 setattr(draft, key, data[key])
+        draft.gaps = current_gaps(db, draft)
         draft.status, draft.updated_at = "draft", moment
     else:
         draft = Draft(account_id=account_id, deal_id=data.get("deal_id"), contact_id=data.get("contact_id"), channel=data.get("channel") or "email",
@@ -200,6 +199,32 @@ def save_draft(db: Session, account_id: int, data: dict, draft_id: int | None = 
         track(db, "draft_saved", account_id=account_id, deal_id=data.get("deal_id"), ref=f"draft:{draft.id}")
     db.flush()
     return draft
+
+
+RECIPIENT_GAPS = ("No contact selected", "No named person", "is selected, but no direct route")
+SENDER_GAP = "Add your name and company under Your details."
+
+
+def current_gaps(db: Session, draft: Draft) -> list[str]:
+    """A draft's warnings as they stand now. Those about the recipient and the sender are worked out again whenever the draft
+    is saved or shown; the others (about the evidence) are kept as they were written."""
+    kept = [g for g in draft.gaps or [] if not g.startswith(RECIPIENT_GAPS) and g != SENDER_GAP]
+    return [*who_gaps(db, draft.contact_id), *kept]
+
+
+def who_gaps(db: Session, contact_id: int | None) -> list[str]:
+    """What is missing about who the message is to and who it is from."""
+    contact = db.get(Contact, contact_id) if contact_id else None
+    if contact is None:
+        recipient = ["No contact selected: add the recipient's name."]
+    elif not contact.name:
+        recipient = ["No named person: addressed to a role."]
+    elif not (contact.email or contact.phone) or contact.status != "verified":
+        recipient = [f"{contact.name} is selected, but no direct route to them is verified: reach them through the published switchboard or office first."]
+    else:
+        recipient = []
+    prefs = preferences(db)
+    return [*recipient, *([] if prefs["company_name"] and prefs["sender_name"] else [SENDER_GAP])]
 
 
 def approve_draft(db: Session, draft_id: int) -> Draft:
@@ -280,8 +305,8 @@ def log_activity(db: Session, account_id: int, data: dict, follow_up: dict | Non
     for done in follow_up.get("complete_task_ids", []) if follow_up else []:
         complete_task(db, done)
     account.updated_at = moment
-    if account.status == "prospect":
-        account.status = "engaged"
+    from app.services.si_core import worked_status
+    account.status = worked_status(account.status, db.scalars(select(Activity).where(Activity.account_id == account_id)).all())  # a note changes nothing
     return activity, task
 
 

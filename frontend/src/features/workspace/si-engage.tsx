@@ -101,7 +101,7 @@ function Composer({ accountId, notify, onChange }: { accountId: number; notify: 
       const saved = draftId
         ? await si<DraftT>(`/drafts/${draftId}`, { method: "PATCH", json: { subject, body, contact_id: contactId ? Number(contactId) : null } })
         : await si<DraftT>(`/accounts/${accountId}/drafts`, { method: "POST", json: { subject, body, contact_id: contactId ? Number(contactId) : null, evidence, gaps } });
-      setDraftId(saved.id); setStatus(saved.status); notify("Draft saved."); onChange();
+      setDraftId(saved.id); setStatus(saved.status); setGaps(saved.gaps); notify("Draft saved."); onChange(); // the warnings as they stand now
       return saved.id;
     } catch (e) { notify((e as Error).message, true); return null; } finally { setBusy(false); }
   }

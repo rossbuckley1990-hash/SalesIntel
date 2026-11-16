@@ -725,7 +725,8 @@ def account_view(db: Session, account_id: int) -> dict:
     deals = db.scalars(select(DealRecord).where(DealRecord.account_id == account_id).order_by(DealRecord.id.desc())).all()
     known, confirm = [], []
     for s in sources:
-        known.append({"text": s["why_now"], "basis": s["basis"], "source": s["key"]})
+        # For research and Shadow Radar the reason is a timing reading (a rule of thumb), even when the event behind it is published.
+        known.append({"text": s["why_now"], "basis": s["basis"] if s["type"] == "public" else "inferred", "source": s["key"]})
         if s.get("supplier"):
             known.append({"text": f"Supplier named on {'the published record' if s['type'] == 'public' else 'research'}: {s['supplier']}. This is a reported relationship, not necessarily today's incumbent.", "basis": s["basis"], "source": s["key"]})
     usable = [c for c in contacts if c.status != "do_not_contact"]
@@ -749,13 +750,13 @@ def account_view(db: Session, account_id: int) -> dict:
                                                "Prepare an introduction" if not activities else "Schedule the next follow-up")
     return {
         "id": account.id, "name": account.name, "kind": account.kind, "company_number": account.company_number, "website": account.website, "sector": account.sector,
-        "region": account.region, "status": account.status, "watched": account.watched, "notes": account.notes, "created_at": account.created_at.isoformat(),
+        "region": account.region, "status": worked_status(account.status, activities), "watched": account.watched, "notes": account.notes, "created_at": account.created_at.isoformat(),
         "updated_at": account.updated_at.isoformat(),
         "identities": [{"name_seen": l.name_seen, "entity_type": l.entity_type, "entity_id": l.entity_id, "basis": l.basis, "confirmed": l.confirmed} for l in links],
         "sources": sources, "known": known[:10], "to_confirm": confirm[:10], "next_step": next_step,
         "contacts": [contact_dict(c) for c in contacts], "sites": [{"id": s.id, "name": s.name, "address": s.address, "postcode": s.postcode, "uprn": s.uprn,
                     "basis": s.basis, "source_url": s.source_url, "systems": s.systems} for s in sites],
-        "activities": [activity_dict(a) for a in activities], "tasks": [task_dict(t) for t in tasks], "drafts": [draft_dict(d) for d in drafts],
+        "activities": [activity_dict(a) for a in activities], "tasks": [task_dict(t) for t in tasks], "drafts": [draft_dict(d, db) for d in drafts],
         "deals": [{"id": d.id, "title": d.title, "stage": d.stage, "opportunity_id": d.opportunity_id, "value_total": d.value_total, "value_basis": d.value_basis} for d in deals],
     }
 
@@ -776,9 +777,32 @@ def task_dict(t: Task) -> dict:
     return {"id": t.id, "title": t.title, "due_on": t.due_on.isoformat(), "status": t.status, "account_id": t.account_id, "deal_id": t.deal_id}
 
 
-def draft_dict(d: Draft) -> dict:
+def draft_dict(d: Draft, db: Session | None = None) -> dict:
+    """A draft for the screen. Given the session, its warnings about recipient and sender are worked out as they stand now, so a
+    draft saved before a contact was chosen does not still say none was."""
+    gaps = d.gaps
+    if db is not None and d.status in ("draft", "approved"):
+        from app.services.si_engage import current_gaps
+        gaps = current_gaps(db, d)
     return {"id": d.id, "account_id": d.account_id, "contact_id": d.contact_id, "deal_id": d.deal_id, "channel": d.channel, "subject": d.subject, "body": d.body,
-            "evidence": d.evidence, "gaps": d.gaps, "status": d.status, "updated_at": d.updated_at.isoformat()}
+            "evidence": d.evidence, "gaps": gaps, "status": d.status, "updated_at": d.updated_at.isoformat()}
+
+
+CONTACT_KINDS = ("call", "email", "meeting", "site_visit")
+RESPONSES = ("connected", "interested", "call_back", "meeting_booked", "requirement_captured")
+
+
+def worked_status(stored: str, activities: list) -> str:
+    """An account's status from what was actually done with the customer. A note is internal preparation and never counts:
+    "contacted" needs an outbound call, email, meeting or visit; "engaged" needs a reply, an inbound message or a meeting.
+    Opportunity and customer are set by a deal and stay as they are. Worked out when read, so a status that an internal note
+    once set wrongly corrects itself without changing any stored record."""
+    if stored not in ("prospect", "contacted", "engaged"):
+        return stored
+    real = [a for a in activities if a.kind in CONTACT_KINDS]
+    if any(a.direction == "inbound" or a.outcome in RESPONSES for a in real):
+        return "engaged"
+    return "contacted" if any(a.direction == "outbound" for a in real) else "prospect"
 
 
 def accounts_list(db: Session, q: str = "") -> list[dict]:
@@ -790,7 +814,8 @@ def accounts_list(db: Session, q: str = "") -> list[dict]:
             continue
         due = db.scalar(select(func.min(Task.due_on)).where(Task.account_id == a.id, Task.status == "open"))
         last = db.scalar(select(func.max(Activity.occurred_at)).where(Activity.account_id == a.id))
-        out.append({"id": a.id, "name": a.name, "kind": a.kind, "region": a.region, "sector": a.sector, "status": a.status, "watched": a.watched,
+        acts = db.scalars(select(Activity).where(Activity.account_id == a.id)).all()
+        out.append({"id": a.id, "name": a.name, "kind": a.kind, "region": a.region, "sector": a.sector, "status": worked_status(a.status, acts), "watched": a.watched,
                     "sources": db.scalar(select(func.count()).select_from(AccountLink).where(AccountLink.account_id == a.id)),
                     "contacts": db.scalar(select(func.count()).select_from(Contact).where(Contact.account_id == a.id)),
                     "open_deals": db.scalar(select(func.count()).select_from(DealRecord).where(DealRecord.account_id == a.id, DealRecord.stage.not_in(["won", "lost"]))),

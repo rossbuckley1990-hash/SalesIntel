@@ -209,6 +209,32 @@ def test_timing_comes_from_the_rules_and_a_stated_clue_needs_a_page_it_read():
     assert rc.assess_timing([{'kind': 'made_up', 'date': '2027-01'}], sources, date(2026, 11, 16))['label'] == 'Timing unknown'
 
 
+def test_a_builder_is_not_a_new_supplier_and_a_card_shows_its_timing_as_of_today(hosted):
+    """Live, 16 November 2026: the firm building a site was filed as its new supplier, so two 2027 openings said "Not yet"."""
+    h = hosted
+    c, org = workspace(h, 'ana', 'Alpha Fire Ltd')
+    chat_id = start(c)['id']
+    # The model is told what each kind of clue means, as one-off research is, and has a kind for a building contractor.
+    prompt = rc.system_prompt('Alpha Fire Ltd')
+    assert 'or for a building contractor.' in prompt and '- contractor_appointed: a contractor appointed to build, extend or fit out a site' in prompt
+    assert 'contractor_appointed' in rc.CLUE_SCHEMA['properties']['kind']['enum']
+    db, state = _state(h, org, chat_id)
+    builder = {'kind': 'supplier_appointed', 'date': '2026-02', 'detail': 'Example Construction appointed; build began February 2026', 'basis': 'stated',
+               'system_family': 'general', 'source_url': NEWS}
+    assert state.offer(_card(timing_clues=[*_card()['timing_clues'], builder]))['timing'] == 'Engage now'
+    # A card kept from before is shown with timing worked out today, by today's rules, as a saved lead is.
+    old = {**state.cards[0], 'timing': {'phase': 'not_yet', 'label': 'Not yet', 'light': 'red', 'window': None,
+                                        'reasons': ['A supplier was appointed recently; expect little appetite to change before February 2027.']}}
+    shown = rc.card_view(old, date(2026, 11, 16))['timing']
+    assert shown['label'] == 'Engage now' and shown['reasons'][1].startswith('Building contractor appointed: a contractor appointed to build')
+    assert rc.card_view(old, date(2027, 6, 1))['timing']['label'] == 'Timing unknown'  # the opening window has passed by then
+    db.get(ResearchChat, chat_id).cards = [old]
+    db.commit()
+    db.close()
+    seen = c.get(f'/api/si/research-chats/{chat_id}').json()['cards'][0]['timing']
+    assert seen['label'] == pr.timing_view(old['record']['timing_clues'], date.today())['label'] != 'Not yet'
+
+
 class Script:
     """A provider that answers from a list, measured like the real one."""
 

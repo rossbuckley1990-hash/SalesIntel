@@ -83,15 +83,19 @@ supplier was appointed, contract end dates, financial year end, new leaders' sta
 incident dates and compliance deadlines. Find who decides or influences (estates, facilities, security, property, risk,
 health and safety, procurement, operations) where public sources name them, and published business contact routes.
 
-Timing clue kinds, used strictly:
+"""
+CLUE_RULES = """Timing clue kinds, used strictly:
 - supplier_appointed: when THIS organisation appointed its current fire, security, alarm monitoring or facilities provider.
-  Never use it for the organisation itself winning work or taking over a business.
+  Never use it for the organisation itself winning work or taking over a business, or for a building contractor.
+- contractor_appointed: a contractor appointed to build, extend or fit out a site (builder, developer, fit-out or M&E
+  contractor). It is not a fire and security maintenance supplier.
 - contract_end_stated: a published end date of THIS organisation's fire, security or facilities contract.
 - system_installed / building_completed / refurbishment: when systems were installed, a building opened or was refitted.
 - financial_year_end: the organisation's accounting year end (from Companies House or its annual report).
 - regulatory_deadline: mark it stated only when a source ties the deadline to this organisation; a deadline that applies
   to everyone (such as the PSTN switch-off) is inferred.
 - leadership_change, site_opening, incident, incumbent_distress: as named, with the date of the event."""
+SEARCH_GUIDE += CLUE_RULES
 
 CLUE_KINDS = list(KINDS)
 _STR = {"type": "string"}

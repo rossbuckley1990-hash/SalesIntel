@@ -7,10 +7,10 @@ import { BASIS_LABEL, SERVICES, SERVICE_NAME, dayLabel, goto, param, si, type Di
 import { useUrl } from "./si-shared";
 import type { SharedProps } from "./types";
 import { authMode } from "@/lib/session";
-import { JobStatus, newKey, useJob, type JobT } from "./si-people";
 import { ShadowCard } from "./si-shadow";
 import { Runway } from "./si-runway";
 import { SiAtlas } from "./si-atlas";
+import { SiChat } from "./si-chat";
 import { ActionDock, OpportunityBrief, useOpportunity, useWide, type Opportunity } from "./si-living";
 import { daysLabel } from "./si-notice";
 
@@ -21,14 +21,6 @@ const CATEGORY_SHORT: Record<string, [string, "green" | "blue" | "amber" | "viol
 /** A stored date written for people: a day ("14 September 2026") or, where only the month is known, the month ("June 2027"). */
 const longDate = (iso: string) => (/^\d{4}-\d\d-\d\d/.test(iso) ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso.slice(0, 10)}T00:00:00Z`))
   : /^\d{4}-\d\d$/.test(iso) ? new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${iso}-01T00:00:00Z`)) : iso);
-
-function ResearchRow({ job, onDone }: { job: JobT & { params?: { query?: string } }; onDone: () => void }) {
-  const [live] = useJob(job, onDone) as [(JobT & { params?: { query?: string } }) | null, unknown];
-  if (!live) return null;
-  const done = !["queued", "running"].includes(live.status);
-  return <li className="si-research-run"><p className="truncate text-[12.5px] text-ds-ink-2"><Globe size={12} className="mr-1 inline text-ds-muted" aria-hidden="true" />Web research: “{live.params?.query || job.params?.query}”</p>
-    <JobStatus job={live} />{done && live.result?.message && <p className="text-[12px] text-ds-muted">{live.result.message}</p>}</li>;
-}
 
 function BriefView({ lead }: { lead: Lead }) {
   const b = lead.brief;
@@ -57,33 +49,40 @@ const SORTS: [string, string][] = [["", "Most time-sensitive first"], ["value", 
 const KINDS: [string, string][] = [["", "Any kind"], ["live_procurement", "Live tenders"], ["official_early_signal", "Early notices"], ["pre_tender", "Contracts ending"],
   ["inferred_signal", "Public signals"], ["contract_defence", "Your contracts"], ["verify_first", "End date to verify"]];
 
-/** Discover has two modes: the opportunities list, and the Contract Atlas of who holds the work today. */
+type Mode = "opportunities" | "chat" | "atlas";
+const modeOf = (value: string | null): Mode => (value === "atlas" || value === "chat" ? value : "opportunities");
+
+/** Discover has three modes: the opportunities list, the research chat that finds new ones, and the Contract Atlas of who holds the work today. */
 export function SiDiscover(props: SharedProps) {
-  const [mode, setMode] = useState<"opportunities" | "atlas">(() => (param("mode") === "atlas" ? "atlas" : "opportunities"));
+  const [mode, setMode] = useState<Mode>(() => modeOf(param("mode")));
+  const [ask, setAsk] = useState("");
   useEffect(() => {
-    const sync = () => setMode(param("mode") === "atlas" ? "atlas" : "opportunities");
+    const sync = () => setMode(modeOf(param("mode")));
     window.addEventListener("popstate", sync);
     return () => window.removeEventListener("popstate", sync);
   }, []);
-  function choose(next: "opportunities" | "atlas") {
+  function choose(next: Mode) {
     setMode(next);
     const url = new URL(window.location.href);
-    for (const k of ["mode", "q", "contractor", "customer", "lead", "source", "layout", "sort"]) url.searchParams.delete(k);
-    if (next === "atlas") url.searchParams.set("mode", "atlas");
+    for (const k of ["mode", "q", "contractor", "customer", "lead", "source", "layout", "sort", "chat"]) url.searchParams.delete(k);
+    if (next !== "opportunities") url.searchParams.set("mode", next);
     window.history.pushState({}, "", url);
   }
   return (
     <div>
       <div className="ds-tabs mb-4" role="group" aria-label="Discover mode">
         <button aria-pressed={mode === "opportunities"} onClick={() => choose("opportunities")}><Layers size={14} aria-hidden="true" />Opportunities</button>
+        <button aria-pressed={mode === "chat"} onClick={() => choose("chat")}><Sparkles size={14} aria-hidden="true" />Research chat</button>
         <button aria-pressed={mode === "atlas"} onClick={() => choose("atlas")}><Network size={14} aria-hidden="true" />Contract Atlas</button>
       </div>
-      {mode === "atlas" ? <SiAtlas notify={props.notify} /> : <DiscoverOpportunities {...props} />}
+      {mode === "atlas" ? <SiAtlas notify={props.notify} />
+        : mode === "chat" ? <SiChat notify={props.notify} ask={ask} onAsked={() => setAsk("")} />
+        : <DiscoverOpportunities {...props} onAsk={(text) => { setAsk(text); choose("chat"); }} />}
     </div>
   );
 }
 
-function DiscoverOpportunities({ notify }: SharedProps) {
+function DiscoverOpportunities({ notify, onAsk }: SharedProps & { onAsk: (text: string) => void }) {
   useUrl();
   const [q, setQ] = useState(param("q") || "");
   const [applied, setApplied] = useState(param("q") || "");
@@ -101,11 +100,6 @@ function DiscoverOpportunities({ notify }: SharedProps) {
   const [pinned, setPinned] = useState<string | null>(param("lead"));
   const [pinnedLead, setPinnedLead] = useState<Lead | null>(null);
   const [views, setViews] = useState<View[]>([]);
-  const [jobs, setJobs] = useState<(JobT & { params?: { query?: string } })[]>([]);
-  const loadJobs = useCallback(async () => {
-    try { setJobs((await si<{ items: (JobT & { kind: string; params?: { query?: string } })[] }>("/research-jobs")).items.filter((j) => j.kind === "prospect_search").slice(0, 3)); } catch { /* optional */ }
-  }, []);
-  useEffect(() => { void loadJobs(); }, [loadJobs]);
   const [loading, setLoading] = useState(true);
   const search = useRef<HTMLInputElement>(null);
 
@@ -181,14 +175,10 @@ function DiscoverOpportunities({ notify }: SharedProps) {
       goto(then, { account: linked.account_id, source: lead.key });
     } catch (e) { notify((e as Error).message, true); }
   }
-  async function webResearch() {
-    const text = applied || q;
-    if (text.trim().length < 3) return notify("Describe what to look for first.", true);
-    try {
-      const job = await si<JobT>("/discover/research", { method: "POST", json: { query: text }, headers: { "Idempotency-Key": newKey() } });
-      setJobs((j) => [{ ...job, params: { query: text } } as JobT & { params: { query: string } }, ...j]);
-      notify("Web research started. It keeps running if you leave or refresh this page.");
-    } catch (e) { notify((e as Error).message, true); }
+  function webResearch() {
+    const text = (q || applied).trim();
+    if (text.length < 3) return notify("Describe what to look for first.", true);
+    onAsk(text);  // the research chat takes it from here
   }
   async function saveView() {
     const name = window.prompt("Name this view", applied || "My territory");
@@ -233,7 +223,7 @@ function DiscoverOpportunities({ notify }: SharedProps) {
             {q && <button type="button" aria-label="Clear search" className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-md text-ds-faint hover:bg-ds-subtle" onClick={() => { setQ(""); setApplied(""); }}><X size={15} /></button>}
           </div>
           <button className="ds-btn primary !h-11">Search</button>
-          <button type="button" className="ds-btn !h-11" onClick={() => void webResearch()} title="Ask Claude to search the web for private-sector companies. Uses API credit."><Globe size={15} /> Research the web</button>
+          <button type="button" className="ds-btn !h-11" onClick={webResearch} title="Ask the research chat to find private-sector opportunities on the web. Uses API credit."><Globe size={15} /> Research the web</button>
         </form>
         <div className="lo-filters flex flex-wrap items-center gap-2">
           <div className="ds-tabs" role="group" aria-label="Source">
@@ -252,8 +242,6 @@ function DiscoverOpportunities({ notify }: SharedProps) {
         {result && applied && (result.interpreted.nations.length + result.interpreted.services.length + result.interpreted.regions.length > 0) && <p className="text-[12px] text-ds-muted">
           Understood: {[...result.interpreted.nations, ...result.interpreted.services.map((s) => SERVICE_NAME[s] || s), ...result.interpreted.regions].join(", ")}{result.interpreted.keywords.length ? `; matching “${result.interpreted.keywords.join(" ")}”` : ""}.</p>}
         {result?.gaps.map((g) => <p key={g} className="flex items-start gap-2 rounded-xl border border-ds-amber-line bg-ds-amber-soft px-3 py-2 text-[12px] leading-[18px] text-ds-ink-2"><Info size={14} className="mt-px flex-none text-ds-amber" aria-hidden="true" />{g}</p>)}
-        {!!jobs.length && <section aria-label="Web research runs" className="si-research-runs"><p className="si-eyebrow">Your latest web research</p>
-          <ul>{jobs.map((j) => <ResearchRow key={j.id} job={j} onDone={() => { void load(); void loadJobs(); }} />)}</ul></section>}
       </section>
 
       {layout === "runway" && <div className="mt-5 space-y-4">

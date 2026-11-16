@@ -114,6 +114,97 @@ def web_research(payload: WebResearch, request: Request, db: Session = Depends(t
         db, ctx, 'prospect_search', None, {'query': payload.query})))
 
 
+class ChatMessage(Strict):
+    text: str = Field(min_length=3, max_length=4000)
+
+
+def _chat_or_404(db: Session, chat_id: int):
+    from app.models.research_chat import ResearchChat
+    chat = db.get(ResearchChat, chat_id)
+    if chat is None:
+        raise LookupError('That research chat no longer exists.')
+    return chat
+
+
+def _ask(db: Session, ctx: Context, chat, text: str) -> dict:
+    """Queue the model's reply to the rep's message: one reply at a time in a chat."""
+    from app.services import research_chat as chats
+    if chats.running_job(db, chat) is not None:
+        raise PermissionError('A reply is still being written. Wait for it, or stop it, before sending another message.')
+    job = _start(db, ctx, 'research_chat', None, {'chat_id': chat.id, 'turn': len(chat.turns)})
+    chats.add_message(chat, text, job['id'])
+    db.flush()
+    return chats.view(db, chat)
+
+
+def _chat_refusal() -> None:
+    from app.services.ai_costs import chat_provider
+    if chat_provider(get_settings()) is None:
+        raise HTTPException(status_code=403, detail='Web research is switched off in demo mode, so no API credit is used.' if get_settings().app_env == 'demo'
+                            else 'Web research is not configured here.')
+
+
+@router.get('/research-chats')
+def research_chats(db: Session = Depends(tenant_db)):
+    from app.services import research_chat as chats
+    return {'items': chats.listing(db)}
+
+
+@router.post('/research-chats')
+def new_research_chat(payload: ChatMessage, request: Request, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+    """Start a research chat with the rep's first message. The reply runs as a durable job within today's spending limit."""
+    from app.services import research_chat as chats
+    from app.services.ai_costs import chat_provider
+    ctx.require('research.run')
+    _chat_refusal()
+    def work():
+        chat = chats.create(db, payload.text, chat_provider(get_settings()).model, _seller_name(db), ctx.user_id)
+        return _ask(db, ctx, chat, payload.text)
+    return run(db, lambda: idempotent(db, request.headers.get('idempotency-key'), 'research.chat', payload.model_dump(), work))
+
+
+@router.get('/research-chats/{chat_id}')
+def research_chat(chat_id: int, db: Session = Depends(tenant_db)):
+    from app.services import research_chat as chats
+    return run(db, lambda: chats.view(db, _chat_or_404(db, chat_id)))
+
+
+@router.post('/research-chats/{chat_id}/messages')
+def research_chat_message(chat_id: int, payload: ChatMessage, request: Request, db: Session = Depends(tenant_db), ctx: Context = Depends(current_context)):
+    ctx.require('research.run')
+    _chat_refusal()
+    return run(db, lambda: idempotent(db, request.headers.get('idempotency-key'), f'research.chat.{chat_id}', payload.model_dump(),
+                                      lambda: _ask(db, ctx, _chat_or_404(db, chat_id), payload.text)))
+
+
+@router.post('/research-chats/{chat_id}/stop')
+def stop_research_chat(chat_id: int, db: Session = Depends(tenant_db)):
+    """Stop the reply being written. It stops after its current step and keeps what it has done."""
+    from app.services import research_chat as chats
+    def work():
+        chat = _chat_or_404(db, chat_id)
+        if (job := chats.running_job(db, chat)) is not None:
+            jobs.cancel(db, job.id)
+        db.flush()
+        return chats.view(db, chat)
+    return run(db, work)
+
+
+@router.post('/research-chats/{chat_id}/cards/{n}/save')
+def save_research_card(chat_id: int, n: int, db: Session = Depends(tenant_db)):
+    """Save an opportunity card to Discover as a private lead."""
+    from app.services import research_chat as chats
+    def work():
+        chat = _chat_or_404(db, chat_id)
+        card = chats.save_card(db, chat, n)
+        return {'card': card, 'lead_key': card['lead_key']}
+    return run(db, work)
+
+
+def _seller_name(db: Session) -> str:
+    return core.preferences(db).get('company_name') or ''
+
+
 def _start(db: Session, ctx: Context, kind: str, account_id: int | None, params: dict, refresh: bool = False) -> dict:
     try:
         job, created = jobs.enqueue(db, kind, account_id=account_id, params=params, estimated_cents=ESTIMATE_CENTS[kind], user_id=ctx.user_id, refresh=refresh)

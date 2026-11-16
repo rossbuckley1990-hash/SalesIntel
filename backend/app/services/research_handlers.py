@@ -40,6 +40,19 @@ def deep_investigation(run: Run) -> dict:
     return result
 
 
+@handler('research_chat')
+def research_chat(run: Run) -> dict:
+    """One reply in a research chat. It keeps what it has done if the rep stops it."""
+    from app.services import research_chat as chat
+    from app.services.ai_costs import chat_provider
+    from app.services.jobs import Cancelled
+    meter = chat_provider(get_settings())
+    if meter is None:
+        raise ValueError('Web research is not available here, so no API credit is used.')
+    run.attach(meter)
+    return chat.reply(run.db, run.job.params['chat_id'], run.job.params['turn'], meter, step=run.step, job_id=run.job.id, cancelled=Cancelled)
+
+
 @handler('prospect_search')
 def prospect_search(run: Run) -> dict:
     from app.services.prospect_research import run_search

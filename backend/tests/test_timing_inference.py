@@ -48,7 +48,7 @@ def test_budget_window_rolls_to_the_next_year_end():
 
 def test_future_windows_say_when_to_prepare_and_nothing_means_unknown():
     opening = infer_timing([{"kind": "site_opening", "date": "2027-09-01", "basis": "stated"}], TODAY)
-    assert opening["phase"] == "engage_now" and opening["window"]["end"] == date(2027, 6, 1)
+    assert opening["phase"] == "engage_now" and opening["window"]["end"] == date(2028, 3, 1)  # six months after it opens
     soon = infer_timing([{"kind": "supplier_appointed", "date": "2024-11-01", "basis": "stated"}], TODAY)
     assert soon["phase"] == "prepare" and soon["window"]["start"] == date(2027, 5, 1)
     later = infer_timing([{"kind": "supplier_appointed", "date": "2025-06-01", "basis": "stated"}], TODAY)
@@ -83,7 +83,7 @@ def test_a_building_contractor_is_not_a_fire_and_security_supplier():
         assert reclassify(clue)["kind"] == "contractor_appointed" and reclassify(clue)["filed_as"] == "supplier_appointed"
         t = infer_timing([{"kind": "site_opening", "date": opens, "basis": "stated", "detail": "Due to open in 2027"}, clue], date(2026, 11, 16))
         assert t["phase"] == "engage_now" and t["blocked_until"] is None
-        assert t["reasons"][0].startswith("New site opening: fire and security for a new site is usually procured three to twelve months before it opens")
+        assert t["reasons"][0].startswith("New site opening: fire and security for a new site is usually installed in the year before it opens")
         assert t["reasons"][1] == ("Building contractor appointed: a contractor appointed to build or fit out a site is not its fire and security "
                                    "maintenance supplier, so it does not hold contact back. Ask who installs those systems under the build and who "
                                    "will maintain them after handover.")
@@ -112,3 +112,50 @@ def test_a_supplier_that_maintains_systems_still_holds_contact_back():
         clue = {"kind": "supplier_appointed", "date": "2026-05-01", "basis": "stated", "detail": detail}
         assert reclassify(clue) == clue, detail
         assert infer_timing([clue], TODAY)["phase"] == "not_yet", detail
+
+
+NOW = date(2026, 11, 16)
+LATE = ("New site opening: installation is usually already bought this close to opening, but maintenance must be in place from handover, and "
+        "BS 5839-1 recommends servicing fire alarms at least every six months. Ask whether the site will join an existing estate-wide maintenance "
+        "contract or be let locally.")
+
+
+def opening(when: str, basis: str = "stated", detail: str = "Due to open.") -> dict:
+    return infer_timing([{"kind": "site_opening", "date": when, "basis": basis, "detail": detail}], NOW)
+
+
+def test_a_new_site_stays_open_for_maintenance_until_six_months_after_it_opens():
+    """Live, 16 November 2026: a hotel opening in January 2027 said "Timing unknown" because the installation window had closed,
+    though its maintenance was still to be arranged. Cases below are the live ones with fictional wording."""
+    soon = opening("2027-01")  # two months away: installation is probably bought, maintenance is the open question
+    assert soon["phase"] == "engage_now" and soon["window"] == {"start": NOW, "end": date(2027, 7, 15)}
+    assert soon["reasons"][0] == f"{LATE[:-1]}. Window open until July 2027."
+    opened = opening("2026-08")  # went live three months ago
+    assert opened["phase"] == "engage_now" and opened["reasons"][0].startswith(LATE[:-1]) and "February 2027" in opened["reasons"][0]
+    assert opening("2026-04")["phase"] == "unknown"  # seven months ago: the first service is past, the window has closed
+    early = opening("2027-09")  # ten months away: installation is still being decided
+    assert early["phase"] == "engage_now" and early["reasons"][0] == ("New site opening: fire and security for a new site is usually installed in the year "
+                                                                       "before it opens, and its maintenance arranged by handover. Window open until March 2028.")
+    later = opening("2028-06")  # nineteen months away
+    assert later["phase"] == "prepare" and later["reasons"][0].endswith("Window opens June 2027.") and "installed in the year before it opens" in later["reasons"][0]
+    assert opening("2026-09", basis="inferred")["phase"] == "prepare"  # an opening nobody states is still only a reason to confirm
+
+
+def test_a_completion_still_to_come_is_an_opening_not_the_age_of_systems():
+    """Live: a distribution centre "completion early 2027" was read as systems installed in 2027, due for replacement from 2035."""
+    t = infer_timing([{"kind": "building_completed", "date": "2027-02", "basis": "stated", "detail": "Completion early 2027"}], NOW)
+    assert t["phase"] == "engage_now" and t["reasons"][0].startswith(LATE[:-1]) and not any("Replacement" in r or "2035" in r for r in t["reasons"])
+    assert [w["kind"] for w in t["clues"]] == ["site_opening"] and t["clues"][0]["label"] == "New site opening"
+    built = infer_timing([{"kind": "building_completed", "date": "2024", "basis": "stated"}], NOW)  # a completion that has happened keeps its meaning
+    assert built["phase"] == "unknown" and built["reasons"][0].startswith("Replacement, a separate sale:")
+
+
+def test_sites_transferring_to_a_new_operator_are_a_change_of_owner():
+    """Live: six sites due to transfer to a new operator were filed as a site opening (fictional names, stored wording)."""
+    transfer = {"kind": "site_opening", "date": "2026-09", "basis": "stated",
+                "detail": "The six sites, including Example Town, were due to transfer to Example Logistics in September 2026."}
+    assert reclassify(transfer)["kind"] == "acquisition"
+    t = infer_timing([transfer], NOW)
+    assert t["phase"] == "unknown" and t["reasons"][0].startswith("Acquisition: a change of owner is a reason to ask")
+    moving = {"kind": "site_opening", "date": "2027-05", "basis": "stated", "detail": "Operations transfer to the new site in May 2027."}
+    assert reclassify(moving)["kind"] == "site_opening"  # a move into a new building is still an opening

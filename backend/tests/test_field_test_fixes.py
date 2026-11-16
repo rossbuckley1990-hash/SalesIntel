@@ -107,7 +107,7 @@ def test_a_vacancy_is_not_an_appointment():
 def test_an_acquisition_is_not_a_site_opening():
     t = infer_timing([{'kind': 'site_opening', 'date': '2025', 'basis': 'stated', 'detail': 'Example Hotels bought the Example West hotel.'}], TODAY)
     assert t['phase'] == 'unknown' and t['clues'] == [] and [n['kind'] for n in t['notes']] == ['acquisition']
-    assert not any('procured three to twelve months before it opens' in r for r in t['reasons'])
+    assert not any(r.startswith('New site opening') for r in t['reasons'])
     opening = infer_timing([{'kind': 'site_opening', 'date': '2027-09-01', 'basis': 'stated', 'detail': 'New depot due to open.'}], TODAY)
     assert opening['phase'] == 'engage_now'  # a real opening keeps its rule
 

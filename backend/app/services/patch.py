@@ -233,24 +233,38 @@ def _say(kind: str, e: dict) -> str:
 
 
 def chain(b: dict, why_now: str = '') -> list[dict]:
-    """The dated records behind a lead, oldest first, and then SalesIntel's reading of them. Each record is Published (a source
-    states it; the link opens that source) or Inferred. A record with no link of its own, such as a deadline read from a notice,
-    opens the notice it was read from."""
-    dated = sorted((e for e in b['evidence'] if e['date_kind'] != 'first_seen' and e['effect'] != 'weakens' and e['date'] and (e['title'] or e['detail'])),
-                   key=lambda e: e['date'])
+    """The dated records behind a lead, oldest first, and then SalesIntel's reading of them. Every dated link is Published: a
+    source states it, and the link opens that source. A record with no link of its own, such as a deadline read from a notice,
+    opens the notice it was read from. The reading at the end is the one Inferred link."""
     notice_url = next(((e['source'] or {}).get('url') for e in b['evidence'] if e['source'] and e['basis'] == 'published'), '') or ''
-    # At most four dated links. The records the lead rests on come first (where it began and the two latest, if there are many);
-    # then what else is dated on the record: the next thing ahead, such as a contract end or an opening, before older context.
-    rests = [e for e in dated if e['effect'] == 'supports']
+
+    def url_of(e: dict) -> str:  # a date read from a notice (a deadline, a contract end) opens that notice
+        return (e['source'] or {}).get('url') or (notice_url if e['basis'] == 'published' else '')
+    # Only what a source states is a dated link. SalesIntel's own readings (a build year, a national deadline, a likely change)
+    # are never dated links, so they cannot crowd out the records the lead rests on; the one reading is said once, at the end.
+    sourced = [e for e in b['evidence'] if e['date_kind'] != 'first_seen' and e['effect'] != 'weakens' and e['date'] and (e['title'] or e['detail'])
+               and e['basis'] in ('published', 'stated') and url_of(e)]
+    # The records the lead rests on, one per source: where it began and the two latest, if there are more than three.
+    rests, seen = [], set()
+    for e in sorted((e for e in sourced if e['effect'] == 'supports'), key=lambda e: e['date'], reverse=True):
+        own = (e['source'] or {}).get('url')
+        if own and own in seen:
+            continue
+        seen.add(own)
+        rests.append(e)
+    rests = sorted(rests, key=lambda e: e['date'])
     rests = rests if len(rests) <= 3 else [rests[0], *rests[-2:]]
+    used = {(e['source'] or {}).get('url') for e in rests} - {None, ''}
+    # Then the next dated thing ahead (a contract end, an opening), then other published context, newest first, up to four links.
     today = core.uk_today().isoformat()
-    other = [e for e in dated if e['effect'] != 'supports']
+    other, said = [], {_say(b['kind'], e) for e in rests}
+    for e in sourced:  # a notice stored twice is said once
+        if e['effect'] != 'supports' and (e['source'] or {}).get('url') not in used and (text := _say(b['kind'], e)) not in said:
+            said.add(text)
+            other.append(e)
     other = sorted((e for e in other if e['date'] > today), key=lambda e: e['date']) + sorted((e for e in other if e['date'] <= today), key=lambda e: e['date'], reverse=True)
     events = sorted([*rests, *other[:max(0, 4 - len(rests))]], key=lambda e: e['date'])
-    links = []
-    for e in events:
-        url = (e['source'] or {}).get('url') or (notice_url if e['basis'] == 'published' else '')
-        links.append({'date': e['date'], 'text': notice.clip(_say(b['kind'], e), 150), 'url': url, 'label': 'Published' if url and e['basis'] in ('published', 'stated') else 'Inferred'})
+    links = [{'date': e['date'], 'text': notice.clip(_say(b['kind'], e), 150), 'url': url_of(e), 'label': 'Published'} for e in events]
     if b['kind'] != 'public_tender':  # a tender needs no reading: the requirement and the deadline are published
         why = b['reveal']['why']
         # the sentence that says why it is a reason to act; the timing is already said once, in "Why now"

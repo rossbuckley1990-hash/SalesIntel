@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -233,3 +233,45 @@ def test_saving_a_rep_works_when_the_contract_index_needs_refreshing(local):
     assert [r['name'] for r in client.delete('/api/si/patch/reps/Sam North').json()['reps']] == ['Jo West']
     state = db.scalar(select(MarketSourceState).where(MarketSourceState.source_key == atlas.STATE_KEY))
     assert state.cursor == atlas.fingerprint(db)  # and the index was refreshed on the way
+
+
+def test_inferences_never_crowd_the_published_records_out_of_a_chain(local):
+    """Seen on real research (16 November 2026): a lead chosen for three independent sources showed none of them, because its
+    newest "supporting" items were SalesIntel's own inferences (a national switch-off date, a likely change of duty holder, a
+    build year read from an article). Only what a source states is a dated link now, one per source."""
+    import copy
+    from app.models.prospect import Prospect
+    client, db, keys = local
+    data = copy.deepcopy(living_fixtures.fernhill_data(TODAY))
+    d = lambda days: (TODAY + timedelta(days=days)).isoformat()  # noqa: E731
+    data['signals'] = [
+        {'type': 'acquisition', 'title': 'Example Freight takes on six grocery distribution sites', 'detail': '', 'date': d(-100), 'basis': 'stated',
+         'direction': 'supports', 'source_url': 'https://news.example/freight-sites'},
+        {'type': 'contract_change', 'title': 'Change of site operator after nineteen years', 'detail': '', 'date': d(-110), 'basis': 'stated',
+         'direction': 'supports', 'source_url': 'https://trade.example/operator-change'},
+        {'type': 'expansion', 'title': 'Recruitment and a new pick system at the site', 'detail': '', 'date': d(-80), 'basis': 'stated',
+         'direction': 'supports', 'source_url': 'https://jobs.example/pick-system'},
+        {'type': 'leadership_change', 'title': 'New fire safety duty holder under the Fire Safety Order', 'detail': '', 'date': d(-60), 'basis': 'inferred',
+         'direction': 'supports', 'source_url': ''},
+        {'type': 'ageing_systems', 'title': 'Building dates from 2007', 'detail': '', 'date': '2007', 'basis': 'inferred', 'direction': 'supports',
+         'source_url': 'https://news.example/built-2007'},
+        {'type': 'compliance_deadline', 'title': 'PSTN copper switch-off', 'detail': '', 'date': d(70), 'basis': 'inferred', 'direction': 'supports', 'source_url': ''}]
+    data['timing_clues'] = [{'kind': 'compliance_deadline', 'date': d(70), 'detail': 'PSTN copper switch-off', 'basis': 'inferred', 'system_family': '', 'source_url': ''}]
+    row = Prospect(dedup_key='example freight', name='Example Freight Ltd', status='new', data=data, created_at=datetime.now(UTC), updated_at=datetime.now(UTC))
+    db.add(row)
+    db.commit()
+    key = f'pr:{row.id}'
+    lead = next(c for c in client.get('/api/si/patch').json()['leads'] if c['key'] == key)
+    assert lead['chosen'] == 'two_records' and lead['sources'] == 3
+    dated = [l for l in lead['chain'] if l['date']]
+    assert [(l['text'], l['label']) for l in dated] == [('Change of site operator after nineteen years', 'Published'),
+                                                         ('Example Freight takes on six grocery distribution sites', 'Published'),
+                                                         ('Recruitment and a new pick system at the site', 'Published')]
+    assert [l['label'] for l in lead['chain']] == ['Published', 'Published', 'Published', 'Inferred'] and all(l['url'] for l in dated)
+    assert not any(w in ' '.join(l['text'] for l in lead['chain']) for w in ('PSTN', '2007', 'duty holder'))
+    # and on every card: dated links are published and open their source; the one inferred line has no link
+    for c in client.get('/api/si/patch').json()['leads']:
+        assert all(l['label'] == 'Published' and l['url'] for l in c['chain'] if l['date'])
+        assert all(not l['url'] for l in c['chain'] if l['label'] == 'Inferred') and sum(1 for l in c['chain'] if l['label'] == 'Inferred') <= 1
+        assert len({l['text'] for l in c['chain']}) == len(c['chain'])  # nothing said twice (a date read from a notice may open the same notice)
+

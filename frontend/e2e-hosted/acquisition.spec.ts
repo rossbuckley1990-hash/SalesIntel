@@ -119,18 +119,22 @@ test("private prospect on a phone: brief, durable research, people, partial resu
   const page = await signUp(browser, "bdm@beta-acquisition.example", "Bea Developer", "Beta Security Ltd", mobile);
   await setUp(page, { territory: "Yorkshire", sectors: "Logistics" });
 
-  // Specify a territory and sector, and research the web. The job survives a refresh.
+  // Specify a territory and sector, and research the web: the research chat takes the request. The conversation survives a refresh.
   await nav(page, "Discover", true);
   await page.getByLabel("Search opportunities").fill("logistics companies with new warehouses in Yorkshire");
   await page.getByRole("button", { name: "Research the web" }).click();
-  await toast(page, /keeps running if you leave or refresh/);
+  const chat = page.getByRole("region", { name: "Research chat" });
+  await expect(chat.getByRole("list", { name: "Conversation" })).toContainText("logistics companies with new warehouses in Yorkshire");
   await page.reload();
-  await expect(page.getByText(/Web research: “logistics companies with new warehouses in Yorkshire”/)).toBeVisible();
-  // The result says how many rest on a published source, and names the one that does not (it is checked before anyone acts on it).
-  await expect(page.getByText(/2 organisations found: 1 with a published source; 1 needs checking first \(Calder Freight Services/)).toBeVisible({ timeout: 30000 });
-  await page.reload();
+  // Only an organisation with a dated, published source becomes a card; the reply says which was left out and why.
+  const card = chat.getByRole("article", { name: "Northgate Distribution Ltd" });
+  await expect(card).toBeVisible({ timeout: 30000 });
+  await expect(chat).toContainText("Calder Freight Services was left out");
+  await expect(chat.getByRole("article", { name: "Calder Freight Services" })).toHaveCount(0);
+  await card.getByRole("button", { name: "Save to Discover" }).click();
+  await toast(page, /saved to Discover/);
+  await card.getByRole("button", { name: /Open in Discover/ }).click();  // opens the saved lead itself
   const results = page.getByRole("region", { name: "Results" });
-  await results.getByRole("button", { name: /Northgate Distribution Ltd/ }).click();
   const sheet = page.getByRole("region", { name: "Selected opportunity details" });
   await expect(sheet.getByRole("region", { name: "Next move" })).toBeVisible();
   await sheet.getByText("Source record").click();
@@ -143,7 +147,7 @@ test("private prospect on a phone: brief, durable research, people, partial resu
   await expect(sheet.getByRole("region", { name: "What do we know?" }).getByText(/\d{4}-\d\d/)).toHaveCount(0);
   await expect(sheet.getByRole("region", { name: "What remains unknown?" })).toContainText("not proof of buying intent");
   await page.screenshot({ animations: "disabled", path: `${SHOTS}/4-discover-private-mobile.png` });
-  await expect(results.getByRole("button", { name: /Calder Freight Services/ })).toContainText("Unverified");
+  await expect(results.getByRole("button", { name: /Calder Freight Services/ })).toHaveCount(0);  // never offered, so never saved
 
   // Find the people: a named lead and permitted routes, but no direct details, said plainly.
   await sheet.getByRole("button", { name: "Save as an account" }).click();

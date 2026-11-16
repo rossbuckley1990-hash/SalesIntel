@@ -252,10 +252,9 @@ def clean(prospect: dict, sources: dict[str, str]) -> dict:
     return prospect
 
 
-def view(row: Prospect, today: date | None = None) -> dict:
-    """A prospect as the app shows it, with timing inferred as of today."""
-    data = row.data
-    timing = infer_timing(data.get("timing_clues") or [], today or datetime.now(UTC).date())
+def timing_view(clues: list[dict], today: date) -> dict:
+    """Timing inferred from dated clues by the stated rules, with dates as ISO text."""
+    timing = infer_timing(clues or [], today)
     for clue in timing["clues"]:
         for key in ("start", "end", "observed"):
             clue[key] = clue[key].isoformat()
@@ -266,6 +265,13 @@ def view(row: Prospect, today: date | None = None) -> dict:
             timing[key] = {k: (v.isoformat() if isinstance(v, date) else v) for k, v in timing[key].items()}
     timing["blocked_until"] = timing["blocked_until"].isoformat() if timing["blocked_until"] else None
     timing["as_of"] = timing["as_of"].isoformat()
+    return timing
+
+
+def view(row: Prospect, today: date | None = None) -> dict:
+    """A prospect as the app shows it, with timing inferred as of today."""
+    data = row.data
+    timing = timing_view(data.get("timing_clues") or [], today or datetime.now(UTC).date())
     signals = data.get("signals") or []
     return {**data, "id": row.id, "name": row.name, "status": row.status, "opportunity_id": row.opportunity_id, "search_id": row.search_id,
             "created_at": row.created_at.isoformat(), "updated_at": row.updated_at.isoformat(), "timing": timing,

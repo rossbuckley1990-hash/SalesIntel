@@ -24,7 +24,7 @@ async function signUp(browser: Browser, email: string, name: string, company?: s
 test("a salesperson signs up, sets a target and takes a public lead to a qualified deal; another company sees none of it", async ({ browser }) => {
   const alice = await signUp(browser, "alice@alpha.example", "Alice Seller", "Alpha Fire Ltd");
   await expect(alice.getByText("Tell SalesIntel what you sell, where, and your target.")).toBeVisible();
-  await alice.getByRole("button", { name: "Set up" }).click();
+  await alice.getByRole("button", { name: "Set up", exact: true }).click();  // not "Set up your patch"
   await alice.getByRole("button", { name: "Fire alarm", exact: true }).click();
   await alice.getByLabel("Territory").fill("England");
   await alice.getByLabel("Target amount").fill("500,000");

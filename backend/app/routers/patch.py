@@ -32,6 +32,13 @@ def _view(db: Session, rep: str | None) -> dict:
     return patch.view(db, rep)
 
 
+def _write_then_view(db: Session, write) -> dict:
+    """Refresh the shared contract index first, then write. The refresh runs in a session of its own; on SQLite it cannot
+    write while this request's session holds the write lock, so refreshing after the write fails with "database is locked"."""
+    ensure_atlas(db)
+    return patch.view(db, write())
+
+
 @router.get('')
 def get_patch(rep: str | None = Query(None, max_length=60), db: Session = Depends(tenant_db)):
     """Five leads for the rep's patch (the active rep unless one is named), chosen by the rule the response states."""
@@ -55,23 +62,20 @@ def get_reps(db: Session = Depends(tenant_db)):
 
 @router.put('/reps')
 def save_rep(payload: RepIn, db: Session = Depends(tenant_db)):
-    def work():
-        saved = patch.save_rep(db, payload.model_dump(exclude={'active'}), active=payload.active)
-        return _view(db, saved['name'])
-    return run(db, work)
+    return run(db, lambda: _write_then_view(db, lambda: patch.save_rep(db, payload.model_dump(exclude={'active'}), active=payload.active)['name']))
 
 
 @router.post('/active')
 def choose_rep(payload: ActiveIn, db: Session = Depends(tenant_db)):
-    def work():
+    def choose():
         patch.choose_rep(db, payload.name)
-        return _view(db, payload.name)
-    return run(db, work)
+        return payload.name
+    return run(db, lambda: _write_then_view(db, choose))
 
 
 @router.delete('/reps/{name}')
 def remove_rep(name: str, db: Session = Depends(tenant_db)):
-    def work():
+    def remove():
         patch.remove_rep(db, name)
-        return _view(db, None)
-    return run(db, work)
+        return None  # the active rep, or the next one kept
+    return run(db, lambda: _write_then_view(db, remove))

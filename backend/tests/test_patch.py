@@ -15,7 +15,7 @@ from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.db import Base, get_db
@@ -205,3 +205,31 @@ def test_a_signal_is_set_beside_its_buyers_published_contract_and_placed_by_it(l
     assert client.put('/api/si/patch/reps', json={'name': 'Jo West', 'regions': ['Wales'], 'services': [], 'sectors': [], 'targets': []}).json()['leads'] == []
     order = [x['key'] for x in core.discover(db, limit=500)['items']]
     assert order.index(keys['tender']) < order.index(keys['signal'])  # Discover's own order is untouched by any of this
+
+
+def test_saving_a_rep_works_when_the_contract_index_needs_refreshing(local):
+    """The collectors change contracts in the background. The first request after that refreshes the shared contract index, in a
+    session of its own. A save that had already written its own change held SQLite's write lock, so the refresh waited, failed
+    with "database is locked", and the rep was never saved (seen on the live app, 16 November 2026)."""
+    from datetime import UTC, datetime
+    from sqlalchemy import update
+    from app.models.market_contract import MarketContract
+    from app.models.market_network import MarketSourceState
+    client, db, _keys = local
+    assert client.get('/api/si/patch').status_code == 200  # the index is current
+    def stale():
+        db.execute(update(MarketContract).values(last_evaluated=datetime.now(UTC)))  # what a collector run does
+        db.commit()
+        state = db.scalar(select(MarketSourceState).where(MarketSourceState.source_key == atlas.STATE_KEY))
+        assert state.cursor != atlas.fingerprint(db)
+    stale()
+    saved = client.put('/api/si/patch/reps', json={'name': 'Sam North', 'regions': [YORKSHIRE], 'services': [], 'sectors': [], 'targets': []})
+    assert saved.status_code == 200 and saved.json()['active'] == 'Sam North'
+    stale()
+    client.put('/api/si/patch/reps', json={'name': 'Jo West', 'regions': [], 'services': [], 'sectors': [], 'targets': [], 'active': False})
+    stale()
+    assert client.post('/api/si/patch/active', json={'name': 'Jo West'}).json()['active'] == 'Jo West'
+    stale()
+    assert [r['name'] for r in client.delete('/api/si/patch/reps/Sam North').json()['reps']] == ['Jo West']
+    state = db.scalar(select(MarketSourceState).where(MarketSourceState.source_key == atlas.STATE_KEY))
+    assert state.cursor == atlas.fingerprint(db)  # and the index was refreshed on the way

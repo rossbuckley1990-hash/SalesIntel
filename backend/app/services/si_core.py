@@ -564,12 +564,13 @@ def interpret(q: str) -> dict:
 
 
 def discover(db: Session, *, q: str = "", source: str = "all", nation: str = "", service: str = "", status: str = "active", category: str = "",
-             limit: int = 50, offset: int = 0, sort: str = "", key: str = "") -> dict:
+             limit: int = 50, offset: int = 0, sort: str = "", key: str = "", region: str = "") -> dict:
     """The list. `key` asks for one record by its key, whatever its status and whatever the other filters say: a record opened
     from Today or from a brief is shown even when the list on screen does not hold it."""
     if key:
         found = [x for x in discover_items(db, limit=None) if x["key"] == key]
         return {"items": found, "total": len(found), "counts": {"public": 0, "private": 0, "shadow": 0}, "interpreted": interpret(""), "gaps": [], "sort": ""}
+    from app.services.patch import regions_of  # the patch brief and this filter place a lead the same way
     meaning = interpret(q)
     items = discover_items(db, include_public=source in ("all", "public"), include_private=source in ("all", "private"), limit=None,
                            include_shadow=source in ("all", "public", "shadow"))
@@ -581,6 +582,8 @@ def discover(db: Session, *, q: str = "", source: str = "all", nation: str = "",
         if status not in ("active", "all") and x["status"] != status:
             return False
         if category and x["category"] != category:
+            return False
+        if region and region not in regions_of(x):  # the region the lead's own notice or research states
             return False
         if nations and x["type"] == "public" and x.get("nation") not in nations:
             return False

@@ -39,8 +39,11 @@ export type VerdictSummary = Tally & { headline: string; by_kind: (Tally & { kin
   recent: (Partial<VerdictT> & { key: string; organisation: string; headline: string })[] };
 /** The rep whose patch is on screen. Verdicts are recorded against this name; empty until a rep is chosen. */
 let rep = "";
+let repReady: Promise<string> | null = null;
 export const repName = () => rep;
-export const setRepName = (name: string) => { rep = name; };
+export const setRepName = (name: string) => { rep = name; repReady = Promise.resolve(name); };
+/** Asked once per page load, by whichever screen needs it first, so a verdict given from any screen goes to the active rep. */
+export const ensureRep = () => (repReady ??= si<{ active: string }>("/patch/reps").then((r) => (rep = r.active || "")).catch(() => rep));
 export type SignalFacts = { date: string; source: string; source_url?: string; official: boolean; records: number; sources: number; corroborated: boolean; strength: string };
 export type SignalRow = SignalFacts & { key: string; organisation: string; headline: string; status: LeadStatus; account_id: number | null };
 export type RowFacts = { value?: string; value_amount?: number; value_kind?: "estimate" | "award"; deadline?: { key: string; label: string; date: string; days: number }; place?: string; lots?: number; scoring?: string; term?: string };

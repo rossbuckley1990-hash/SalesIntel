@@ -335,6 +335,80 @@
 .lo-tally li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 13px; line-height: 19px; color: var(--ds-ink-2); }
 .lo-tally li + li { border-top: 1px solid var(--ds-border); }
 .lo-tally b { flex: none; font-weight: 600; color: var(--ds-ink); font-variant-numeric: tabular-nums; }
+/* The patch brief: five leads for one rep's patch. One card each; the chain is a dated list, not a diagram. */
+.lo-patch { border: 1px solid var(--ds-border); border-radius: 12px; background: var(--ds-surface); padding: 16px 18px 14px; }
+.lo-patch-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 16px; }
+.lo-patch-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; color: var(--ds-ink); }
+.lo-patch-head p { margin-top: 2px; font-size: 12.5px; color: var(--ds-muted); }
+.lo-patch-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lo-pcards { display: grid; gap: 10px; margin: 14px 0 0; padding: 0; list-style: none; }
+.lo-pcard { min-width: 0; border: 1px solid var(--ds-border); border-radius: 10px; padding: 12px 14px; }
+.lo-pcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ds-muted); }
+.lo-ptag { font-weight: 600; color: var(--ds-ink-2); }
+.lo-pn { flex: none; font-variant-numeric: tabular-nums; }
+.lo-pcard h3 { margin-top: 4px; font-size: 15.5px; font-weight: 600; line-height: 21px; color: var(--ds-ink); }
+.lo-pcard h3 button { text-align: left; }
+.lo-pcard h3 button:hover { text-decoration: underline; }
+.lo-pmeta { font-size: 12.5px; line-height: 18px; color: var(--ds-muted); }
+.lo-pwhy { margin-top: 6px; font-size: 13.5px; line-height: 20px; color: var(--ds-ink); }
+.lo-pwhy strong { font-weight: 600; }
+.lo-chain { margin: 8px 0 0; padding: 0; list-style: none; }
+.lo-chain li { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; align-items: baseline; gap: 10px; padding: 6px 0; border-top: 1px solid var(--ds-border); font-size: 13px; line-height: 19px; }
+.lo-chain .d { font-size: 12px; color: var(--ds-muted); font-variant-numeric: tabular-nums; }
+.lo-chain .t { min-width: 0; color: var(--ds-ink-2); overflow-wrap: anywhere; }
+.lo-chain a { color: var(--ds-ink); text-decoration: underline; text-decoration-color: var(--ds-border-strong); text-underline-offset: 3px; }
+.lo-chain a:hover { text-decoration-color: var(--ds-ink); }
+.lo-chain a svg { display: inline; margin-left: 3px; vertical-align: -1px; color: var(--ds-muted); }
+.lo-pcard-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--ds-border); }
+.lo-pcard-foot .lo-verdict-row { margin-top: 0; }
+/* A next action can be a sentence (a follow-up the rep named, a question to research): it wraps instead of widening the page. */
+.lo-pcard-foot > .ds-btn { max-width: 100%; height: auto; min-height: 32px; padding-top: 5px; padding-bottom: 5px; white-space: normal; text-align: left; }
+.lo-pcard, .lo-pcards > li, .lo-calls li button { min-width: 0; overflow-wrap: anywhere; }
+.lo-calls { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--ds-brand-line); border-radius: 10px; background: var(--ds-brand-soft); }
+.lo-calls h3 { font-size: 12.5px; font-weight: 600; color: var(--ds-ink); }
+.lo-calls ul { margin: 4px 0 0; padding: 0; list-style: none; }
+.lo-calls li button { display: block; width: 100%; padding: 4px 0; text-align: left; font-size: 13px; line-height: 19px; }
+.lo-calls li button strong { font-weight: 600; color: var(--ds-ink); }
+.lo-calls li button span { margin-left: 8px; color: var(--ds-ink-2); }
+.lo-calls li button:hover strong { text-decoration: underline; }
+.lo-patch-empty { margin-top: 14px; font-size: 13.5px; line-height: 20px; color: var(--ds-ink-2); }
+.lo-patch-foot { margin-top: 12px; font-size: 12.5px; line-height: 19px; color: var(--ds-muted); }
+.lo-patch-said { color: var(--ds-ink-2); }
+.lo-patch-said strong { font-weight: 600; color: var(--ds-ink); }
+.lo-patch-more { margin-top: 4px; }
+.lo-patch-more summary { cursor: pointer; font-weight: 600; color: var(--ds-ink-2); }
+.lo-patch-more ol, .lo-patch-more ul { margin: 6px 0 0; padding-left: 18px; }
+.lo-patch-more ol { list-style: decimal; }
+.lo-patch-more ul { padding-left: 0; list-style: none; }
+.lo-patch-more ul li { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 3px 0; }
+.lo-patch-more p { margin-top: 6px; }
+.lo-repform { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--ds-border); border-radius: 10px; background: var(--ds-canvas); }
+.lo-field { display: block; margin-top: 10px; }
+.lo-field:first-child { margin-top: 0; }
+.lo-field > span, .lo-chips legend { display: block; margin-bottom: 4px; font-size: 12.5px; font-weight: 600; color: var(--ds-ink-2); }
+.lo-field .ds-input { width: 100%; max-width: 420px; }
+.lo-field textarea.ds-input { height: auto; max-width: none; padding-top: 8px; padding-bottom: 8px; line-height: 19px; }
+.lo-chips { margin: 10px 0 0; padding: 0; border: 0; }
+.lo-chips > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.lo-chips button { min-height: 32px; padding: 0 10px; border: 1px solid var(--ds-border-strong); border-radius: 8px; background: var(--ds-surface); font-size: 12.5px; font-weight: 500; color: var(--ds-ink-2); }
+.lo-chips button:hover { background: var(--ds-hover); }
+.lo-chips button:focus-visible { outline: 2px solid var(--ds-brand); outline-offset: 2px; }
+.lo-chips button[aria-pressed="true"] { border-color: var(--ds-brand); background: var(--ds-brand-soft); color: var(--ds-brand); font-weight: 600; }
+.lo-repform-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+@media (max-width: 640px) {
+  .lo-patch { padding: 14px 12px 12px; }
+  .lo-chain li { grid-template-columns: minmax(0, 1fr) auto; }
+  .lo-chain .d { grid-column: 1 / -1; margin-bottom: -4px; }
+  .lo-pcard-foot > .ds-btn { width: 100%; justify-content: center; }
+}
+/* Printed, the brief is the page: the shell and the controls are left off. */
+@media print {
+  body * { visibility: hidden; }
+  .lo-patch, .lo-patch * { visibility: visible; }
+  .lo-patch { position: absolute; inset: 0 auto auto 0; width: 100%; border: 0; padding: 0; }
+  .lo-patch-tools, .lo-repform, .lo-pcard-foot, .lo-patch-more, .lo-clock-all { display: none !important; }
+  .lo-pcard { break-inside: avoid; }
+}
 /* On a phone the filters sit two to a row, so the results are not pushed a screen away. */
 @media (max-width: 640px) { .lo-filters > select { flex: 1 1 calc(50% - 4px); min-width: 0; } }
 /* Public signals: one list, two across on a wide screen. A signal's sentence may run to two lines, since it is the whole point of the row. */

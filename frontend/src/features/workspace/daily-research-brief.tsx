@@ -11,7 +11,7 @@ type ResearchAction = { id: number; lead_id: number; organisation: string; headl
 type ResearchLead = { id: number; organisation: string; headline: string; location: string; created_at: string; observations?: { id: string; source_url: string; source_title: string; fact: string; published_date?: string | null }[]; opportunity: { thesis: string; verification_action: string; contact_role?: string; supporting_observation_ids?: string[] } };
 
 /** A compact briefing based on saved work, never a prediction of buying intent. */
-export function DailyResearchBrief({ navigate }: { navigate: Navigate }) {
+export function DailyResearchBrief({ navigate, onEmpty }: { navigate: Navigate; onEmpty?: (empty: boolean) => void }) {
   const [actions, setActions] = useState<ResearchAction[]>([]);
   const [actionTotal, setActionTotal] = useState(0);
   const [leads, setLeads] = useState<ResearchLead[]>([]);
@@ -38,6 +38,8 @@ export function DailyResearchBrief({ navigate }: { navigate: Navigate }) {
       if (recent.status === "fulfilled") setLeads(recent.value.items || []);
       else setLeadError("Recent research is unavailable. Open research to try again.");
       setLoading(false);
+      // Nothing saved and nothing failed: the page that holds this can leave it out.
+      onEmpty?.(followups.status === "fulfilled" && recent.status === "fulfilled" && !(followups.value.items || []).length && !(recent.value.items || []).length);
     });
     return () => { active = false; };
   }, []);

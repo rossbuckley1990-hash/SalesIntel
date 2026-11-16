@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { AlertTriangle, ArrowUpRight, Briefcase, CalendarPlus, Check, ChevronDown, CircleDot, Clock3, FilePenLine, FileSearch, History, Loader2, Minus, MessageSquare, Search, Sparkles,
   TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
 import { hostOf, safeUrl } from "./radar-model";
-import { SERVICES, dayLabel, goto, inDays, si, VERDICTS, repName, type VerdictT, type VerdictValue } from "./si-api";
+import { SERVICES, dayLabel, goto, inDays, si, VERDICTS, ensureRep, repName, type VerdictT, type VerdictValue } from "./si-api";
 import { ActivityForm } from "./si-shared";
 import { JobStatus, newKey, useJob, type JobT } from "./si-people";
 import { FieldView, NoticeFacts, type FieldT, type NoticeT } from "./si-notice";
@@ -81,7 +81,8 @@ export function useOpportunity(key: string | null, notify: Notify, { markReviewe
   const load = useCallback(async () => {
     if (!key) return;
     try {
-      const b = await si<BriefT>(`/brief/${key}${repName() ? `?${new URLSearchParams({ rep: repName() })}` : ""}`);
+      const who = await ensureRep();
+      const b = await si<BriefT>(`/brief/${key}${who ? `?${new URLSearchParams({ rep: who })}` : ""}`);
       if (latest.current !== key) return; // a slower answer for a lead no longer selected
       setBrief(b); setError("");
       shownAt.current = shownAt.current || Date.now();

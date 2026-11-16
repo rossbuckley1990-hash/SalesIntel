@@ -1,9 +1,11 @@
 """The patch brief API: the five leads for a rep's patch, the reps themselves, and the brief as text for the owner to send."""
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import PlainTextResponse
-from pydantic import Field
+from pydantic import Field, StrictFloat, StrictInt, StrictStr
 from sqlalchemy.orm import Session
 
 from app.auth import tenant_db
@@ -14,12 +16,23 @@ from app.services import patch
 router = APIRouter(prefix='/api/si/patch', tags=['patch'], dependencies=[Depends(permitted)])
 
 
+class TargetIn(Strict):
+    """A rep's own target. Amounts are exact decimal strings or numbers; the server validates them."""
+    amount: StrictStr | StrictInt | StrictFloat | None = None
+    basis: Literal['annual_contract_value', 'total_contract_value'] = 'annual_contract_value'
+    start: str = Field('', max_length=10)
+    months: Literal[12, 6, 3, 1] = 12
+    average_value: StrictStr | StrictInt | StrictFloat | None = None
+    qualified_per_win: int | None = Field(None, ge=1, le=50)
+
+
 class RepIn(Strict):
     name: str = Field(min_length=1, max_length=60)
     regions: list[str] = Field(default_factory=list, max_length=12)
     services: list[str] = Field(default_factory=list, max_length=12)
     sectors: list[str] = Field(default_factory=list, max_length=12)
     targets: list[str] = Field(default_factory=list, max_length=25)
+    sales_target: TargetIn | None = None
     active: bool = True
 
 

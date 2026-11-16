@@ -95,7 +95,7 @@ function Board({ notify }: SharedProps) {
                       onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(d.id)); e.dataTransfer.effectAllowed = "move"; setDragging(d.id); }}
                       onDragEnd={() => { setDragging(null); setOver(null); }}>
                       <button className="block w-full text-left" onClick={() => goto("deals", { deal: d.id })}>
-                        <span className="t">{d.title}</span><span className="a">{d.account}</span>
+                        <span className="t">{d.title}</span><span className="a">{d.account}{d.owner_rep ? ` · ${d.owner_rep}` : ""}</span>
                         {d.next_step && <span className="mt-1.5 line-clamp-2 block text-[12px] leading-[17px] text-ds-ink-2">Next: {d.next_step}</span>}
                       </button>
                       <span className="f">
@@ -136,6 +136,9 @@ function DealRecordView({ id, notify }: SharedProps & { id: number }) {
   const [reviewer, setReviewer] = useState("");
   const [closing, setClosing] = useState<"" | "won" | "lost">("");
   const [reason, setReason] = useState("");
+  const [reps, setReps] = useState<string[]>([]);
+  const [values, setValues] = useState<{ annual: string; total: string } | null>(null); // the value editor, when open
+  useEffect(() => { si<{ reps: { name: string }[] }>("/patch/reps").then((r) => setReps(r.reps.map((x) => x.name))).catch(() => setReps([])); }, []);
   const load = useCallback(async () => {
     const deal = await si<DealT>(`/deals/${id}`);
     setD(deal);
@@ -174,7 +177,21 @@ function DealRecordView({ id, notify }: SharedProps & { id: number }) {
         <div className="min-w-0">
           <button className="text-[13px] font-semibold text-ds-brand hover:underline" onClick={() => goto("clients", { account: d.account_id })}>{d.account}</button>
           <h1 className="mt-0.5 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ds-ink">{d.title}</h1>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-ds-muted">Value: <strong className="text-ds-ink">{d.value_total !== null ? money(d.value_total) : d.value_annual !== null ? `${money(d.value_annual)} a year` : "Unknown"}</strong> <Basis basis={d.value_basis} /></p>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-ds-muted">Value: <strong className="text-ds-ink">{d.value_total !== null ? money(d.value_total) : d.value_annual !== null ? `${money(d.value_annual)} a year` : "Unknown"}</strong>
+            {d.value_total !== null && d.value_annual !== null && <span>({money(d.value_annual)} a year)</span>} <Basis basis={d.value_basis} />
+            <button className="font-semibold text-ds-brand hover:underline" aria-expanded={!!values} onClick={() => setValues(values ? null : { annual: d.value_annual?.toString() ?? "", total: d.value_total?.toString() ?? "" })}>Record values</button></p>
+          {(reps.length > 0 || d.owner_rep) && <label className="mt-1 flex items-center gap-2 text-[13px] text-ds-muted">Counts towards
+            <select className="ds-select !h-8 !py-0 text-[13px]" aria-label="Owner" value={d.owner_rep || ""} disabled={d.stage === "won"}
+              onChange={(e) => void patch({ owner_rep: e.target.value }, `Now counts towards ${e.target.value}'s target.`)}>
+              {!d.owner_rep && <option value="">No rep chosen</option>}{[...new Set([...(d.owner_rep ? [d.owner_rep] : []), ...reps])].map((r) => <option key={r} value={r}>{r}</option>)}</select>
+            {d.stage === "won" && <span>(a won deal keeps its owner)</span>}</label>}
+          {values && <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={async (e) => { e.preventDefault();
+            const json: Record<string, string> = {}; if (values.annual.trim()) json.value_annual = values.annual.trim(); if (values.total.trim()) json.value_total = values.total.trim();
+            if (await patch(json, "Values recorded.")) setValues(null); }}>
+            <label className="text-[12px] text-ds-muted">Annual value (£ a year)<input className="ds-input mt-1 block !h-9 w-40 !pl-3" inputMode="decimal" value={values.annual} onChange={(e) => setValues({ ...values, annual: e.target.value })} /></label>
+            <label className="text-[12px] text-ds-muted">Total contract value (£)<input className="ds-input mt-1 block !h-9 w-40 !pl-3" inputMode="decimal" value={values.total} onChange={(e) => setValues({ ...values, total: e.target.value })} /></label>
+            <button className="ds-btn sm">Save values</button><button type="button" className="ds-btn ghost sm" onClick={() => setValues(null)}>Cancel</button>
+          </form>}
         </div>
         {d.stage === "won" ? <Pill tone="green">Won</Pill> : d.stage === "lost" ? <Pill>Lost</Pill> : <div className="flex flex-wrap gap-2">
           {next && <button className="ds-btn primary" onClick={() => void patch({ stage: next }, `Moved to ${STAGE_LABEL[next]}.`)}>Move to {STAGE_LABEL[next]} <ArrowRight size={15} /></button>}
@@ -241,7 +258,7 @@ function DealRecordView({ id, notify }: SharedProps & { id: number }) {
           <Panel title="History"><Timeline items={d.activities} /></Panel>
         </div>
         <div className="space-y-5">
-          <WinAssessment dealId={d.id} version={`${d.stage}|${d.quote?.status}|${d.quote?.version}|${d.activities.length}|${d.tasks.length}|${JSON.stringify(d.qualification)}`} notify={notify} />
+          <WinAssessment dealId={d.id} version={`${d.stage}|${d.quote?.status}|${d.quote?.version}|${d.activities.length}|${d.tasks.length}|${JSON.stringify(d.qualification)}|${d.value_annual}|${d.value_total}|${d.owner_rep}`} notify={notify} />
           <Panel title="Qualification">
             <dl className="space-y-2 text-[13px]">{[["requirement", "Requirement"], ["decision_maker", "Decision maker"], ["timing", "Timing"], ["budget", "Budget"], ["incumbent", "Current provider"]].map(([k, l]) => <div key={k}>
               <dt className="text-[12px] text-ds-muted">{l}</dt><dd className={d.qualification[k] ? "text-ds-ink" : "text-ds-amber"}>{d.qualification[k] || "Not confirmed"}</dd></div>)}</dl>

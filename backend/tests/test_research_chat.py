@@ -227,7 +227,7 @@ def test_a_builder_is_not_a_new_supplier_and_a_card_shows_its_timing_as_of_today
                                         'reasons': ['A supplier was appointed recently; expect little appetite to change before February 2027.']}}
     shown = rc.card_view(old, date(2026, 11, 16))['timing']
     assert shown['label'] == 'Engage now' and shown['reasons'][1].startswith('Building contractor appointed: a contractor appointed to build')
-    assert rc.card_view(old, date(2027, 6, 1))['timing']['label'] == 'Timing unknown'  # the opening window has passed by then
+    assert rc.card_view(old, date(2027, 12, 1))['timing']['label'] == 'Timing unknown'  # six months after it opened, the window has passed
     db.get(ResearchChat, chat_id).cards = [old]
     db.commit()
     db.close()

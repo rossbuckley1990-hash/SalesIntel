@@ -12,6 +12,8 @@ The phase is about recurring maintenance. Replacing systems is a separate, later
 replacement date still years away is shown as context and never holds contact back, and a
 refurbishment says nothing about the age of the systems. A vacancy is not an appointment,
 and an acquisition is not a site opening: each is kept as what it is, a reason to ask.
+A new site's installation is bought in the year before it opens, but its maintenance must be
+in place from handover, so an opening stays a reason to talk until six months after it.
 """
 from __future__ import annotations
 
@@ -32,6 +34,7 @@ LIFESPANS: dict[str, tuple[int, int, str]] = {
 }
 CONTRACT_TERM_YEARS = (3, 5)  # private maintenance contracts commonly run three to five years
 LOCK_IN_MONTHS = 12           # a supplier appointed in the last year is rarely replaced
+MAINTAINED_BY_MONTHS = 6      # BS 5839-1 recommends servicing fire alarms at least every six months, so a new site needs maintenance by then
 
 KINDS: dict[str, str] = {
     "system_installed": "System installed",
@@ -61,6 +64,8 @@ _VACANCY = re.compile(r"\b(vacanc|advertis|recruit|hiring|job (?:listing|advert|
 _APPOINTED = re.compile(r"\b(appointed|appoints|appointment of|joined|joins|promoted|has started|starts as|named as|takes up|took up)\b", re.I)
 _DOUBT = re.compile(r"[^.]*\b(whether|not known|unknown|unclear|not confirmed|no confirmed|not yet)\b[^.]*\.?", re.I)
 _ACQUIRED = re.compile(r"\b(acquir|acquisition|bought|buys\b|purchas|takeover|taken over|takes over)", re.I)
+# Sites passing to a new operator; a move into a new building ("operations transfer to the new site") is still an opening.
+_TRANSFER = re.compile(r"\b(sites?|operations?|business|contracts?)\b[^.]{0,60}?\btransfer(?:s|red|ring)? to (?!(?:the|a|an|its|their|our|new)\b)", re.I)
 # A change of owner filed as a supplier; narrower than _ACQUIRED, since suppliers are often appointed through a purchasing exercise.
 _TAKEOVER = re.compile(r"\b(acquir|acquisition|takeover|taken over|takes over|merger|merged with)", re.I)
 # A contractor building or fitting out a site, as opposed to a supplier who maintains its systems.
@@ -121,7 +126,7 @@ def reclassify(clue: dict) -> dict:
     kind, text = clue.get("kind"), str(clue.get("detail") or "")
     if kind == "leadership_change" and _VACANCY.search(text) and not _APPOINTED.search(_DOUBT.sub(" ", text)):
         return {**clue, "kind": "role_vacancy", "filed_as": kind}
-    if kind == "site_opening" and _ACQUIRED.search(text):
+    if kind == "site_opening" and (_ACQUIRED.search(text) or _TRANSFER.search(text)):
         return {**clue, "kind": "acquisition", "filed_as": kind}
     if kind == "supplier_appointed" and not _MAINTAINS.search(text):
         if _TAKEOVER.search(text):
@@ -138,6 +143,8 @@ def clue_window(clue: dict, today: date) -> dict | None:
     if kind not in KINDS or kind in NOTES or when is None:
         return None
     day, basis = when.day, "stated" if clue.get("basis") == "stated" else "inferred"
+    if kind == "building_completed" and day > today:  # a completion still to come is an opening, not the age of systems
+        kind = "site_opening"
     family = clue.get("system_family") if clue.get("system_family") in LIFESPANS else "general"
     polarity, start, end, rule = 1, day, day, ""
     if kind in REPLACEMENT:
@@ -161,7 +168,11 @@ def clue_window(clue: dict, today: date) -> dict | None:
     elif kind == "leadership_change":
         start, end, rule = add_months(day, 1), add_months(day, 9), "new estates, facilities or security leaders commonly review suppliers in their first nine months"
     elif kind == "site_opening":
-        start, end, rule = add_months(day, -12), add_months(day, -3), "fire and security for a new site is usually procured three to twelve months before it opens"
+        start, end = add_months(day, -12), add_months(day, MAINTAINED_BY_MONTHS)
+        rule = ("fire and security for a new site is usually installed in the year before it opens, and its maintenance arranged by handover"
+                if today < add_months(day, -3) else
+                "installation is usually already bought this close to opening, but maintenance must be in place from handover, and BS 5839-1 recommends "
+                "servicing fire alarms at least every six months. Ask whether the site will join an existing estate-wide maintenance contract or be let locally")
     elif kind == "incident":
         start, end, rule = day, add_months(day, 4), "incidents often prompt a review of systems and providers within about four months"
     elif kind == "incumbent_distress":

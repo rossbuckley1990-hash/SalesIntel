@@ -298,6 +298,7 @@ def view(db: Session, *, customer: str, title: str, description: str = '', natio
     upcoming = sorted((c for c in others if not c['framework'] and c['status']['code'] in IN_TERM and c['end'] and c['end'] >= today.isoformat()), key=lambda c: c['end'])
     history = {'key': buyer_key, 'contracts': len(others), 'similar': sum(1 for c in others if c['similar'] and not c['framework']), 'suppliers': suppliers[:12],
                'supplier_count': len(suppliers), 'frameworks': sum(1 for c in others if c['framework']),
+               'regions': sorted({r['region'] for r in rows if r['customer_key'] == buyer_key and r['region']}),  # where its published contracts place it
                'next_end': {'end': upcoming[0]['end'], 'title': upcoming[0]['title'], 'key': upcoming[0]['key']} if upcoming else None,
                'items': [{**_public(c), **({'last_time': {k: v for k, v in lt.items() if k != 'split'}} if (lt := _last_time(db, c)) else {})} for c in others[:6]]}
     out: dict = {'available': True, 'services': _labels(fam), 'buyer': history, 'coverage': COVERAGE,

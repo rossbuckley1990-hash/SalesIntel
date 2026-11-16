@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.crm import Preference
-from app.services import brief, notice, signals, verdicts
+from app.services import brief, field, notice, signals, verdicts
 from app.services import si_core as core
 
 SIZE = 5
@@ -121,10 +121,28 @@ def region_of(item: dict) -> str:
 
 
 def regions_of(item: dict) -> set[str]:
-    """Every region a lead touches: research on a company with several sites names several places."""
+    """Every region a lead touches: research on a company with several sites names several places. A public signal states no
+    place of its own, so it is placed where its buyer's other published records place the buyer (see `join`)."""
     text = f"{(item.get('facts') or {}).get('place') or ''} {item.get('region') or ''}".lower()
     found = {r for r in REGIONS if r.lower() in text} | {r for w, r in _REGION_WORDS.items() if w in text}
-    return found or ({region_of(item)} - {''})
+    return found or ({region_of(item)} - {''}) or set((item.get('joined') or {}).get('regions') or [])
+
+
+def join(db: Session, items: list[dict]) -> None:
+    """Set each public signal beside the other records held for the same buyer: a published fire or security contract (an
+    award notice is a second, independent source) and where those records place the buyer. Rules on stored records only."""
+    own = core.preferences(db).get('company_name') or ''
+    placed: dict[str, set[str]] = {}
+    for x in items:  # where each buyer's own notices place it
+        if x['type'] == 'public' and (x.get('facts') or {}).get('place') and (name := core.name_key(x['organisation'])):
+            placed.setdefault(name, set()).update(regions_of(x))
+    for x in items:
+        if not x.get('signal'):
+            continue
+        seen = field.view(db, customer=x['organisation'], title='', nation=x.get('nation') or '', own_name=own)
+        holder = (seen.get('incumbent') or {}).get('state') in ('in_term', 'past')
+        regions = set((seen.get('buyer') or {}).get('regions') or []) | placed.get(core.name_key(x['organisation']), set())
+        x['joined'] = {'contract': holder, 'regions': sorted(regions)}
 
 
 def sector_of(item: dict) -> str:
@@ -141,7 +159,8 @@ def two_records(item: dict) -> int:
     """How many independent sources a lead rests on, when it is more than one: the public record's own count for a signal;
     for research, the separate sites that state a dated fact. Otherwise 0."""
     if item.get('signal'):
-        return item['signal']['sources'] if item['signal']['corroborated'] else 0
+        n = item['signal']['sources'] + (1 if (item.get('joined') or {}).get('contract') else 0)  # an award notice for the same buyer is another source
+        return n if n >= 2 else 0
     dated = [s for s in item.get('sourced_signals') or [] if s.get('date') and s.get('source_url')]
     sites = {urlparse(s['source_url']).netloc.removeprefix('www.') for s in dated}
     return len(sites) if len(dated) >= 2 and len(sites) >= 2 else 0
@@ -154,7 +173,8 @@ def fits(item: dict, rep: dict) -> bool:
         return True
     if rep.get('regions') and not (regions_of(item) & set(rep['regions'])):
         return False
-    if rep.get('services') and item.get('services') and not (set(item['services']) & set(rep['services'])):
+    named = set(item.get('named_services') or item.get('services') or [])  # for a signal, what any of its records names
+    if rep.get('services') and named and not (named & set(rep['services'])):
         return False
     return not rep.get('sectors') or sector_of(item) in rep['sectors']
 
@@ -213,20 +233,38 @@ def _say(kind: str, e: dict) -> str:
 
 
 def chain(b: dict, why_now: str = '') -> list[dict]:
-    """The dated records behind a lead, oldest first, and then SalesIntel's reading of them. Each record is Published (a source
-    states it; the link opens that source) or Inferred. A record with no link of its own, such as a deadline read from a notice,
-    opens the notice it was read from."""
-    events = sorted((e for e in b['evidence'] if e['date_kind'] != 'first_seen' and e['effect'] != 'weakens' and e['date'] and (e['title'] or e['detail'])),
-                    key=lambda e: e['date'])
+    """The dated records behind a lead, oldest first, and then SalesIntel's reading of them. Every dated link is Published: a
+    source states it, and the link opens that source. A record with no link of its own, such as a deadline read from a notice,
+    opens the notice it was read from. The reading at the end is the one Inferred link."""
     notice_url = next(((e['source'] or {}).get('url') for e in b['evidence'] if e['source'] and e['basis'] == 'published'), '') or ''
-    if len(events) > 3:  # where it began, the latest thing that has happened, and the next dated thing ahead
-        today = core.uk_today().isoformat()
-        past, ahead = [e for e in events if e['date'] <= today], [e for e in events if e['date'] > today]
-        events = ([past[0], past[-1]] if len(past) > 1 else past) + ahead[:1] if ahead else [events[0], *events[-2:]]
-    links = []
-    for e in events:
-        url = (e['source'] or {}).get('url') or (notice_url if e['basis'] == 'published' else '')
-        links.append({'date': e['date'], 'text': notice.clip(_say(b['kind'], e), 150), 'url': url, 'label': 'Published' if url and e['basis'] in ('published', 'stated') else 'Inferred'})
+
+    def url_of(e: dict) -> str:  # a date read from a notice (a deadline, a contract end) opens that notice
+        return (e['source'] or {}).get('url') or (notice_url if e['basis'] == 'published' else '')
+    # Only what a source states is a dated link. SalesIntel's own readings (a build year, a national deadline, a likely change)
+    # are never dated links, so they cannot crowd out the records the lead rests on; the one reading is said once, at the end.
+    sourced = [e for e in b['evidence'] if e['date_kind'] != 'first_seen' and e['effect'] != 'weakens' and e['date'] and (e['title'] or e['detail'])
+               and e['basis'] in ('published', 'stated') and url_of(e)]
+    # The records the lead rests on, one per source: where it began and the two latest, if there are more than three.
+    rests, seen = [], set()
+    for e in sorted((e for e in sourced if e['effect'] == 'supports'), key=lambda e: e['date'], reverse=True):
+        own = (e['source'] or {}).get('url')
+        if own and own in seen:
+            continue
+        seen.add(own)
+        rests.append(e)
+    rests = sorted(rests, key=lambda e: e['date'])
+    rests = rests if len(rests) <= 3 else [rests[0], *rests[-2:]]
+    used = {(e['source'] or {}).get('url') for e in rests} - {None, ''}
+    # Then the next dated thing ahead (a contract end, an opening), then other published context, newest first, up to four links.
+    today = core.uk_today().isoformat()
+    other, said = [], {_say(b['kind'], e) for e in rests}
+    for e in sourced:  # a notice stored twice is said once
+        if e['effect'] != 'supports' and (e['source'] or {}).get('url') not in used and (text := _say(b['kind'], e)) not in said:
+            said.add(text)
+            other.append(e)
+    other = sorted((e for e in other if e['date'] > today), key=lambda e: e['date']) + sorted((e for e in other if e['date'] <= today), key=lambda e: e['date'], reverse=True)
+    events = sorted([*rests, *other[:max(0, 4 - len(rests))]], key=lambda e: e['date'])
+    links = [{'date': e['date'], 'text': notice.clip(_say(b['kind'], e), 150), 'url': url_of(e), 'label': 'Published'} for e in events]
     if b['kind'] != 'public_tender':  # a tender needs no reading: the requirement and the deadline are published
         why = b['reveal']['why']
         # the sentence that says why it is a reason to act; the timing is already said once, in "Why now"
@@ -243,8 +281,14 @@ def card(db: Session, step: str, item: dict, rep_name: str) -> dict:
             'headline': b['reveal']['headline'], 'why_now': item['why_now'], 'chain': chain(b, item['why_now']),
             'against': sum(1 for e in b['evidence'] if e['effect'] == 'weakens'),
             'next': {'action': b['next']['action'], 'label': notice.clip(b['next']['label'], 90), 'url': str((b['next'].get('params') or {}).get('url') or '')},
-            'region': region_of(item), 'place': facts.get('place') or item.get('region') or '', 'worth': (item.get('worth') or {}).get('label') or '',
+            'region': region_of(item) or next(iter(sorted(regions_of(item))), ''), 'place': facts.get('place') or item.get('region') or _borrowed(item),
+            'worth': (item.get('worth') or {}).get('label') or '',
             'deadline': facts.get('deadline'), 'sources': two_records(item), 'account_id': item.get('account_id'), 'verdict': verdicts.current(db, item['key'], rep_name)}
+
+
+def _borrowed(item: dict) -> str:
+    regions = (item.get('joined') or {}).get('regions') or []
+    return f"{', '.join(regions)} (from this buyer\u2019s other published records)" if regions else ''
 
 
 def view(db: Session, rep_name: str | None = None) -> dict:
@@ -253,6 +297,7 @@ def view(db: Session, rep_name: str | None = None) -> dict:
     state = reps(db)
     rep = rep_named(db, rep_name) or {'name': '', 'regions': [], 'services': [], 'sectors': [], 'targets': []}
     items = core.discover_items(db, limit=None)
+    join(db, items)
     said = verdicts.judged(db, rep['name'])
     chosen, counts = choose(items, rep, set(said))
     held = [x for x in items if x['status'] != 'dismissed']

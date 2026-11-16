@@ -373,6 +373,8 @@ def _signal_row(it: dict, s: dict, top: dict) -> None:
     it["headline"] = top["headline"]
     it["signal"] = {k: top[k] for k in ("date", "source", "source_url", "official", "records", "sources", "corroborated", "strength")}
     it["kind_label"] = signals.KIND_LABEL
+    # Every service any of its records names. The row's own "services" still reads the stored title alone, as the list's order does.
+    it["named_services"] = sorted(set(_services_from_title(" ".join(x["statement"] for x in signals.records(s)))))
     brief = it["brief"]
     brief["known"] = [{"text": signals.lead_sentence(notice.readable(x["statement"]))[0], "source_url": x.get("source_url") or None, "date": str(x.get("occurred_on") or "")[:10],
                        "basis": "published" if x.get("reliability") in signals.OFFICIAL else "stated"} for x in signals.records(s)][:6]
@@ -570,10 +572,12 @@ def discover(db: Session, *, q: str = "", source: str = "all", nation: str = "",
     if key:
         found = [x for x in discover_items(db, limit=None) if x["key"] == key]
         return {"items": found, "total": len(found), "counts": {"public": 0, "private": 0, "shadow": 0}, "interpreted": interpret(""), "gaps": [], "sort": ""}
-    from app.services.patch import regions_of  # the patch brief and this filter place a lead the same way
+    from app.services.patch import join, regions_of  # the patch brief and this filter place a lead the same way
     meaning = interpret(q)
     items = discover_items(db, include_public=source in ("all", "public"), include_private=source in ("all", "private"), limit=None,
                            include_shadow=source in ("all", "public", "shadow"))
+    if region:
+        join(db, items)  # a public signal states no place: it is placed where its buyer's other published records place the buyer
     nations = [nation] if nation else meaning["nations"]
     services = [service] if service else meaning["services"]
     def keep(x: dict) -> bool:
@@ -594,6 +598,8 @@ def discover(db: Session, *, q: str = "", source: str = "all", nation: str = "",
         hay = " ".join(str(x.get(k) or "") for k in ("organisation", "title", "headline", "why_now", "supplier", "region")).lower()
         return all(k in hay for k in meaning["keywords"])
     found = _sorted([x for x in items if keep(x)], sort, uk_today())
+    for x in found:
+        x.pop("joined", None)
     gaps = []
     if meaning["regions"]:
         gaps.append(f"Public notices are located by nation, not region, so '{', '.join(meaning['regions'])}' is matched only where it appears in the text.")

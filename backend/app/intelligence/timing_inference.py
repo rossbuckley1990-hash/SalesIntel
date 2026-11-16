@@ -47,18 +47,27 @@ KINDS: dict[str, str] = {
     "incumbent_distress": "Incumbent in difficulty",
     "role_vacancy": "Role advertised",
     "acquisition": "Acquisition",
+    "contractor_appointed": "Building contractor appointed",
 }
 # Kinds that are reasons to ask but set no window: what they imply for maintenance is not published.
 NOTES: dict[str, str] = {
     "role_vacancy": "a vacancy is not an appointment, so no new-leader window starts. Ask who covers the role now and whether it has been filled",
     "acquisition": "a change of owner is a reason to ask whether inherited maintenance contracts will be kept or consolidated. It is not a site opening, so no pre-opening window applies",
     "refurbishment": "a refurbishment does not show how old the systems are or when their maintenance is reviewed. Ask who maintains them now and when that arrangement is next reviewed",
+    "contractor_appointed": "a contractor appointed to build or fit out a site is not its fire and security maintenance supplier, so it does not hold contact back. Ask who installs those systems under the build and who will maintain them after handover",
 }
 REPLACEMENT = {"system_installed", "building_completed"}  # what replacement windows rest on; a separate sale from maintenance
 _VACANCY = re.compile(r"\b(vacanc|advertis|recruit|hiring|job (?:listing|advert|posting)|listing on|is seeking|seeks? an?\b|looking for an?\b)", re.I)
 _APPOINTED = re.compile(r"\b(appointed|appoints|appointment of|joined|joins|promoted|has started|starts as|named as|takes up|took up)\b", re.I)
 _DOUBT = re.compile(r"[^.]*\b(whether|not known|unknown|unclear|not confirmed|no confirmed|not yet)\b[^.]*\.?", re.I)
 _ACQUIRED = re.compile(r"\b(acquir|acquisition|bought|buys\b|purchas|takeover|taken over|takes over)", re.I)
+# A change of owner filed as a supplier; narrower than _ACQUIRED, since suppliers are often appointed through a purchasing exercise.
+_TAKEOVER = re.compile(r"\b(acquir|acquisition|takeover|taken over|takes over|merger|merged with)", re.I)
+# A contractor building or fitting out a site, as opposed to a supplier who maintains its systems.
+_BUILDS = re.compile(r"\b(construction|constructing|builders?\b|build\b|building contractor|main contractor|principal contractor|design[- ]and[- ]build|"
+                     r"fit[- ]?out contractor|groundworks?|developers?\b|developments\b|M&E contractor|mechanical and electrical)", re.I)
+_MAINTAINS = re.compile(r"\b(maintain|maintains|maintained|maintenance|servicing|service (?:contract|provider|agreement)|facilities management|"
+                        r"facilities services|FM (?:provider|contract|supplier)|hard FM|soft FM|monitoring|alarm receiving|guarding)\b", re.I)
 # Events that can force a change even inside a recently signed contract.
 OVERRIDES_LOCK = {"incident", "incumbent_distress", "regulatory_deadline", "contract_end_stated"}
 
@@ -106,14 +115,19 @@ def _strength(basis: str, precision: str) -> str:
 
 
 def reclassify(clue: dict) -> dict:
-    """What a clue is, from what it says. Research sometimes files a vacancy as a new leader, or a takeover as a site
-    opening; the words it stored say otherwise. Sentences that only raise a doubt ("whether anyone has been appointed")
-    never count as an appointment."""
+    """What a clue is, from what it says. Research sometimes files a vacancy as a new leader, a takeover as a site
+    opening, or a takeover or a building contractor as a new fire and security supplier; the words it stored say otherwise. Sentences
+    that only raise a doubt ("whether anyone has been appointed") never count as an appointment."""
     kind, text = clue.get("kind"), str(clue.get("detail") or "")
     if kind == "leadership_change" and _VACANCY.search(text) and not _APPOINTED.search(_DOUBT.sub(" ", text)):
         return {**clue, "kind": "role_vacancy", "filed_as": kind}
     if kind == "site_opening" and _ACQUIRED.search(text):
         return {**clue, "kind": "acquisition", "filed_as": kind}
+    if kind == "supplier_appointed" and not _MAINTAINS.search(text):
+        if _TAKEOVER.search(text):
+            return {**clue, "kind": "acquisition", "filed_as": kind}
+        if _BUILDS.search(text):
+            return {**clue, "kind": "contractor_appointed", "filed_as": kind}
     return clue
 
 

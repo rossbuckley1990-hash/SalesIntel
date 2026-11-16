@@ -493,6 +493,7 @@ class NewDeal(Strict):
     qualification: Qualification
     next_step: str = Field('', max_length=1000)
     value_total: StrictStr | StrictInt | StrictFloat | None = None
+    owner_rep: str | None = Field(None, max_length=60)
 
 
 @router.post('/accounts/{account_id}/deals')
@@ -518,6 +519,8 @@ class DealUpdate(Strict):
     work_type: str | None = Field(None, max_length=32)
     next_step: str | None = Field(None, max_length=1000)
     value_total: StrictStr | StrictInt | StrictFloat | None = None
+    value_annual: StrictStr | StrictInt | StrictFloat | None = None  # a year's worth of recurring maintenance, as the rep records it
+    owner_rep: str | None = Field(None, max_length=60)
     seller_confidence: Literal['low', 'medium', 'high'] | None = None
 
 
@@ -542,6 +545,12 @@ def update_deal(deal_id: int, payload: DealUpdate, db: Session = Depends(tenant_
             row.seller_confidence = payload.seller_confidence
         if payload.value_total is not None:
             row.value_total, row.value_basis = float(engage.money(payload.value_total, 'Deal value')), 'user_estimate'
+        if payload.value_annual is not None:
+            row.value_annual, row.value_basis = float(engage.money(payload.value_annual, 'Annual value')), 'user_estimate'
+        if payload.owner_rep is not None:
+            if row.stage == 'won':
+                raise ValueError('A won deal keeps the owner it was won by.')
+            row.owner_rep = engage.deal_owner(db, payload.owner_rep)
         if payload.stage:
             engage.move_stage(db, deal_id, payload.stage, payload.reason)
         row.updated_at = core.now()

@@ -166,6 +166,7 @@ class DealRecord(TenantScoped, Base):
     handover: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     outcome_reason: Mapped[str] = mapped_column(Text, nullable=False, default='')
     owner_user_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    owner_rep: Mapped[str | None] = mapped_column(String(60))  # local workspaces: the rep whose target this deal counts towards
     seller_confidence: Mapped[str | None] = mapped_column(String(12))  # the seller's own view: low, medium, high
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

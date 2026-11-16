@@ -59,7 +59,8 @@ def test_with_no_rep_the_brief_covers_the_whole_record_by_the_stated_rule(local)
     client, db, keys = local
     order = [x['key'] for x in core.discover(db, limit=500)['items']]
     v = client.get('/api/si/patch').json()
-    assert v['rep'] == {'name': '', 'regions': [], 'services': [], 'sectors': [], 'targets': []} and v['reps'] == [] and v['active'] == ''
+    assert v['rep'] == {'name': '', 'regions': [], 'services': [], 'sectors': [], 'targets': [], 'sales_target': None} and v['reps'] == [] and v['active'] == ''
+    assert v['target'] is None  # no rep, no target
     # two independent records first (both rest on two sources, so the newer record leads), then the deadline closing soonest, then the largest
     # published contract ending within a year
     assert chosen(v) == [('two_records', keys['signal']), ('two_records', keys['fernhill']), ('closing', keys['tender']), ('ending', keys['ending']), ('ending', keys['small'])]
@@ -108,7 +109,7 @@ def test_a_rep_sees_their_patch_and_named_targets_come_first_wherever_they_are(l
                                                     'targets': ['Fenwick Housing Trust']})
     v = saved.json()
     assert saved.status_code == 200 and v['active'] == 'Sam North' and v['rep'] == {'name': 'Sam North', 'regions': [YORKSHIRE], 'services': ['fire_alarm'], 'sectors': [],
-                                                                                 'targets': ['Fenwick Housing Trust']}
+                                                                                 'targets': ['Fenwick Housing Trust'], 'sales_target': None}
     # Fenwick has no stated region, but it is a named target; the tender is in the patch; the rest state no region, so they are left out
     assert chosen(v) == [('target', keys['signal']), ('closing', keys['tender'])] and v['counts']['in_patch'] == 2
     assert v['leads'][0]['chosen_because'] == 'A target account you named'

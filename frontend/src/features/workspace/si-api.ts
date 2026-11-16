@@ -84,8 +84,10 @@ export type DealT = {
   services: string[]; work_type: string; work_types: Record<string, string>; qualification: Record<string, string>; value_annual: number | null; value_total: number | null; value_basis: string;
   next_step: string; scope: ScopeItem[]; quote: { status?: "draft" | "approved" | "superseded"; version?: number; lines?: QuoteLine[]; rates?: Record<string, string>; missing?: string[]; subtotal?: string | null; partial_total?: string | null; approved_by?: string | null; terms_note?: string; approvals?: Approval[]; superseded_reason?: string | null };
   handover: Record<string, unknown>; outcome_reason: string; activities: ActivityT[]; tasks: TaskT[]; service_labels: Record<string, string>;
+  /** The rep this deal counts towards (local workspaces). */
+  owner_rep?: string | null;
 };
-export type DealCard = { id: number; title: string; account: string | null; account_id: number; stage: string; services: string[]; value_total: number | null; value_annual: number | null; value_basis: string; next_step: string; quote_status: string | null; updated_at: string };
+export type DealCard = { id: number; title: string; account: string | null; account_id: number; stage: string; services: string[]; owner_rep?: string | null; value_total: number | null; value_annual: number | null; value_basis: string; next_step: string; quote_status: string | null; updated_at: string };
 export type Prefs = { territory: string[]; services: string[]; company_name: string; sender_name: string };
 
 export const SERVICES: [string, string][] = [["fire_alarm", "Fire alarm"], ["cctv", "CCTV"], ["access_control", "Access control"], ["intruder", "Intruder"], ["emergency_lighting", "Emergency lighting"], ["sprinkler", "Sprinklers"], ["monitoring", "Monitoring"],

@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.crm import Preference
-from app.services import brief, field, notice, signals, verdicts
+from app.services import brief, field, notice, signals, targets, verdicts
 from app.services import si_core as core
 
 SIZE = 5
@@ -78,7 +78,8 @@ def save_rep(db: Session, profile: dict, *, active: bool = True) -> dict:
     if not name:
         raise ValueError('Give the rep a name.')
     rep = {'name': name, 'regions': _clean(profile.get('regions'), REGIONS), 'services': _clean(profile.get('services')),
-           'sectors': _clean(profile.get('sectors'), SECTORS), 'targets': _clean(profile.get('targets'), limit=25)}
+           'sectors': _clean(profile.get('sectors'), SECTORS), 'targets': _clean(profile.get('targets'), limit=25),
+           'sales_target': targets.clean(profile.get('sales_target'))}  # the rep's own target; "targets" are target accounts
     found = [r for r in reps(db)['reps'] if r['name'] != name]
     if len(found) >= 25:
         raise ValueError('Twenty-five reps are kept at most. Remove one first.')
@@ -298,7 +299,8 @@ def view(db: Session, rep_name: str | None = None) -> dict:
     """The brief for one rep (the active one unless named). With no rep yet, the brief covers the whole record, so there is
     something to read before anything is set up."""
     state = reps(db)
-    rep = rep_named(db, rep_name) or {'name': '', 'regions': [], 'services': [], 'sectors': [], 'targets': []}
+    rep = rep_named(db, rep_name) or {'name': '', 'regions': [], 'services': [], 'sectors': [], 'targets': [], 'sales_target': None}
+    rep.setdefault('sales_target', None)
     items = core.discover_items(db, limit=None)
     join(db, items)
     said = verdicts.judged(db, rep['name'])
@@ -309,6 +311,7 @@ def view(db: Session, rep_name: str | None = None) -> dict:
              for x in held if said.get(x['key']) == 'worth_a_call'][:8]
     by_region = {r: sum(1 for x in held if r in regions_of(x)) for r in REGIONS}
     v = {'rep': rep, 'reps': state['reps'], 'active': state['active'], 'leads': [card(db, step, x, rep['name']) for step, x in chosen], 'counts': counts, 'calls': calls,
+         'target': targets.progress(db, rep) if rep['name'] else None,
          'rule': RULE, 'said': verdicts.summary(db, rep['name']), 'as_of': core.uk_today().isoformat(),
          'options': {'regions': [{'name': r, 'leads': by_region[r]} for r in REGIONS], 'sectors': list(SECTORS)}}
     return {**v, 'text': text_of(v)}
@@ -320,12 +323,33 @@ def text(db: Session, rep_name: str | None = None) -> str:
     return view(db, rep_name)['text']
 
 
+def pounds(x: float) -> str:
+    return f"£{x:,.0f}"
+
+
+def target_lines(t: dict | None) -> list[str]:
+    """The rep's target in a line or two, for the brief that is sent. A plan from their own figures, never a forecast."""
+    if not t:
+        return []
+    head = (f"Your target: {pounds(t['amount'])} {t['basis_label']}, {notice.readable(t['start'])} to {notice.readable(t['end'])}. "
+            f"Signed so far: {pounds(t['signed']['value'])} from {t['signed']['deals']} deal{'' if t['signed']['deals'] == 1 else 's'}.")
+    n = t.get('needed')
+    if t['reached']:
+        return [head + ' Target reached.']
+    if not n:
+        return [head + f" Still to sign: {pounds(t['remaining'])}."]
+    plan = f" Still to sign: {pounds(t['remaining'])}, about {n['wins']} win{'' if n['wins'] == 1 else 's'}"
+    if n.get('to_find') is not None:
+        plan += f"; {n['to_find']} more qualified opportunit{'y' if n['to_find'] == 1 else 'ies'} to find" + (f", about {n['per_week']} a week" if n.get('per_week') else '')
+    return [head + plan + f" ({'from your results so far' if t['figures']['source'] == 'results' else 'from your planning figures'}; a plan, not a forecast)."]
+
+
 def text_of(v: dict) -> str:
     """The same five as plain text, to paste into an email. SalesIntel sends nothing: the owner does."""
     who = v['rep']['name']
     lines = [f"SalesIntel patch brief{' for ' + who if who else ''}, {notice.readable(v['as_of'])}",
              f"{len(v['leads'])} lead{'' if len(v['leads']) == 1 else 's'} from public records{' in ' + ', '.join(v['rep']['regions']) if v['rep']['regions'] else ''}."
-             ' Each line of evidence is marked Published (the link opens the source) or Inferred (our reading).', '']
+             ' Each line of evidence is marked Published (the link opens the source) or Inferred (our reading).', *target_lines(v.get('target')), '']
     for n, c in enumerate(v['leads'], 1):
         lines += [f"{n}. {c['organisation']}  [{c['kind_label']}]", f"   Why now: {c['why_now']}"]
         for link in c['chain']:

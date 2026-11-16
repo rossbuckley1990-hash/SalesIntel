@@ -404,7 +404,7 @@ def create_deal(db: Session, account_id: int, data: dict) -> DealRecord:
                       origin_id=(parse_key(source_key)[1] if source_key else None), origin=origin, services=[s for s in data.get("services") or [] if s in SERVICE_LABEL],
                       work_type=data.get("work_type") if data.get("work_type") in WORK_TYPES else "", qualification=qualification,
                       value_annual=value_annual, value_total=value_total, value_basis=value_basis, next_step=data.get("next_step") or "", scope={}, quote={},
-                      handover={}, outcome_reason="", created_at=moment, updated_at=moment)
+                      handover={}, outcome_reason="", owner_rep=deal_owner(db, data.get("owner_rep")), created_at=moment, updated_at=moment)
     db.add(deal)
     db.flush()
     for act in db.scalars(select(Activity).where(Activity.account_id == account_id, Activity.deal_id.is_(None))):
@@ -688,6 +688,18 @@ def move_stage(db: Session, deal_id: int, stage: str, reason: str = "") -> DealR
     return deal
 
 
+def deal_owner(db: Session, name: str | None) -> str | None:
+    """The rep a deal counts towards: the one named, which must be a rep kept here, or else the rep whose patch is on screen."""
+    from app.services.patch import reps
+    state = reps(db)
+    names = {r["name"] for r in state["reps"]}
+    if name:
+        if name not in names:
+            raise ValueError("Choose one of the reps kept here as the deal's owner.")
+        return name
+    return state["active"] or None
+
+
 def build_handover(db: Session, deal: DealRecord) -> dict:
     """Everything operations need, captured at the moment of winning."""
     view = account_view(db, deal.account_id)
@@ -711,7 +723,7 @@ def deal_view(db: Session, deal_id: int) -> dict:
     return {"id": deal.id, "title": deal.title, "stage": deal.stage, "stages": STAGES, "account_id": deal.account_id, "account": account.name if account else "",
             "opportunity_id": deal.opportunity_id, "origin_type": deal.origin_type, "origin": deal.origin, "services": deal.services, "work_type": deal.work_type,
             "work_types": WORK_TYPES, "qualification": deal.qualification, "value_annual": deal.value_annual, "value_total": deal.value_total, "value_basis": deal.value_basis,
-            "next_step": deal.next_step, "seller_confidence": deal.seller_confidence, "scope": scope_requirements(deal), "quote": deal.quote, "handover": deal.handover, "outcome_reason": deal.outcome_reason,
+            "next_step": deal.next_step, "seller_confidence": deal.seller_confidence, "owner_rep": deal.owner_rep, "scope": scope_requirements(deal), "quote": deal.quote, "handover": deal.handover, "outcome_reason": deal.outcome_reason,
             "activities": [activity_dict(a) for a in activities], "tasks": [task_dict(t) for t in tasks], "service_labels": SERVICE_LABEL,
             "created_at": deal.created_at.isoformat(), "updated_at": deal.updated_at.isoformat()}
 
@@ -719,7 +731,7 @@ def deal_view(db: Session, deal_id: int) -> dict:
 def deals_board(db: Session) -> dict:
     names = {a.id: a.name for a in db.scalars(select(Account))}
     rows = db.scalars(select(DealRecord).order_by(DealRecord.updated_at.desc())).all()
-    items = [{"id": d.id, "title": d.title, "account": names.get(d.account_id), "account_id": d.account_id, "stage": d.stage, "services": d.services,
+    items = [{"id": d.id, "title": d.title, "account": names.get(d.account_id), "account_id": d.account_id, "stage": d.stage, "services": d.services, "owner_rep": d.owner_rep,
               "value_total": d.value_total, "value_annual": d.value_annual, "value_basis": d.value_basis, "next_step": d.next_step,
               "quote_status": (d.quote or {}).get("status"), "updated_at": d.updated_at.isoformat()} for d in rows]
     return {"stages": STAGES, "items": items}

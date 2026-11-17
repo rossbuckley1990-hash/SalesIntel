@@ -37,7 +37,7 @@ from app.models.market_opportunity import MarketOpportunity, MarketOpportunityRe
 from app.models.prospect import Prospect
 from app.models.research_chat import ResearchChat
 from app.services import prospect_research as pr
-from app.services import site_reader, who_to_call
+from app.services import directors, site_reader, who_to_call
 from app.services.opportunity_dossier import DossierUnavailable
 
 MAX_CALLS = 10          # provider calls in one reply: searching and reading happen inside each call
@@ -69,7 +69,7 @@ Use SalesIntel's tools as you go:
 - check_known with the names you are considering, before researching them deeply. Say when the rep already holds one.
 - search_records for each organisation you offer: SalesIntel's published contracts (the supplier may be the incumbent), live tenders and early notices, regulator and fire service records. If a tender or early notice is already published, the need is not hidden: say so.
 - assess_timing with the dated clues you found. Its answer, from SalesIntel's stated rules, is the timing. Never contradict it, and never give a probability.
-- offer_opportunity for every organisation worth a rep's call. SalesIntel checks it and shows the rep a card they can save. Give the organisation's own website whenever you know it: SalesIntel reads the contact details it publishes there itself, word for word. Each fact's source_url must be a page you searched or read. A card counts as a hidden opportunity only with two or more dated facts from independent publishers; otherwise it is shown as one to check first. Read the response: if something was removed, fix it or say so.
+- offer_opportunity for every organisation worth a rep's call. SalesIntel checks it and shows the rep a card they can save. Give the organisation's own website whenever you know it: SalesIntel reads the contact details it publishes there itself, word for word. Give its Companies House company number when a page you read states it: SalesIntel reads the register itself and names the directors of a small firm. Each fact's source_url must be a page you searched or read. A card counts as a hidden opportunity only with two or more dated facts from independent publishers; otherwise it is shown as one to check first. Read the response: if something was removed, fix it or say so.
 
 Find as many real opportunities as the evidence supports, typically five to ten in a first answer, more when asked. Quality before count: never pad, never offer one organisation twice under two names, and leave out anything you could not source.
 
@@ -372,6 +372,12 @@ class State:
             record['site_read'] = before  # read once a day is enough
         elif record['website']:
             record['site_read'] = site_reader.read(record['website'], [p['name'] for p in record['people']], self.today)
+        record['company_number'] = directors.number(record['company_number'])
+        held = (existing or {}).get('record', {}).get('register_read') or {}
+        if record['company_number'] and held.get('company_number') == record['company_number'] and held.get('read_on') == self.today.isoformat():
+            record['register_read'] = held  # read once a day is enough
+        elif record['company_number']:
+            record['register_read'] = directors.read(record['company_number'], record['name'], self.today)
         call = who_to_call.view(record, [], self.today)
         card = {'n': existing['n'] if existing else len(self.cards) + 1, 'key': key, 'name': record['name'], 'record': record, 'facts': facts,
                 'publishers': publishers, 'standing': standing, 'why_hidden': str(raw.get('why_hidden') or '').strip()[:600],
@@ -392,7 +398,9 @@ class State:
             notes.append('The rep already holds this organisation; the card says so.')
         return {'accepted': True, 'card': card['n'], 'shown_as': STANDING[standing], 'independent_publishers': len(publishers), 'timing': timing['label'],
                 'published_notice_found': bool(records.get('published_tender_or_notice')), 'already_in_workspace': known['known'],
-                'who_to_call': call['line'], 'website_read': _site_note(record.get('site_read')), 'removed': record['checks'], 'notes': notes}
+                'who_to_call': call['line'], 'website_read': _site_note(record.get('site_read')),
+                'companies_house': directors.note(record.get('register_read')) or 'No company number was given, so SalesIntel did not read Companies House.',
+                'removed': record['checks'], 'notes': notes}
 
     def call(self, name: str, given: dict[str, Any]) -> dict[str, Any]:
         if name == 'check_known':

@@ -96,6 +96,30 @@ test("a rep asks in their own words; the reply researches, checks and offers a c
   await page.screenshot({ animations: "disabled", path: `${SHOTS}/46-who-to-call-mobile.png` });
   await page.setViewportSize({ width: 1440, height: 1000 });
 
+  // Companies House: a name only lists companies, and the rep says which one it is; a small firm's directors are then named.
+  await expect(who.getByLabel("Company name or number")).toHaveValue("Northgate Distribution Ltd");
+  await who.getByRole("button", { name: "Find their directors on Companies House" }).click();
+  const matches = who.getByRole("group", { name: "Which company is it? Only you can confirm this." });
+  await expect(matches).toContainText("NORTHGATE DISTRIBUTION LTD · ZZ000101 · Wakefield · since 2009");
+  await expect(matches).toContainText("NORTHGATE DISTRIBUTION SERVICES LIMITED · ZZ000102 · Leeds · dissolved");
+  await who.scrollIntoViewIfNeeded();
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/49-companies-house-choose-desktop.png` });
+  await matches.getByRole("button", { name: "This one: NORTHGATE DISTRIBUTION LTD, ZZ000101" }).click();
+  await expect(who).toContainText(/Companies House, read by SalesIntel on \d{1,2} \w+ \d{4}: NORTHGATE DISTRIBUTION LTD \(ZZ000101\) files small-company accounts and has 2 active directors\./);
+  await expect(who).toContainText("Priya Northgate, Director");
+  await expect(who).toContainText("Call 0113 496 0000 and ask for Sam Patel, Head of Property.");  // the right role still comes first
+  await expect(who.getByRole("button", { name: "Read their directors on Companies House" })).toBeVisible();
+  for (const secret of ["1971", "British", "Example Lane", "James", "Edward", "LEDGER"]) await expect(who).not.toContainText(secret);
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/47-companies-house-desktop.png` });
+  await page.setViewportSize({ width: 390, height: 844 });  // the phone layout draws the lead again, from the reloaded lead
+  await expect(who).toContainText("files small-company accounts and has 2 active directors.");
+  await who.getByText("Priya Northgate, Director", { exact: false }).scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/48-companies-house-mobile.png` });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const scanWho = await new AxeBuilder({ page }).include('[aria-label="Who to call"]').withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+  expect(scanWho.violations.map((v) => ({ id: v.id, targets: v.nodes.map((n) => n.target) }))).toEqual([]);
+
   // Another company cannot open the conversation.
   const rival = await signUp(browser, "rival@epsilon-chat.example", "Eve Rival", "Epsilon Security Ltd");
   await rival.goto(chatUrl.replace(/^https?:\/\/[^/]+/, ""));

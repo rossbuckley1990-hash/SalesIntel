@@ -248,7 +248,7 @@ export function OpportunityBrief({ op, children, afterReveal }: { op: Opportunit
       <Gaps op={op} />
       <River b={b} />
       <div className="lo-split">
-        <Relationships b={b} />
+        <Relationships b={b} onChanged={() => void op.reload()} />
         <Journey b={b} />
       </div>
       <Story b={b} />
@@ -401,7 +401,7 @@ function River({ b }: { b: BriefT }) {
   );
 }
 
-function Relationships({ b }: { b: BriefT }) {
+function Relationships({ b, onChanged }: { b: BriefT; onChanged?: () => void }) {
   const people = b.stakeholders.filter((s) => s.name && !b.relationships.some((r) => r.kind === "person" && r.name === s.name));
   const rows = [...b.relationships.map((r) => ({ name: r.name, label: r.label, basis: BASIS[r.basis] || r.basis, source: r.source })),
     ...people.map((p) => ({ name: p.name, label: [p.role, p.status].filter(Boolean).join(" · "), basis: p.status === "named by a source" ? "Stated in source" : "On the account", source: p.source || "" }))];
@@ -409,6 +409,7 @@ function Relationships({ b }: { b: BriefT }) {
     <section className="lo-section" aria-label="Who is involved">
       <div className="lo-section-head"><h3>Who is involved</h3><span className="lo-meta">Only what a source or your team recorded</span></div>
       {b.call && <WhoToCall key={`${b.key}-${b.call.line}`} call={b.call} website={b.organisation.website || ""}
+        organisation={b.organisation.name} companyNumber={b.organisation.company_number || ""} onChanged={onChanged}
         prospectId={b.source_key?.startsWith("pr:") ? Number(b.source_key.slice(3)) : undefined} />}
       {!rows.length ? <p className="lo-muted">Nobody is named in the sources yet. Who maintains the systems today is still unknown.</p> : <ul className="lo-rels">
         {rows.map((r) => <li key={`${r.name}-${r.label}`}><span className="lo-mark" aria-hidden="true">{r.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase()}</span>

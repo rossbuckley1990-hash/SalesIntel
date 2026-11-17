@@ -222,6 +222,46 @@ def read_prospect_site(prospect_id: int, payload: SiteReadIn, db: Session = Depe
     return run(db, work)
 
 
+class RegisterIn(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    query: str | None = Field(default=None, max_length=160)
+    company_number: str | None = Field(default=None, max_length=20)
+
+
+@router.post('/prospects/{prospect_id}/read-register')
+def read_prospect_register(prospect_id: int, payload: RegisterIn, db: Session = Depends(tenant_db)):
+    """Find a saved lead on Companies House and name the directors of a small firm. A company number (one the rep chose
+    or typed, or one on record) is read and kept with the day; a name returns the matching companies for the rep to
+    choose from, and nothing is kept. Returns {'lead': the lead as Discover shows it, or None, 'candidates': [...]}."""
+    from app.models.prospect import Prospect
+    from app.services import directors
+    row = db.get(Prospect, prospect_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail='That lead is not in this workspace.')
+    name, held = row.name, directors.number((row.data or {}).get('company_number'))
+    typed = directors.number(payload.company_number) or directors.number(payload.query)
+    query = ' '.join((payload.query or '').split())
+    db.rollback()  # hold no database lock while Companies House is read
+    if not typed and (query or not held):
+        try:
+            return {'lead': None, 'candidates': directors.search(query or name)}
+        except directors.LookupFailed as exc:
+            raise HTTPException(status_code=503 if exc.unavailable else 422, detail=str(exc)) from exc
+    found = directors.read(typed or held, name, core.uk_today(), chosen=bool(typed))
+    if found.get('stopped'):
+        raise HTTPException(status_code=503 if found.get('unavailable') else 422, detail=found['stopped'])
+
+    def work():
+        again = db.get(Prospect, prospect_id)
+        if again is None:
+            raise LookupError('That lead is not in this workspace.')
+        again.data = {**(again.data or {}), 'register_read': found, **({'company_number': typed} if typed else {})}
+        again.updated_at = datetime.now(UTC)
+        db.flush()
+        return {'lead': core.discover(db, key=f'pr:{prospect_id}')['items'][0], 'candidates': []}
+    return run(db, work)
+
+
 @router.post('/research-chats/{chat_id}/cards/{n}/save')
 def save_research_card(chat_id: int, n: int, db: Session = Depends(tenant_db)):
     """Save an opportunity card to Discover as a private lead."""

@@ -37,7 +37,8 @@ function BriefView({ lead }: { lead: Lead }) {
         {href && <> · <a className="font-medium text-ds-brand hover:underline" href={href} target="_blank" rel="noreferrer">source</a></>}{k.basis !== "published" && k.basis !== "stated" && <span className="text-ds-amber"> (inferred)</span>}</li>; })}</ul></Q>
       <Q q="What remains unknown?"><ul className="list-disc space-y-0.5 pl-5 text-[13px] text-ds-ink-2">{b.unknown.map((u) => <li key={u}>{u}</li>)}</ul></Q>
       <Q q="Who should we contact?">{b.who.call
-        ? <WhoToCall key={`${lead.key}-${b.who.call.line}`} call={b.who.call} prospectId={lead.type === "private" ? Number(lead.key.slice(3)) : undefined} website={lead.website || ""} />
+        ? <WhoToCall key={`${lead.key}-${b.who.call.line}`} call={b.who.call} prospectId={lead.type === "private" ? Number(lead.key.slice(3)) : undefined} website={lead.website || ""}
+            organisation={lead.organisation} companyNumber={lead.company_number || ""} />
         : <><p className="text-[13px]">{b.who.roles.join(" · ")}</p><p className="text-[12px] text-ds-muted">{b.who.summary}{b.who.people_in_research ? ` · ${b.who.people_in_research} named in research` : ""}</p></>}</Q>
       <Q q="What should we do next?"><p className="font-semibold text-ds-brand">{b.next}</p></Q>
     </div>

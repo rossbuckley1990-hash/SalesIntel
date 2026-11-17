@@ -337,6 +337,7 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
                 "value": None, "status": {"new": "new", "watching": "watching", "pipeline": "investigating", "dismissed": "dismissed"}.get(row.status, "new"),
                 "account_id": link.account_id if link else None, "link_basis": link.basis if link else None,
                 "people": len(v.get("people") or []), "contact_routes": len(v.get("contact_routes") or []), "website": v.get("website") or "",
+                "company_number": v.get("company_number") or "",
                 # Inferred timing never outranks a published deadline in the same bucket.
                 "rank": (1 if phase == "engage_now" else 2 if phase == "prepare" else 3, 9999),
             })

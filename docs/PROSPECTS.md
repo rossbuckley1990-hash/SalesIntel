@@ -57,6 +57,8 @@ SalesIntel shows a person only where a public source names them in a professiona
 
 Confirm details before use, keep to business contacts, and honour any request not to be contacted (UK GDPR and PECR).
 
+For a small firm, the lead page can also name its directors from Companies House: name, role and appointment date only, never a route. The rules, and why this is a fair use of the register, are in [DIRECTORS_FROM_COMPANIES_HOUSE.md](DIRECTORS_FROM_COMPANIES_HOUSE.md).
+
 ## Limits
 
 - Research uses Claude with web search and costs Anthropic API credit per search.

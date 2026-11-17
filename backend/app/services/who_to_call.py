@@ -3,8 +3,9 @@
 Contact databases search for the role first, give the route second, and grade every route by how it was confirmed.
 SalesIntel does the same, with one difference: it never builds or guesses an address. Every route comes from one of three
 places: a public source states it (found by research), the organisation's own website shows it (read by SalesIntel's site
-reader on a stated day), or the team saved it. Where no route reaches the right person, the card says so and gives the
-next best way in. Anyone the team marked "do not contact" is left out, wherever else they are named.
+reader on a stated day), or the team saved it. People also come from Companies House: the directors of a small firm
+(see `directors.py`), who are named but never given a route. Where no route reaches the right person, the card says so
+and gives the next best way in. Anyone the team marked "do not contact" is left out, wherever else they are named.
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ from datetime import date
 from typing import Any
 from urllib.parse import urlparse
 
+from app.services import directors
 from app.services.committee import ROLES, TEMPLATES, level as contact_level
 from app.services.site_reader import digits
 
@@ -91,9 +93,17 @@ def roles_for(record: dict, play: str | None = None) -> tuple[str, list[tuple[st
     return play, roles
 
 
+def _same_person(a: str, b: str) -> bool:
+    """The same first name and surname: the register's 'Harry Campey' is research's 'Harry J. Campey'."""
+    x, y = _norm(a).split(), _norm(b).split()
+    return bool(x and y) and x[0] == y[0] and x[-1] == y[-1]
+
+
 def _candidates(record: dict, contacts: list) -> list[dict]:
-    """Named people: the team's saved contacts first, then people research names. Opted-out people are left out."""
-    blocked = {_norm(c.name) for c in contacts if c.status == 'do_not_contact' and (c.name or '').strip()}
+    """Named people: the team's saved contacts first, then people research names, then the directors of a small firm
+    from Companies House. Opted-out people are left out."""
+    opted_out = [c.name.strip() for c in contacts if c.status == 'do_not_contact' and (c.name or '').strip()]
+    blocked = {_norm(n) for n in opted_out}
     out: list[dict] = []
     for c in contacts:
         if c.status != 'do_not_contact' and (c.name or '').strip():
@@ -102,6 +112,10 @@ def _candidates(record: dict, contacts: list) -> list[dict]:
         name = str((p or {}).get('name') or '').strip()
         if name and _norm(name) not in blocked and all(_norm(name) != _norm(o['name']) for o in out):
             out.append({'name': name, 'role': str(p.get('role') or '').strip(), 'source_url': p.get('source_url') or '', 'from': 'research'})
+    register = record.get('register_read') or {}
+    for d in register.get('directors') or [] if register.get('shown') else []:
+        if not any(_same_person(d['name'], n) for n in [*opted_out, *(o['name'] for o in out)]):
+            out.append({'name': d['name'], 'role': d['role'], 'source_url': register.get('source_url') or '', 'from': 'register'})
     return out
 
 
@@ -210,6 +224,7 @@ def view(record: dict, contacts: list | None = None, today: date | None = None, 
     if route and route['kind'] == 'phone':
         cautions.append('Before a cold call, check the number against the CTPS and TPS do-not-call registers.')
     site = record.get('site_read') or None
+    register = record.get('register_read') or None
     return {
         'play': play, 'roles': [r[0] for r in roles][:3],
         'person': {k: person[k] for k in ('name', 'role', 'source_url', 'from', 'fits')} | {'host': _host(person['source_url'])} if person else None,
@@ -218,6 +233,9 @@ def view(record: dict, contacts: list | None = None, today: date | None = None, 
         'line': _line(person, route, grade, [r[0] for r in roles]),
         'also': [{k: p[k] for k in ('name', 'role', 'source_url')} for p in people if p is not person][:3], 'more': others, 'cautions': cautions,
         'site': {k: site.get(k) for k in ('website', 'read_on', 'stopped')} | {'pages': len(site.get('pages') or []), 'found': len(site.get('routes') or [])} if site else None,
+        'register': {k: register.get(k) for k in ('company_number', 'company_name', 'read_on')} |
+                    {'shown': bool(register.get('shown')), 'mismatch': bool(register.get('mismatch')), 'directors': len(register.get('directors') or []),
+                     'note': directors.note(register)} if register else None,
         'direct': bool(person and person['fits'] and grade == 'direct'), 'reachable': bool(person and person['fits'] and grade != 'none'),
     }
 

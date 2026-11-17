@@ -2,7 +2,11 @@
 
 The authenticated public API is optional.  A company number must be supplied;
 name similarity never establishes identity.  Profiles do not prove capability,
-contract delivery or ownership.  No officers or personal data are collected.
+contract delivery or ownership.  Market signals collect no officers or personal
+data.  The one exception is `fetch_directors`, for who to call about a lead
+(agreed 17 November 2026): the active directors of one company, name, role and
+appointment date only, and only where `app.services.directors` judges the firm
+small enough that a director decides.
 """
 from __future__ import annotations
 
@@ -72,6 +76,107 @@ def fetch_company_profile(company_number: str, *, api_key: str | None, client: h
     finally:
         if owned:
             client.close()
+
+
+DIRECTOR_ROLES = {"director": "Director", "llp-designated-member": "Designated member", "llp-member": "Member"}
+
+
+def _get(client: httpx.Client, path: str, api_key: str, params: dict | None = None) -> dict:
+    """One bounded GET: no redirects, capped size, and errors that carry no credentials or upstream body."""
+    try:
+        with client.stream("GET", f"{API_BASE}{path}", params=params, auth=(api_key, ""), follow_redirects=False,
+                           headers={"Accept": "application/json", "User-Agent": "SalesIntel market intelligence/1.0"}) as response:
+            if response.status_code == 429:
+                raise CompaniesHouseError("Companies House is busy; try again in a few minutes.")
+            if response.status_code == 404:
+                raise CompaniesHouseError("Companies House has no company with that number.")
+            if response.status_code != 200:
+                raise CompaniesHouseError(f"Companies House returned HTTP {response.status_code}.")
+            parts, size = [], 0
+            for part in response.iter_bytes():
+                size += len(part)
+                if size > MAX_BYTES:
+                    raise CompaniesHouseError("Companies House sent more than expected.")
+                parts.append(part)
+        payload = json.loads(b"".join(parts))
+    except (httpx.HTTPError, ValueError) as exc:
+        raise CompaniesHouseError("Companies House did not answer.") from exc
+    if not isinstance(payload, dict):
+        raise CompaniesHouseError("Companies House sent an unexpected answer.")
+    return payload
+
+
+def _client(client: httpx.Client | None, transport: httpx.BaseTransport | None) -> httpx.Client:
+    return client or httpx.Client(timeout=httpx.Timeout(15, connect=8), follow_redirects=False, transport=transport)
+
+
+def search_companies(query: str, *, api_key: str | None, client: httpx.Client | None = None,
+                     transport: httpx.BaseTransport | None = None, limit: int = 5) -> list[dict]:
+    """Companies whose registered name matches a search, for a person to choose from. A match is never taken as the
+    organisation on its own. Only the town of the registered office is kept: a small firm's office can be a home."""
+    query = " ".join(str(query or "").split())[:160]
+    if not query:
+        raise ValueError("Give a company name to search for")
+    if not api_key or not api_key.strip():
+        raise CompaniesHouseError("Companies House API key is not configured")
+    owned = client is None
+    client = _client(client, transport)
+    try:
+        payload = _get(client, "/search/companies", api_key, {"q": query, "items_per_page": limit})
+    finally:
+        if owned:
+            client.close()
+    out = []
+    for item in payload.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        number = str(item.get("company_number") or "").strip().upper()
+        name = str(item.get("title") or "").strip()
+        if COMPANY_NUMBER.fullmatch(number) and name:
+            address = item.get("address") if isinstance(item.get("address"), dict) else {}
+            out.append({"company_number": number, "name": name[:255], "status": str(item.get("company_status") or "")[:40],
+                        "town": str(address.get("locality") or "")[:80], "created": str(item.get("date_of_creation") or "")[:10]})
+    return out[:limit]
+
+
+def fetch_directors(company_number: str, *, api_key: str | None, client: httpx.Client | None = None,
+                    transport: httpx.BaseTransport | None = None) -> dict:
+    """One company's profile facts that say how big it is, and its active directors: name, role and appointment date only.
+
+    Never kept: date of birth, nationality, country of residence, occupation or any address. Secretaries, corporate
+    directors and nominees are left out; so is anyone who has resigned."""
+    number = company_number.strip().upper()
+    if not COMPANY_NUMBER.fullmatch(number):
+        raise ValueError("Invalid Companies House company number")
+    if not api_key or not api_key.strip():
+        raise CompaniesHouseError("Companies House API key is not configured")
+    owned = client is None
+    client = _client(client, transport)
+    try:
+        profile = _get(client, f"/company/{number}", api_key)
+        if str(profile.get("company_number") or "").upper() != number or not str(profile.get("company_name") or "").strip():
+            raise CompaniesHouseError("Companies House returned a mismatched company profile")
+        officers = _get(client, f"/company/{number}/officers", api_key, {"items_per_page": 100})
+    finally:
+        if owned:
+            client.close()
+    directors = []
+    for item in officers.get("items") or []:
+        if not isinstance(item, dict) or item.get("resigned_on") or item.get("officer_role") not in DIRECTOR_ROLES:
+            continue
+        name = str(item.get("name") or "").strip()
+        if name:
+            directors.append({"register_name": name[:200], "role": DIRECTOR_ROLES[item["officer_role"]],
+                              "appointed_on": str(item.get("appointed_on") or "")[:10]})
+    listed = len(officers.get("items") or [])
+    total = officers.get("total_results")
+    accounts = profile.get("accounts") if isinstance(profile.get("accounts"), dict) else {}
+    last = accounts.get("last_accounts") if isinstance(accounts.get("last_accounts"), dict) else {}
+    return {"company_number": number, "company_name": str(profile["company_name"]).strip()[:255],
+            "status": str(profile.get("company_status") or "")[:40], "type": str(profile.get("type") or "")[:60],
+            "accounts_type": str(last.get("type") or "")[:60], "directors": directors,
+            "complete": not (isinstance(total, int) and total > listed),
+            "source_url": f"https://find-and-update.company-information.service.gov.uk/company/{number}/officers"}
 
 
 def fetch_corporate_control_snapshot(company_number: str, *, api_key: str | None, client: httpx.Client | None = None,

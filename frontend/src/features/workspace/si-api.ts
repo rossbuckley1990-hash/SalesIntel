@@ -23,7 +23,7 @@ export type Lead = {
   key: string; type: "public" | "private" | "shadow"; shadow?: ShadowA; source_label: string; organisation: string; title: string; why_now: string; category: string; category_label: string;
   basis: "published" | "inferred"; timing: string | null; days: number | null; timing_label: string; light?: "green" | "amber" | "red" | "grey";
   nation: string | null; region?: string | null; tier: number | null; services: string[]; supplier: string | null; value: Value | null;
-  status: LeadStatus; account_id: number | null; link_basis: string | null; people?: number; contact_routes?: number; website?: string;
+  status: LeadStatus; account_id: number | null; link_basis: string | null; people?: number; contact_routes?: number; website?: string; company_number?: string;
   kind: "published_procurement" | "contract_ending" | "private_signal" | "customer_expansion" | "unverified_candidate" | "shadow_signal"; kind_label: string; brief: Brief;
   /** What the row's own stored notice states. Public records only; absent on private signals. */
   facts?: RowFacts; worth?: Worth | null; published?: string;
@@ -58,11 +58,15 @@ export type Brief = {
 /** Who to call about a lead and how: never a guessed address. Each route says how it was found. */
 export type Call = {
   play: string; roles: string[]; line: string; grade: string; grade_label: string; grade_detail: string; direct: boolean; reachable: boolean;
-  person: { name: string; role: string; source_url: string; host: string; from: "saved" | "research"; fits: boolean } | null;
+  person: { name: string; role: string; source_url: string; host: string; from: "saved" | "research" | "register"; fits: boolean } | null;
   route: { kind: string; value: string; source_url: string; how: string; confirmed: boolean } | null;
   also: { name: string; role: string; source_url: string }[]; more: { kind: string; value: string; how: string; source_url: string; grade: string }[];
   cautions: string[]; site: { website: string; read_on: string; stopped: string; pages: number; found: number } | null;
+  /** Companies House: the directors of a small firm, or why they are not shown. Never a route. */
+  register?: { company_number: string; company_name: string; read_on: string; shown: boolean; mismatch: boolean; directors: number; note: string } | null;
 };
+/** A company on Companies House that matches a search, for the rep to choose from. */
+export type CompanyMatch = { company_number: string; name: string; status: string; town: string; created: string };
 export type DiscoverResult = { items: Lead[]; total: number; counts: { public: number; private: number; shadow?: number }; interpreted: { nations: string[]; services: string[]; regions: string[]; keywords: string[] }; gaps: string[]; sort?: string };
 export type Evidence = { label: string; url: string; date?: string; basis?: string };
 export type SourceSummary = {

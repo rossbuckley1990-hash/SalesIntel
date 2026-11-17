@@ -468,3 +468,50 @@ def site_transport():
                               text=f'<html><head><title>{html.escape(page["title"])}</title></head><body><main><p>{html.escape(page["text"])}</p></main></body></html>')
 
     return httpx.MockTransport(answer)
+
+
+# Companies House, replayed for the directors lookup: fictional companies with 'ZZ' numbers, a prefix Companies House
+# does not use, so none can be mistaken for a real company. The officer records carry the fields the real register
+# publishes (date of birth, nationality, address) so that tests can show SalesIntel keeps none of them.
+COMPANIES = {
+    "ZZ000101": {"company_name": "NORTHGATE DISTRIBUTION LTD", "company_status": "active", "type": "ltd", "date_of_creation": "2009-03-02",
+                 "address": {"locality": "Wakefield"}, "accounts": "total-exemption-full",
+                 "officers": [{"name": "NORTHGATE, Alex James", "officer_role": "director", "appointed_on": "2009-03-02"},
+                              {"name": "NORTHGATE, Priya", "officer_role": "director", "appointed_on": "2015-06-01"},
+                              {"name": "NORTHGATE, Edward", "officer_role": "director", "appointed_on": "2009-03-02", "resigned_on": "2019-04-30"},
+                              {"name": "LEDGER SECRETARIES LIMITED", "officer_role": "corporate-secretary", "appointed_on": "2009-03-02"}]},
+    "ZZ000102": {"company_name": "NORTHGATE DISTRIBUTION SERVICES LIMITED", "company_status": "dissolved", "type": "ltd", "date_of_creation": "1998-05-11",
+                 "address": {"locality": "Leeds"}, "accounts": "small", "officers": []},
+}
+
+
+def companies_transport():
+    """The replayed Companies House API: search, company profiles and officer lists."""
+    import httpx
+
+    def officer(item: dict) -> dict:
+        return {**item, "date_of_birth": {"month": 4, "year": 1971}, "nationality": "British", "country_of_residence": "England",
+                "occupation": "Company Director", "address": {"premises": "1", "address_line_1": "Example Lane", "locality": "Wakefield"}}
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/search/companies":
+            q = request.url.params.get("q", "").casefold()
+            items = [{"company_number": n, "title": c["company_name"], "company_status": c["company_status"], "date_of_creation": c["date_of_creation"],
+                      "address": c["address"], "address_snippet": f"1 Example Lane, {c['address']['locality']}"}
+                     for n, c in COMPANIES.items() if q and q.split()[0] in c["company_name"].casefold()]
+            return httpx.Response(200, json={"items": items, "total_results": len(items)})
+        parts = path.strip("/").split("/")
+        company = COMPANIES.get(parts[1]) if len(parts) >= 2 and parts[0] == "company" else None
+        if company is None:
+            return httpx.Response(404, json={"errors": [{"error": "company-profile-not-found"}]})
+        if len(parts) == 2:
+            return httpx.Response(200, json={"company_number": parts[1], "company_name": company["company_name"], "company_status": company["company_status"],
+                                             "type": company["type"], "date_of_creation": company["date_of_creation"],
+                                             "accounts": {"last_accounts": {"type": company["accounts"], "made_up_to": "2026-03-31"}}})
+        if parts[2:] == ["officers"]:
+            items = [officer(o) for o in company["officers"]]
+            return httpx.Response(200, json={"items": items, "total_results": len(items), "active_count": sum(1 for o in items if not o.get("resigned_on"))})
+        return httpx.Response(404)
+
+    return httpx.MockTransport(answer)

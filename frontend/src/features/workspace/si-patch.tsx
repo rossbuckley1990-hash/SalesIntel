@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, ArrowUpRight, ClipboardCopy, Printer, SlidersHorizontal, UserPlus } from "lucide-react";
 import { Pill } from "./ds";
 import { safeUrl } from "./radar-model";
-import { SERVICES, VERDICTS, goto, setRepName, si, type VerdictSummary, type VerdictT, type VerdictValue } from "./si-api";
+import { SERVICES, VERDICTS, goto, setRepName, si, type Call, type VerdictSummary, type VerdictT, type VerdictValue } from "./si-api";
 
 /** The patch brief: five leads for one rep's patch, from records already held. The first thing a rep sees, and the thing the
  * owner sends. Chosen by the rule shown at the foot, never by a score; each lead carries its dated evidence chain and takes a
@@ -12,7 +12,7 @@ type ChainLink = { date: string; text: string; url: string; label: "Published" |
 type Card = {
   key: string; organisation: string; kind: string; kind_label: string; chosen: string; chosen_because: string; headline: string; why_now: string; chain: ChainLink[];
   against: number; next: { action: string; label: string; url: string }; region: string; place: string; worth: string; sources: number; account_id: number | null;
-  verdict: VerdictT | null;
+  verdict: VerdictT | null; call?: Call | null;
 };
 /** A rep's own target, as entered. "targets" on a rep are target accounts; this is the sales target. */
 type TargetIn = { amount: string; basis: "annual_contract_value" | "total_contract_value"; start: string; months: number; average_value: string | null; qualified_per_win: number | null };
@@ -144,6 +144,7 @@ function LeadCard({ card, n, of, busy, onJudge }: { card: Card; n: number; of: n
             <span className="t">{href ? <a href={href} target="_blank" rel="noreferrer">{l.text}<ArrowUpRight size={12} aria-hidden="true" /><span className="sr-only"> (opens the source in a new tab)</span></a> : l.text}</span>
             <Pill tone={l.label === "Published" ? "green" : "amber"}>{l.label}</Pill></li>); })}
       </ol>
+      {card.call && <p className="lo-pcall"><strong>Who to call: </strong>{card.call.line} <span className="text-ds-muted">{card.call.route ? card.call.route.how : card.call.grade_detail}</span></p>}
       {card.against > 0 && <p className="lo-note">{card.against} record{card.against === 1 ? " points" : "s point"} the other way. Read the brief before you call.</p>}
       <div className="lo-pcard-foot">
         <button className="ds-btn sm" onClick={open}>Next: {card.next.label} <ArrowRight size={13} aria-hidden="true" /></button>

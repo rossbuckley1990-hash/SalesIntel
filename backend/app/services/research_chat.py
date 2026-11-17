@@ -37,6 +37,7 @@ from app.models.market_opportunity import MarketOpportunity, MarketOpportunityRe
 from app.models.prospect import Prospect
 from app.models.research_chat import ResearchChat
 from app.services import prospect_research as pr
+from app.services import site_reader, who_to_call
 from app.services.opportunity_dossier import DossierUnavailable
 
 MAX_CALLS = 10          # provider calls in one reply: searching and reading happen inside each call
@@ -68,7 +69,7 @@ Use SalesIntel's tools as you go:
 - check_known with the names you are considering, before researching them deeply. Say when the rep already holds one.
 - search_records for each organisation you offer: SalesIntel's published contracts (the supplier may be the incumbent), live tenders and early notices, regulator and fire service records. If a tender or early notice is already published, the need is not hidden: say so.
 - assess_timing with the dated clues you found. Its answer, from SalesIntel's stated rules, is the timing. Never contradict it, and never give a probability.
-- offer_opportunity for every organisation worth a rep's call. SalesIntel checks it and shows the rep a card they can save. Each fact's source_url must be a page you searched or read. A card counts as a hidden opportunity only with two or more dated facts from independent publishers; otherwise it is shown as one to check first. Read the response: if something was removed, fix it or say so.
+- offer_opportunity for every organisation worth a rep's call. SalesIntel checks it and shows the rep a card they can save. Give the organisation's own website whenever you know it: SalesIntel reads the contact details it publishes there itself, word for word. Each fact's source_url must be a page you searched or read. A card counts as a hidden opportunity only with two or more dated facts from independent publishers; otherwise it is shown as one to check first. Read the response: if something was removed, fix it or say so.
 
 Find as many real opportunities as the evidence supports, typically five to ten in a first answer, more when asked. Quality before count: never pad, never offer one organisation twice under two names, and leave out anything you could not source.
 
@@ -291,6 +292,17 @@ def _timing(record: dict[str, Any], today: date) -> dict[str, Any]:
     return {k: timing.get(k) for k in ('phase', 'label', 'light', 'window', 'reasons')}
 
 
+def _site_note(site: dict[str, Any] | None) -> str:
+    """What SalesIntel's own reading of the organisation's website gave, for the model to report honestly."""
+    if not site:
+        return 'No website was given, so SalesIntel did not read one.'
+    if site.get('stopped'):
+        return site['stopped']
+    found = site.get('routes') or []
+    return (f"Read {len(site.get('pages') or [])} page(s) of {site['website']}: " +
+            (', '.join(r['value'] for r in found) + '.' if found else 'no published email address or phone number.'))
+
+
 def _complete(raw: dict[str, Any]) -> dict[str, Any]:
     """A card's record in the shape a saved prospect has, with nothing invented: missing parts are empty."""
     record = {k: raw.get(k) for k in CARD_SCHEMA['properties'] if k != 'why_hidden'}
@@ -355,6 +367,12 @@ class State:
         standing = 'published' if records.get('published_tender_or_notice') else 'hidden' if len(publishers) >= 2 else 'check_first'
         key = pr.dedup_key(record['name'])
         existing = next((c for c in self.cards if c['key'] == key), None)
+        before = (existing or {}).get('record', {}).get('site_read') or {}
+        if record['website'] and before.get('website') == record['website'] and before.get('read_on') == self.today.isoformat():
+            record['site_read'] = before  # read once a day is enough
+        elif record['website']:
+            record['site_read'] = site_reader.read(record['website'], [p['name'] for p in record['people']], self.today)
+        call = who_to_call.view(record, [], self.today)
         card = {'n': existing['n'] if existing else len(self.cards) + 1, 'key': key, 'name': record['name'], 'record': record, 'facts': facts,
                 'publishers': publishers, 'standing': standing, 'why_hidden': str(raw.get('why_hidden') or '').strip()[:600],
                 'records': {'notices': records.get('live_tenders_and_notices', []), 'contracts': records.get('published_contracts', [])[:3]},
@@ -374,7 +392,7 @@ class State:
             notes.append('The rep already holds this organisation; the card says so.')
         return {'accepted': True, 'card': card['n'], 'shown_as': STANDING[standing], 'independent_publishers': len(publishers), 'timing': timing['label'],
                 'published_notice_found': bool(records.get('published_tender_or_notice')), 'already_in_workspace': known['known'],
-                'removed': record['checks'], 'notes': notes}
+                'who_to_call': call['line'], 'website_read': _site_note(record.get('site_read')), 'removed': record['checks'], 'notes': notes}
 
     def call(self, name: str, given: dict[str, Any]) -> dict[str, Any]:
         if name == 'check_known':
@@ -602,7 +620,8 @@ def card_view(card: dict[str, Any], today: date | None = None) -> dict[str, Any]
     return {**{k: card.get(k) for k in ('n', 'name', 'facts', 'publishers', 'standing', 'why_hidden', 'records', 'known', 'status', 'prospect_id', 'turn')},
             'timing': _timing(r, today or datetime.now(UTC).date()), 'standing_label': STANDING[card['standing']], 'headline': r.get('headline', ''), 'summary': r.get('summary', ''), 'location': r.get('location', ''),
             'sector': r.get('sector', ''), 'website': r.get('website', ''), 'people': r.get('people', []), 'contact_routes': r.get('contact_routes', []),
-            'unknowns': r.get('unknowns', []), 'lead_key': f"pr:{card['prospect_id']}" if card.get('prospect_id') else None}
+            'unknowns': r.get('unknowns', []), 'lead_key': f"pr:{card['prospect_id']}" if card.get('prospect_id') else None,
+            'call': who_to_call.view(r, [], today or datetime.now(UTC).date())}
 
 
 def listing(db: Session) -> list[dict[str, Any]]:

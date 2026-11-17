@@ -441,3 +441,30 @@ def replay_chat_post(payload: dict[str, Any], listener=None) -> dict[str, Any]:
         stop = "end_turn"
     _emit(listener, content)
     return {"id": "msg_replay", "type": "message", "role": "assistant", "model": payload.get("model"), "content": content, "stop_reason": stop, "usage": usage}
+
+
+def site_transport():
+    """The replayed organisations' own websites, for SalesIntel's site reader: each site's first page links to its pages
+    above, and each page shows the text above. Fictional, like everything here."""
+    import html
+    from urllib.parse import urlparse
+
+    import httpx
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        host = request.url.host
+        if request.url.path == '/robots.txt':
+            return httpx.Response(200, text='User-agent: *\nAllow: /\n')
+        own = {u: p for u, p in PAGES.items() if urlparse(u).hostname == host}
+        if request.url.path in ('', '/') and own:
+            links = ''.join(f'<li><a href="{html.escape(urlparse(u).path)}">{html.escape(p["title"].split(" - ")[0])}</a></li>' for u, p in own.items())
+            return httpx.Response(200, headers={'content-type': 'text/html; charset=utf-8'},
+                                  text=f'<html><head><title>{html.escape(host)}</title></head><body><nav><ul>{links}</ul></nav></body></html>')
+        page = PAGES.get(url) or PAGES.get(url.rstrip('/'))
+        if page is None:
+            return httpx.Response(404)
+        return httpx.Response(200, headers={'content-type': 'text/html; charset=utf-8'},
+                              text=f'<html><head><title>{html.escape(page["title"])}</title></head><body><main><p>{html.escape(page["text"])}</p></main></body></html>')
+
+    return httpx.MockTransport(answer)

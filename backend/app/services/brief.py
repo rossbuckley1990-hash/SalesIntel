@@ -871,6 +871,16 @@ def _primary_key(db: Session, account: Account) -> str | None:
     return f"{rev[link.entity_type]}:{link.entity_id}" if link and link.entity_type in rev else None
 
 
+def _call(db: Session, source_key: str | None, kind: str, contacts: list, today: date) -> dict:
+    """Who to call, as Discover and the patch brief say it: from a private lead's research and website reading, and the team's
+    saved contacts; for a public record, the roles its kind calls for. During a live procurement, the notice is the way in."""
+    from app.models.prospect import Prospect
+    from app.services import who_to_call
+    row = db.get(Prospect, int(source_key[3:])) if source_key and source_key.startswith('pr:') else None
+    call = who_to_call.view(dict(row.data or {}) if row else {}, contacts, today, play=None if row else core.PLAY.get(kind, 'risk'))
+    return who_to_call.during_procurement(call) if kind == 'published_procurement' else call
+
+
 def build(db: Session, key: str, *, last_review: datetime | None = None, now: datetime | None = None) -> dict:
     """The Living Opportunity for a lead key (pr:, mo:, sh:, mc:) or an account (acct:<id>). A lead that already has an
     account opens as that account, so research and conversations are never split."""
@@ -956,6 +966,7 @@ def build(db: Session, key: str, *, last_review: datetime | None = None, now: da
     stale = bool(latest_day and (now.date() - latest_day).days > STALE_DAYS and not ahead)
     happened = record.get('happened') or {}
     return {
+        'call': _call(db, source_key, record['kind'], contacts, now.date()),
         'key': key, 'account_id': account.id if account else None, 'source_key': source_key, 'kind': record['kind'], 'kind_label': record.get('kind_label') or KIND_LABEL.get(record['kind'], 'Opportunity'),
         'organisation': record['organisation'],
         'reveal': {'headline': happened.get('text') or record['organisation'].get('name') or '', 'happened': happened or None,

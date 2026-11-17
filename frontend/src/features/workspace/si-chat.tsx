@@ -4,7 +4,8 @@ import { ArrowUp, Check, ExternalLink, Loader2, MessageSquarePlus, Square } from
 import { blocks, type Inline } from "./chat-text";
 import { Pill } from "./ds";
 import { safeUrl } from "./radar-model";
-import { goto, param, si } from "./si-api";
+import { goto, param, si, type Call } from "./si-api";
+import { WhoToCall } from "./si-call";
 import { newKey, type JobT } from "./si-people";
 import type { SharedProps } from "./types";
 
@@ -16,6 +17,7 @@ export type ChatCard = {
   records: { notices: { title: string; category_label: string; source_url: string }[]; contracts: { title: string; supplier: string; end_date: string; status: string; source_url: string }[] };
   known: { known: boolean; prospect?: { name: string; status: string }; account?: { name: string; status: string; deals: { title: string; stage: string }[] } };
   people: { name: string; role: string; source_url: string; quote: string }[]; contact_routes: { kind: string; value: string; label: string; source_url: string }[];
+  call?: Call;
 };
 type Source = { n: number; url: string; title: string };
 type UserTurn = { role: "user"; text: string; job_id: number; at: string; job?: JobT | null };
@@ -95,7 +97,8 @@ export function OpportunityCard({ card, onSave }: { card: ChatCard; onSave?: (n:
       {card.records.contracts.map((r, i) => <p key={`c${i}`} className="si-chat-card-line">Published contract: <Link url={r.source_url}>{r.title}</Link>{r.supplier && `, supplied by ${r.supplier}`}{r.end_date && `, ending ${when(r.end_date)}`}</p>)}
       {!card.records.notices.length && <p className="si-chat-card-line text-ds-muted">No tender or early notice for it in SalesIntel&rsquo;s public records.</p>}
       {card.known.known && <p className="si-chat-card-line"><strong>Already yours:</strong> {card.known.account ? `an account (${card.known.account.status})` : `a saved prospect (${card.known.prospect?.status})`}.</p>}
-      {(!!card.people.length || !!card.contact_routes.length) && <section aria-label="Who to approach" className="si-chat-card-people">
+      {card.call ? <WhoToCall key={`${card.n}-${card.call.line}`} call={card.call} />
+        : (!!card.people.length || !!card.contact_routes.length) && <section aria-label="Who to approach" className="si-chat-card-people">
         {card.people.map((p, i) => <p key={i}><strong>{p.name}</strong>, {p.role} · <Link url={p.source_url}>{host(p.source_url)}</Link></p>)}
         {card.contact_routes.map((r, i) => <p key={`r${i}`}>{r.label || r.kind}: {r.value} · <Link url={r.source_url}>{host(r.source_url)}</Link></p>)}</section>}
       {!!card.unknowns.length && <p className="si-chat-card-line text-ds-muted">Not yet known: {card.unknowns.slice(0, 3).join("; ")}.</p>}

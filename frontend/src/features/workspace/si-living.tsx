@@ -5,7 +5,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { AlertTriangle, ArrowUpRight, Briefcase, CalendarPlus, Check, ChevronDown, CircleDot, Clock3, FilePenLine, FileSearch, History, Loader2, Minus, MessageSquare, Search, Sparkles,
   TrendingDown, TrendingUp, Users, Wallet } from "lucide-react";
 import { hostOf, safeUrl } from "./radar-model";
-import { SERVICES, dayLabel, goto, inDays, si, VERDICTS, ensureRep, repName, type VerdictT, type VerdictValue } from "./si-api";
+import { SERVICES, dayLabel, goto, inDays, si, VERDICTS, ensureRep, repName, type Call, type VerdictT, type VerdictValue } from "./si-api";
+import { WhoToCall } from "./si-call";
 import { ActivityForm } from "./si-shared";
 import { JobStatus, newKey, useJob, type JobT } from "./si-people";
 import { FieldView, NoticeFacts, type FieldT, type NoticeT } from "./si-notice";
@@ -32,6 +33,8 @@ export type BriefT = {
   notice?: NoticeT | null; field?: FieldT | null;
   /** Whether this record came from a lead (only a lead can be judged), and the standing verdict on it. */
   judgeable?: boolean; verdict?: VerdictT | null;
+  /** Who to call and how; never a guessed address. */
+  call?: Call;
 };
 type Notify = (m: string, e?: boolean) => void;
 type Running = { label: string; job: JobT; gapRequestId?: number };
@@ -405,6 +408,8 @@ function Relationships({ b }: { b: BriefT }) {
   return (
     <section className="lo-section" aria-label="Who is involved">
       <div className="lo-section-head"><h3>Who is involved</h3><span className="lo-meta">Only what a source or your team recorded</span></div>
+      {b.call && <WhoToCall key={`${b.key}-${b.call.line}`} call={b.call} website={b.organisation.website || ""}
+        prospectId={b.source_key?.startsWith("pr:") ? Number(b.source_key.slice(3)) : undefined} />}
       {!rows.length ? <p className="lo-muted">Nobody is named in the sources yet. Who maintains the systems today is still unknown.</p> : <ul className="lo-rels">
         {rows.map((r) => <li key={`${r.name}-${r.label}`}><span className="lo-mark" aria-hidden="true">{r.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase()}</span>
           <span className="min-w-0"><span className="name">{r.name}</span><span className="role">{r.label}</span></span>

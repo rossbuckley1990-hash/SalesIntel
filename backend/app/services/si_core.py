@@ -20,7 +20,7 @@ from app.models.crm import Account, AccountLink, Activity, Contact, DealRecord, 
 from app.models.market_opportunity import MarketOpportunity, MarketOpportunityRevision
 from app.models.prospect import Prospect
 from app.models.tenancy import LeadState
-from app.services import notice, signals
+from app.services import notice, signals, who_to_call
 from app.services.prospect_research import view as prospect_view
 from app.tenancy import hosted
 
@@ -336,7 +336,7 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
                 "sector": v.get("sector"), "signal_types": [x.get("type") for x in v.get("signals") or [] if x.get("source_url")],
                 "value": None, "status": {"new": "new", "watching": "watching", "pipeline": "investigating", "dismissed": "dismissed"}.get(row.status, "new"),
                 "account_id": link.account_id if link else None, "link_basis": link.basis if link else None,
-                "people": len(v.get("people") or []), "contact_routes": len(v.get("contact_routes") or []),
+                "people": len(v.get("people") or []), "contact_routes": len(v.get("contact_routes") or []), "website": v.get("website") or "",
                 # Inferred timing never outranks a published deadline in the same bucket.
                 "rank": (1 if phase == "engage_now" else 2 if phase == "prepare" else 3, 9999),
             })
@@ -354,17 +354,27 @@ def discover_items(db: Session, *, include_private: bool = True, include_public:
             stated = next((sig for sig in v.get("signals") or [] if sig.get("basis") == "stated" and sig.get("source_url")), None)
             it["brief"] = _brief(it, it["kind"], prefs, v.get("sector") or "", known, v.get("unknowns") or [], routes.get(it["account_id"], 0), len(v.get("people") or []),
                                  why_now=(v.get("headline") or stated.get("title")) if stated else None, inferred_timing=it["why_now"] if stated else "")
+            it["_record"] = v
             it["kind_label"] = KIND_LABEL[it["kind"]]
     if include_shadow:
         items += _shadow_items(db, links, statuses, routes, prefs, today)
     # Published deadlines first, then by how much of the recorded fit matches; never by an invented score.
     items.sort(key=lambda x: (x["status"] == "dismissed", x["kind"] == "unverified_candidate", x["rank"], -len(x["brief"]["fit"]["matched"]), x.get("_order") or x["organisation"]))
+    # Who to call, from what research and the organisation's own website give and what the team saved; never a guessed address.
+    saved: dict[int, list[Contact]] = {}
+    for c in db.scalars(select(Contact).where(Contact.account_id.is_not(None))):
+        saved.setdefault(c.account_id, []).append(c)
     for x in items:
         x.pop("_order", None)
+        record = x.pop("_record", None)
+        call = who_to_call.view(record or {}, saved.get(x["account_id"], []), today, play=None if record is not None else PLAY.get(x["kind"], "risk"))
+        x["brief"]["who"]["call"] = who_to_call.during_procurement(call) if x["kind"] == "published_procurement" else call
     return items if limit is None else items[:limit]
 
 
 UNSOURCED = "The signal is inferred or unsourced. Verify it before acting."
+# Who matters first for a lead with no research record: the buying-committee template for its kind (a public signal is a risk).
+PLAY = {"published_procurement": "public_tender", "contract_ending": "renewal", "shadow_signal": "new_site", "customer_expansion": "expansion"}
 
 
 def _signal_row(it: dict, s: dict, top: dict) -> None:

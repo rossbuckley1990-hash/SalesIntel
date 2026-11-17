@@ -42,8 +42,11 @@ test("a rep asks in their own words; the reply researches, checks and offers a c
   await expect(card).toContainText("Engage now");
   await expect(card).toContainText("By SalesIntel’s timing rules; a phase, not a forecast.");
   await expect(card).toContainText("No tender or early notice for it in SalesIntel’s public records.");
-  await expect(card.getByRole("region", { name: "Who to approach" })).toContainText("Sam Patel, Head of Property");
-  await expect(card.getByRole("region", { name: "Who to approach" })).toContainText("0113 496 0000");
+  // Who to call: the right person, and a route SalesIntel read on the organisation's own website, saying so.
+  const call = card.getByRole("region", { name: "Who to call" });
+  await expect(call).toContainText("Call 0113 496 0000 and ask for Sam Patel, Head of Property.");
+  await expect(call).toContainText("On northgate-distribution.example, the organisation’s own website, read by SalesIntel on");
+  await expect(call).toContainText("Before a cold call, check the number against the CTPS and TPS do-not-call registers.");
   await expect(log.getByRole("article", { name: "Calder Freight Services" })).toHaveCount(0);  // no dated fact a page states
   await expect(page.getByText("md.northgate@gmail.com")).toHaveCount(0);  // planted by a page that tried to instruct the model
   await expect(log).toContainText(/This reply cost \$0\.\d\d/);
@@ -79,6 +82,19 @@ test("a rep asks in their own words; the reply researches, checks and offers a c
   // Saved, it is a private lead in Discover.
   await log.getByRole("article", { name: "Northgate Distribution Ltd" }).getByRole("button", { name: /Open in Discover/ }).click();
   await expect(page.getByRole("region", { name: "Results" }).getByRole("button", { name: /Northgate Distribution Ltd/ })).toBeVisible();
+  // The lead page says who to call in the same words, and reads the organisation's website again on request.
+  const who = page.getByRole("region", { name: "Who is involved" }).getByRole("region", { name: "Who to call" });
+  await expect(who).toContainText("Call 0113 496 0000 and ask for Sam Patel, Head of Property.");
+  await expect(who).toContainText("Usually decides: Estates or property director · Site or general manager of the depot · Head of facilities or facilities manager");
+  await who.getByRole("button", { name: "Read their website for contact details" }).click();
+  await expect(who).toContainText(/SalesIntel read 3 pages of northgate-distribution\.example on \d{1,2} \w+ \d{4}: 1 published contact detail\./);
+  await who.scrollIntoViewIfNeeded();
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/45-who-to-call-desktop.png` });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await who.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.screenshot({ animations: "disabled", path: `${SHOTS}/46-who-to-call-mobile.png` });
+  await page.setViewportSize({ width: 1440, height: 1000 });
 
   // Another company cannot open the conversation.
   const rival = await signUp(browser, "rival@epsilon-chat.example", "Eve Rival", "Epsilon Security Ltd");

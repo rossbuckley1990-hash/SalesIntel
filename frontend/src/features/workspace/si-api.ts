@@ -23,7 +23,7 @@ export type Lead = {
   key: string; type: "public" | "private" | "shadow"; shadow?: ShadowA; source_label: string; organisation: string; title: string; why_now: string; category: string; category_label: string;
   basis: "published" | "inferred"; timing: string | null; days: number | null; timing_label: string; light?: "green" | "amber" | "red" | "grey";
   nation: string | null; region?: string | null; tier: number | null; services: string[]; supplier: string | null; value: Value | null;
-  status: LeadStatus; account_id: number | null; link_basis: string | null; people?: number; contact_routes?: number;
+  status: LeadStatus; account_id: number | null; link_basis: string | null; people?: number; contact_routes?: number; website?: string;
   kind: "published_procurement" | "contract_ending" | "private_signal" | "customer_expansion" | "unverified_candidate" | "shadow_signal"; kind_label: string; brief: Brief;
   /** What the row's own stored notice states. Public records only; absent on private signals. */
   facts?: RowFacts; worth?: Worth | null; published?: string;
@@ -53,7 +53,15 @@ export type ClockRow = { key: string; organisation: string; title: string; date:
 export type Brief = {
   why_customer: string[]; fit: { matched: string[]; gaps: string[]; unknown: string[] }; why_now: string; why_now_basis: string; inferred_timing: string;
   known: { text: string; source_url: string | null; date: string; basis: string }[]; unknown: string[];
-  who: { roles: string[]; routes_saved: number; people_in_research: number; summary: string }; next: string;
+  who: { roles: string[]; routes_saved: number; people_in_research: number; summary: string; call?: Call }; next: string;
+};
+/** Who to call about a lead and how: never a guessed address. Each route says how it was found. */
+export type Call = {
+  play: string; roles: string[]; line: string; grade: string; grade_label: string; grade_detail: string; direct: boolean; reachable: boolean;
+  person: { name: string; role: string; source_url: string; host: string; from: "saved" | "research"; fits: boolean } | null;
+  route: { kind: string; value: string; source_url: string; how: string; confirmed: boolean } | null;
+  also: { name: string; role: string; source_url: string }[]; more: { kind: string; value: string; how: string; source_url: string; grade: string }[];
+  cautions: string[]; site: { website: string; read_on: string; stopped: string; pages: number; found: number } | null;
 };
 export type DiscoverResult = { items: Lead[]; total: number; counts: { public: number; private: number; shadow?: number }; interpreted: { nations: string[]; services: string[]; regions: string[]; keywords: string[] }; gaps: string[]; sort?: string };
 export type Evidence = { label: string; url: string; date?: string; basis?: string };

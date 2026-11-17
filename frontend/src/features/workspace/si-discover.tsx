@@ -4,6 +4,7 @@ import { ArrowUpRight, Bookmark, Building2, CalendarRange, ChevronDown, Eye, Glo
 import { EmptyState, Pill } from "./ds";
 import { NATIONS, relative, safeUrl, valueLine } from "./radar-model";
 import { BASIS_LABEL, SERVICES, SERVICE_NAME, dayLabel, goto, param, si, type DiscoverResult, type Lead } from "./si-api";
+import { WhoToCall } from "./si-call";
 import { useUrl } from "./si-shared";
 import type { SharedProps } from "./types";
 import { authMode } from "@/lib/session";
@@ -35,7 +36,9 @@ function BriefView({ lead }: { lead: Lead }) {
       <Q q="What do we know?"><ul className="space-y-1">{b.known.map((k, i) => { const href = safeUrl(k.source_url || ""); return <li key={i} className="text-[13px]">{k.text}{k.date && <span className="text-ds-muted"> · {longDate(k.date)}</span>}
         {href && <> · <a className="font-medium text-ds-brand hover:underline" href={href} target="_blank" rel="noreferrer">source</a></>}{k.basis !== "published" && k.basis !== "stated" && <span className="text-ds-amber"> (inferred)</span>}</li>; })}</ul></Q>
       <Q q="What remains unknown?"><ul className="list-disc space-y-0.5 pl-5 text-[13px] text-ds-ink-2">{b.unknown.map((u) => <li key={u}>{u}</li>)}</ul></Q>
-      <Q q="Who should we contact?"><p className="text-[13px]">{b.who.roles.join(" · ")}</p><p className="text-[12px] text-ds-muted">{b.who.summary}{b.who.people_in_research ? ` · ${b.who.people_in_research} named in research` : ""}</p></Q>
+      <Q q="Who should we contact?">{b.who.call
+        ? <WhoToCall key={`${lead.key}-${b.who.call.line}`} call={b.who.call} prospectId={lead.type === "private" ? Number(lead.key.slice(3)) : undefined} website={lead.website || ""} />
+        : <><p className="text-[13px]">{b.who.roles.join(" · ")}</p><p className="text-[12px] text-ds-muted">{b.who.summary}{b.who.people_in_research ? ` · ${b.who.people_in_research} named in research` : ""}</p></>}</Q>
       <Q q="What should we do next?"><p className="font-semibold text-ds-brand">{b.next}</p></Q>
     </div>
   );

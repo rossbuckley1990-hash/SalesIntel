@@ -517,6 +517,21 @@ a.si-cite:hover { background: var(--ds-brand-soft); color: var(--ds-brand); }
 .si-chat-card-why { margin-top: 10px; color: var(--ds-ink-2); }
 .si-chat-card-line { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; color: var(--ds-ink-2); }
 .si-chat-card-people { margin-top: 10px; border-top: 1px solid var(--ds-border); padding-top: 8px; color: var(--ds-ink-2); overflow-wrap: anywhere; }
+/* Who to call: the line to act on first, then how the route was found. */
+.si-call { margin-top: 10px; border-top: 1px solid var(--ds-border); padding-top: 8px; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.si-call-line { font-size: 14px; line-height: 21px; font-weight: 600; color: var(--ds-ink); }
+.si-call-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 12.5px; line-height: 18px; color: var(--ds-ink-2); }
+.si-call-roles { font-size: 12.5px; line-height: 18px; color: var(--ds-muted); }
+.si-call-more { font-size: 12.5px; line-height: 18px; color: var(--ds-ink-2); }
+.si-call-more summary { cursor: pointer; color: var(--ds-muted); }
+.si-call-more ul { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+.si-call-caution { font-size: 12px; line-height: 17px; color: var(--ds-amber); }
+.si-call-read { margin-top: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.si-call-site { flex: 1 1 220px; min-width: 0; }
+.si-call-site input { width: 100%; }
+.si-call-error { flex-basis: 100%; font-size: 12px; color: var(--ds-red); }
+.si-call a, .lo-pcall a { color: var(--ds-ink-2); text-decoration: underline; text-underline-offset: 2px; }
+.lo-pcall { margin-top: 8px; font-size: 13px; line-height: 19px; color: var(--ds-ink); overflow-wrap: anywhere; }
 .si-chat-card-foot { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .si-chat-saved { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; color: var(--ds-green); }
 .si-chat-sources { margin-top: 12px; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; line-height: 18px; overflow-wrap: anywhere; }

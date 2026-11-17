@@ -287,7 +287,8 @@ def card(db: Session, step: str, item: dict, rep_name: str) -> dict:
             'next': {'action': b['next']['action'], 'label': notice.clip(b['next']['label'], 90), 'url': str((b['next'].get('params') or {}).get('url') or '')},
             'region': region_of(item) or next(iter(sorted(regions_of(item))), ''), 'place': facts.get('place') or item.get('region') or _borrowed(item),
             'worth': (item.get('worth') or {}).get('label') or '',
-            'deadline': facts.get('deadline'), 'sources': two_records(item), 'account_id': item.get('account_id'), 'verdict': verdicts.current(db, item['key'], rep_name)}
+            'deadline': facts.get('deadline'), 'sources': two_records(item), 'account_id': item.get('account_id'), 'verdict': verdicts.current(db, item['key'], rep_name),
+            'call': ((item.get('brief') or {}).get('who') or {}).get('call')}
 
 
 def _borrowed(item: dict) -> str:
@@ -355,10 +356,14 @@ def text_of(v: dict) -> str:
         for link in c['chain']:
             when = notice.readable(link['date']) if link['date'] else 'So'
             lines.append(f"   - {when}: {link['text']} [{link['label']}]{' ' + link['url'] if link['url'] else ''}")
+        if c.get('call'):
+            lines.append(f"   Who to call: {c['call']['line']}")
         lines += [f"   Next: {c['next']['label']}", '']
     if v['leads']:
         lines += ['Tell me what you think of each one. Reply with the number and a letter:',
-                  'A = Didn’t know, worth a call   B = Knew already   C = Wrong', 'For example: 1A 2B 3A 4C 5A']
+                  'A = Didn’t know, worth a call   B = Knew already   C = Wrong', 'For example: 1A 2B 3A 4C 5A', '',
+                  'Contact details are only those a public source or the organisation’s own website gives, never guessed. Check phone numbers '
+                  'against the CTPS and TPS registers before a cold call, and tell anyone you email where you found their details.']
     else:
         lines.append('Nothing new for this patch today.')
     return '\n'.join(lines)

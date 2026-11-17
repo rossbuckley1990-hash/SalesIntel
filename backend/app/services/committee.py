@@ -90,6 +90,7 @@ TEMPLATES = {
     'expansion': ['facilities', 'estates', 'procurement'],
     'supplier_review': ['facilities', 'contract', 'procurement', 'executive'],
     'develop': ['facilities', 'estates', 'procurement', 'finance'],
+    'risk': ['fire_safety', 'facilities', 'estates', 'executive'],  # a fire, break-in, enforcement notice or ageing system
 }
 
 

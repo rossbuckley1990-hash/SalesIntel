@@ -190,6 +190,38 @@ def stop_research_chat(chat_id: int, db: Session = Depends(tenant_db)):
     return run(db, work)
 
 
+class SiteReadIn(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    website: str | None = Field(default=None, max_length=500)
+
+
+@router.post('/prospects/{prospect_id}/read-site')
+def read_prospect_site(prospect_id: int, payload: SiteReadIn, db: Session = Depends(tenant_db)):
+    """Read a saved lead's own website for the contact details it publishes, and keep them with the day they were read.
+    Returns the lead as Discover shows it."""
+    from app.models.prospect import Prospect
+    from app.services import site_reader
+    row = db.get(Prospect, prospect_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail='That lead is not in this workspace.')
+    website = (payload.website or (row.data or {}).get('website') or '').strip()
+    if site_reader.root(website) is None:
+        raise HTTPException(status_code=422, detail='Give the organisation\u2019s own website, for example www.example.co.uk.')
+    names = [str(p.get('name') or '') for p in (row.data or {}).get('people') or [] if isinstance(p, dict)]
+    db.rollback()  # hold no database lock while the website is read
+    found = site_reader.read(website, names, core.uk_today())
+
+    def work():
+        again = db.get(Prospect, prospect_id)
+        if again is None:
+            raise LookupError('That lead is not in this workspace.')
+        again.data = {**(again.data or {}), 'website': (again.data or {}).get('website') or website, 'site_read': found}
+        again.updated_at = datetime.now(UTC)
+        db.flush()
+        return core.discover(db, key=f'pr:{prospect_id}')['items'][0]
+    return run(db, work)
+
+
 @router.post('/research-chats/{chat_id}/cards/{n}/save')
 def save_research_card(chat_id: int, n: int, db: Session = Depends(tenant_db)):
     """Save an opportunity card to Discover as a private lead."""
